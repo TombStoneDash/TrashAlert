@@ -1,0 +1,62 @@
+# Configuration for cities supported by TrashAlert
+# Each city entry includes metadata for pipeline processing
+
+cities:
+  - name: San Diego
+    state: California
+    state_abbr: CA
+    country: USA
+    has_official_pickup_zones: true
+    pickup_zone_data_source: "https://data.sandiego.gov/datasets/get-it-done-311/"
+    notes: "Major city with extensive subdivision data available"
+
+  - name: El Centro
+    state: California
+    state_abbr: CA
+    country: USA
+    has_official_pickup_zones: false
+    pickup_zone_data_source: "Contact city directly - may require manual collection"
+    notes: "County seat of Imperial County"
+
+  - name: Calexico
+    state: California
+    state_abbr: CA
+    country: USA
+    has_official_pickup_zones: false
+    pickup_zone_data_source: "Not available - will use OSM boundaries"
+    notes: "Border city in Imperial County"
+
+  - name: Brawley
+    state: California
+    state_abbr: CA
+    country: USA
+    has_official_pickup_zones: false
+    pickup_zone_data_source: "Not available - will use OSM boundaries"
+    notes: "Agricultural city in Imperial County"
+
+  - name: Imperial
+    state: California
+    state_abbr: CA
+    country: USA
+    has_official_pickup_zones: false
+    pickup_zone_data_source: "Not available - will use OSM boundaries"
+    notes: "Small city in Imperial County"
+
+  - name: Holtville
+    state: California
+    state_abbr: CA
+    country: USA
+    has_official_pickup_zones: false
+    pickup_zone_data_source: "Not available - will use OSM boundaries"
+    notes: "Small agricultural town in Imperial County"
+
+# Future cities can be added here with the same structure
+# Example template:
+#
+#  - name: City Name
+#    state: State Name
+#    state_abbr: XX
+#    country: USA
+#    has_official_pickup_zones: true/false
+#    pickup_zone_data_source: "URL or note"
+#    notes: "Any additional context"
