@@ -26,6 +26,9 @@ wheels/
 # Data files (commented out for now to show example output)
 # data/*.csv
 
+# Database files
+*.db
+
 # IDE
 .vscode/
 .idea/
