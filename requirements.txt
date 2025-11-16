@@ -1,0 +1,14 @@
+# TrashAlert Dependencies
+
+# Core dependencies
+pyyaml>=6.0.1           # YAML configuration parsing
+requests>=2.31.0        # HTTP requests for API calls
+
+# Optional dependencies for extended functionality
+# Uncomment if needed for your use case:
+
+# geojson>=3.0.1        # GeoJSON validation and manipulation
+# shapely>=2.0.2        # Geometric operations
+# geopandas>=0.14.1     # Geospatial data analysis
+# folium>=0.15.0        # Interactive map visualization
+# pandas>=2.1.4         # Data analysis and CSV handling

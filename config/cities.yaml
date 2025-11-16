@@ -1,0 +1,206 @@
+# TrashAlert Cities Configuration
+# Add new cities here to extend coverage
+
+cities:
+  # Imperial Valley Cities
+  - id: "imperial_brawley"
+    name: "Brawley"
+    state: "CA"
+    county: "Imperial"
+    region: "Imperial Valley"
+    bbox:
+      # Bounding box [min_lat, min_lon, max_lat, max_lon]
+      south: 32.954
+      west: -115.565
+      north: 33.008
+      east: -115.502
+    osm:
+      use_overpass: true
+      query_type: "city_bounds"
+    data_sources:
+      - name: "OSM"
+        type: "overpass"
+        url: "https://overpass-api.de/api/interpreter"
+      - name: "City Open Data"
+        type: "manual"
+        url: "https://www.brawley-ca.gov"
+    population: 26000
+    timezone: "America/Los_Angeles"
+    enabled: true
+
+  - id: "imperial_calexico"
+    name: "Calexico"
+    state: "CA"
+    county: "Imperial"
+    region: "Imperial Valley"
+    bbox:
+      south: 32.643
+      west: -115.518
+      north: 32.707
+      east: -115.477
+    osm:
+      use_overpass: true
+      query_type: "city_bounds"
+    data_sources:
+      - name: "OSM"
+        type: "overpass"
+        url: "https://overpass-api.de/api/interpreter"
+      - name: "City Open Data"
+        type: "manual"
+        url: "https://www.calexico.ca.gov"
+    population: 40000
+    timezone: "America/Los_Angeles"
+    enabled: true
+
+  - id: "imperial_el_centro"
+    name: "El Centro"
+    state: "CA"
+    county: "Imperial"
+    region: "Imperial Valley"
+    bbox:
+      south: 32.762
+      west: -115.600
+      north: 32.810
+      east: -115.535
+    osm:
+      use_overpass: true
+      query_type: "city_bounds"
+    data_sources:
+      - name: "OSM"
+        type: "overpass"
+        url: "https://overpass-api.de/api/interpreter"
+      - name: "City Open Data"
+        type: "manual"
+        url: "https://www.cityofelcentro.org"
+    population: 44000
+    timezone: "America/Los_Angeles"
+    enabled: true
+
+  - id: "imperial_imperial"
+    name: "Imperial"
+    state: "CA"
+    county: "Imperial"
+    region: "Imperial Valley"
+    bbox:
+      south: 32.827
+      west: -115.588
+      north: 32.870
+      east: -115.540
+    osm:
+      use_overpass: true
+      query_type: "city_bounds"
+    data_sources:
+      - name: "OSM"
+        type: "overpass"
+        url: "https://overpass-api.de/api/interpreter"
+      - name: "City Open Data"
+        type: "manual"
+        url: "https://www.cityofimperial.org"
+    population: 18000
+    timezone: "America/Los_Angeles"
+    enabled: true
+
+  # San Diego County Cities
+  - id: "san_diego_city"
+    name: "San Diego"
+    state: "CA"
+    county: "San Diego"
+    region: "San Diego Metro"
+    bbox:
+      south: 32.534
+      west: -117.280
+      north: 33.114
+      east: -116.908
+    osm:
+      use_overpass: true
+      query_type: "city_bounds"
+      # Note: Large city - may need to split into districts
+      split_query: true
+    data_sources:
+      - name: "OSM"
+        type: "overpass"
+        url: "https://overpass-api.de/api/interpreter"
+      - name: "City of San Diego Open Data"
+        type: "api"
+        url: "https://data.sandiego.gov"
+      - name: "Get It Done API"
+        type: "api"
+        url: "https://www.sandiego.gov/get-it-done"
+    population: 1400000
+    timezone: "America/Los_Angeles"
+    enabled: true
+    notes: "Large city - process in chunks to avoid API timeouts"
+
+  - id: "san_diego_chula_vista"
+    name: "Chula Vista"
+    state: "CA"
+    county: "San Diego"
+    region: "San Diego Metro"
+    bbox:
+      south: 32.584
+      west: -117.089
+      north: 32.656
+      east: -116.915
+    osm:
+      use_overpass: true
+      query_type: "city_bounds"
+    data_sources:
+      - name: "OSM"
+        type: "overpass"
+        url: "https://overpass-api.de/api/interpreter"
+      - name: "City Open Data"
+        type: "manual"
+        url: "https://www.chulavistaca.gov"
+    population: 275000
+    timezone: "America/Los_Angeles"
+    enabled: true
+
+  - id: "san_diego_oceanside"
+    name: "Oceanside"
+    state: "CA"
+    county: "San Diego"
+    region: "San Diego Metro"
+    bbox:
+      south: 33.161
+      west: -117.407
+      north: 33.239
+      east: -117.283
+    osm:
+      use_overpass: true
+      query_type: "city_bounds"
+    data_sources:
+      - name: "OSM"
+        type: "overpass"
+        url: "https://overpass-api.de/api/interpreter"
+      - name: "City Open Data"
+        type: "manual"
+        url: "https://www.ci.oceanside.ca.us"
+    population: 175000
+    timezone: "America/Los_Angeles"
+    enabled: true
+
+# Processing configuration
+processing:
+  # API rate limits
+  overpass_api:
+    timeout_seconds: 180
+    max_retries: 3
+    rate_limit_delay: 2.0
+
+  # Chunk size for large queries
+  chunk_size: 1000
+
+  # Output formats
+  output_formats:
+    - geojson
+    - csv
+    - json
+
+# Logging configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  log_dir: "logs"
+  rotate: true
+  max_bytes: 10485760  # 10MB
+  backup_count: 5
