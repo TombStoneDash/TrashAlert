@@ -1,0 +1,2033 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "EL_CENTRO_G1",
+        "name": "El Centro Grid 1",
+        "city_id": "EL_CENTRO",
+        "city_name": "El Centro",
+        "grid_row": 1,
+        "grid_col": 1,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.62310000000001,
+              32.742000000000004
+            ],
+            [
+              -115.5931,
+              32.742000000000004
+            ],
+            [
+              -115.5931,
+              32.767
+            ],
+            [
+              -115.62310000000001,
+              32.767
+            ],
+            [
+              -115.62310000000001,
+              32.742000000000004
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "EL_CENTRO_G2",
+        "name": "El Centro Grid 2",
+        "city_id": "EL_CENTRO",
+        "city_name": "El Centro",
+        "grid_row": 1,
+        "grid_col": 2,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.5931,
+              32.742000000000004
+            ],
+            [
+              -115.5631,
+              32.742000000000004
+            ],
+            [
+              -115.5631,
+              32.767
+            ],
+            [
+              -115.5931,
+              32.767
+            ],
+            [
+              -115.5931,
+              32.742000000000004
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "EL_CENTRO_G3",
+        "name": "El Centro Grid 3",
+        "city_id": "EL_CENTRO",
+        "city_name": "El Centro",
+        "grid_row": 1,
+        "grid_col": 3,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.5631,
+              32.742000000000004
+            ],
+            [
+              -115.5331,
+              32.742000000000004
+            ],
+            [
+              -115.5331,
+              32.767
+            ],
+            [
+              -115.5631,
+              32.767
+            ],
+            [
+              -115.5631,
+              32.742000000000004
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "EL_CENTRO_G4",
+        "name": "El Centro Grid 4",
+        "city_id": "EL_CENTRO",
+        "city_name": "El Centro",
+        "grid_row": 1,
+        "grid_col": 4,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.5331,
+              32.742000000000004
+            ],
+            [
+              -115.5031,
+              32.742000000000004
+            ],
+            [
+              -115.5031,
+              32.767
+            ],
+            [
+              -115.5331,
+              32.767
+            ],
+            [
+              -115.5331,
+              32.742000000000004
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "EL_CENTRO_G5",
+        "name": "El Centro Grid 5",
+        "city_id": "EL_CENTRO",
+        "city_name": "El Centro",
+        "grid_row": 2,
+        "grid_col": 1,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.62310000000001,
+              32.767
+            ],
+            [
+              -115.5931,
+              32.767
+            ],
+            [
+              -115.5931,
+              32.792
+            ],
+            [
+              -115.62310000000001,
+              32.792
+            ],
+            [
+              -115.62310000000001,
+              32.767
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "EL_CENTRO_G6",
+        "name": "El Centro Grid 6",
+        "city_id": "EL_CENTRO",
+        "city_name": "El Centro",
+        "grid_row": 2,
+        "grid_col": 2,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.5931,
+              32.767
+            ],
+            [
+              -115.5631,
+              32.767
+            ],
+            [
+              -115.5631,
+              32.792
+            ],
+            [
+              -115.5931,
+              32.792
+            ],
+            [
+              -115.5931,
+              32.767
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "EL_CENTRO_G7",
+        "name": "El Centro Grid 7",
+        "city_id": "EL_CENTRO",
+        "city_name": "El Centro",
+        "grid_row": 2,
+        "grid_col": 3,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.5631,
+              32.767
+            ],
+            [
+              -115.5331,
+              32.767
+            ],
+            [
+              -115.5331,
+              32.792
+            ],
+            [
+              -115.5631,
+              32.792
+            ],
+            [
+              -115.5631,
+              32.767
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "EL_CENTRO_G8",
+        "name": "El Centro Grid 8",
+        "city_id": "EL_CENTRO",
+        "city_name": "El Centro",
+        "grid_row": 2,
+        "grid_col": 4,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.5331,
+              32.767
+            ],
+            [
+              -115.5031,
+              32.767
+            ],
+            [
+              -115.5031,
+              32.792
+            ],
+            [
+              -115.5331,
+              32.792
+            ],
+            [
+              -115.5331,
+              32.767
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "EL_CENTRO_G9",
+        "name": "El Centro Grid 9",
+        "city_id": "EL_CENTRO",
+        "city_name": "El Centro",
+        "grid_row": 3,
+        "grid_col": 1,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.62310000000001,
+              32.792
+            ],
+            [
+              -115.5931,
+              32.792
+            ],
+            [
+              -115.5931,
+              32.817
+            ],
+            [
+              -115.62310000000001,
+              32.817
+            ],
+            [
+              -115.62310000000001,
+              32.792
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "EL_CENTRO_G10",
+        "name": "El Centro Grid 10",
+        "city_id": "EL_CENTRO",
+        "city_name": "El Centro",
+        "grid_row": 3,
+        "grid_col": 2,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.5931,
+              32.792
+            ],
+            [
+              -115.5631,
+              32.792
+            ],
+            [
+              -115.5631,
+              32.817
+            ],
+            [
+              -115.5931,
+              32.817
+            ],
+            [
+              -115.5931,
+              32.792
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "EL_CENTRO_G11",
+        "name": "El Centro Grid 11",
+        "city_id": "EL_CENTRO",
+        "city_name": "El Centro",
+        "grid_row": 3,
+        "grid_col": 3,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.5631,
+              32.792
+            ],
+            [
+              -115.5331,
+              32.792
+            ],
+            [
+              -115.5331,
+              32.817
+            ],
+            [
+              -115.5631,
+              32.817
+            ],
+            [
+              -115.5631,
+              32.792
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "EL_CENTRO_G12",
+        "name": "El Centro Grid 12",
+        "city_id": "EL_CENTRO",
+        "city_name": "El Centro",
+        "grid_row": 3,
+        "grid_col": 4,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.5331,
+              32.792
+            ],
+            [
+              -115.5031,
+              32.792
+            ],
+            [
+              -115.5031,
+              32.817
+            ],
+            [
+              -115.5331,
+              32.817
+            ],
+            [
+              -115.5331,
+              32.792
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "EL_CENTRO_G13",
+        "name": "El Centro Grid 13",
+        "city_id": "EL_CENTRO",
+        "city_name": "El Centro",
+        "grid_row": 4,
+        "grid_col": 1,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.62310000000001,
+              32.817
+            ],
+            [
+              -115.5931,
+              32.817
+            ],
+            [
+              -115.5931,
+              32.842
+            ],
+            [
+              -115.62310000000001,
+              32.842
+            ],
+            [
+              -115.62310000000001,
+              32.817
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "EL_CENTRO_G14",
+        "name": "El Centro Grid 14",
+        "city_id": "EL_CENTRO",
+        "city_name": "El Centro",
+        "grid_row": 4,
+        "grid_col": 2,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.5931,
+              32.817
+            ],
+            [
+              -115.5631,
+              32.817
+            ],
+            [
+              -115.5631,
+              32.842
+            ],
+            [
+              -115.5931,
+              32.842
+            ],
+            [
+              -115.5931,
+              32.817
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "EL_CENTRO_G15",
+        "name": "El Centro Grid 15",
+        "city_id": "EL_CENTRO",
+        "city_name": "El Centro",
+        "grid_row": 4,
+        "grid_col": 3,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.5631,
+              32.817
+            ],
+            [
+              -115.5331,
+              32.817
+            ],
+            [
+              -115.5331,
+              32.842
+            ],
+            [
+              -115.5631,
+              32.842
+            ],
+            [
+              -115.5631,
+              32.817
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "EL_CENTRO_G16",
+        "name": "El Centro Grid 16",
+        "city_id": "EL_CENTRO",
+        "city_name": "El Centro",
+        "grid_row": 4,
+        "grid_col": 4,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.5331,
+              32.817
+            ],
+            [
+              -115.5031,
+              32.817
+            ],
+            [
+              -115.5031,
+              32.842
+            ],
+            [
+              -115.5331,
+              32.842
+            ],
+            [
+              -115.5331,
+              32.817
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "BRAWLEY_G1",
+        "name": "Brawley Grid 1",
+        "city_id": "BRAWLEY",
+        "city_name": "Brawley",
+        "grid_row": 1,
+        "grid_col": 1,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.5703,
+              32.938700000000004
+            ],
+            [
+              -115.54363333333333,
+              32.938700000000004
+            ],
+            [
+              -115.54363333333333,
+              32.96536666666667
+            ],
+            [
+              -115.5703,
+              32.96536666666667
+            ],
+            [
+              -115.5703,
+              32.938700000000004
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "BRAWLEY_G2",
+        "name": "Brawley Grid 2",
+        "city_id": "BRAWLEY",
+        "city_name": "Brawley",
+        "grid_row": 1,
+        "grid_col": 2,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.54363333333333,
+              32.938700000000004
+            ],
+            [
+              -115.51696666666666,
+              32.938700000000004
+            ],
+            [
+              -115.51696666666666,
+              32.96536666666667
+            ],
+            [
+              -115.54363333333333,
+              32.96536666666667
+            ],
+            [
+              -115.54363333333333,
+              32.938700000000004
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "BRAWLEY_G3",
+        "name": "Brawley Grid 3",
+        "city_id": "BRAWLEY",
+        "city_name": "Brawley",
+        "grid_row": 1,
+        "grid_col": 3,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.51696666666666,
+              32.938700000000004
+            ],
+            [
+              -115.49029999999999,
+              32.938700000000004
+            ],
+            [
+              -115.49029999999999,
+              32.96536666666667
+            ],
+            [
+              -115.51696666666666,
+              32.96536666666667
+            ],
+            [
+              -115.51696666666666,
+              32.938700000000004
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "BRAWLEY_G4",
+        "name": "Brawley Grid 4",
+        "city_id": "BRAWLEY",
+        "city_name": "Brawley",
+        "grid_row": 2,
+        "grid_col": 1,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.5703,
+              32.96536666666667
+            ],
+            [
+              -115.54363333333333,
+              32.96536666666667
+            ],
+            [
+              -115.54363333333333,
+              32.99203333333334
+            ],
+            [
+              -115.5703,
+              32.99203333333334
+            ],
+            [
+              -115.5703,
+              32.96536666666667
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "BRAWLEY_G5",
+        "name": "Brawley Grid 5",
+        "city_id": "BRAWLEY",
+        "city_name": "Brawley",
+        "grid_row": 2,
+        "grid_col": 2,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.54363333333333,
+              32.96536666666667
+            ],
+            [
+              -115.51696666666666,
+              32.96536666666667
+            ],
+            [
+              -115.51696666666666,
+              32.99203333333334
+            ],
+            [
+              -115.54363333333333,
+              32.99203333333334
+            ],
+            [
+              -115.54363333333333,
+              32.96536666666667
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "BRAWLEY_G6",
+        "name": "Brawley Grid 6",
+        "city_id": "BRAWLEY",
+        "city_name": "Brawley",
+        "grid_row": 2,
+        "grid_col": 3,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.51696666666666,
+              32.96536666666667
+            ],
+            [
+              -115.49029999999999,
+              32.96536666666667
+            ],
+            [
+              -115.49029999999999,
+              32.99203333333334
+            ],
+            [
+              -115.51696666666666,
+              32.99203333333334
+            ],
+            [
+              -115.51696666666666,
+              32.96536666666667
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "BRAWLEY_G7",
+        "name": "Brawley Grid 7",
+        "city_id": "BRAWLEY",
+        "city_name": "Brawley",
+        "grid_row": 3,
+        "grid_col": 1,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.5703,
+              32.99203333333334
+            ],
+            [
+              -115.54363333333333,
+              32.99203333333334
+            ],
+            [
+              -115.54363333333333,
+              33.0187
+            ],
+            [
+              -115.5703,
+              33.0187
+            ],
+            [
+              -115.5703,
+              32.99203333333334
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "BRAWLEY_G8",
+        "name": "Brawley Grid 8",
+        "city_id": "BRAWLEY",
+        "city_name": "Brawley",
+        "grid_row": 3,
+        "grid_col": 2,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.54363333333333,
+              32.99203333333334
+            ],
+            [
+              -115.51696666666666,
+              32.99203333333334
+            ],
+            [
+              -115.51696666666666,
+              33.0187
+            ],
+            [
+              -115.54363333333333,
+              33.0187
+            ],
+            [
+              -115.54363333333333,
+              32.99203333333334
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "BRAWLEY_G9",
+        "name": "Brawley Grid 9",
+        "city_id": "BRAWLEY",
+        "city_name": "Brawley",
+        "grid_row": 3,
+        "grid_col": 3,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.51696666666666,
+              32.99203333333334
+            ],
+            [
+              -115.49029999999999,
+              32.99203333333334
+            ],
+            [
+              -115.49029999999999,
+              33.0187
+            ],
+            [
+              -115.51696666666666,
+              33.0187
+            ],
+            [
+              -115.51696666666666,
+              32.99203333333334
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "IMPERIAL_G1",
+        "name": "Imperial Grid 1",
+        "city_id": "IMPERIAL",
+        "city_name": "Imperial",
+        "grid_row": 1,
+        "grid_col": 1,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.5994,
+              32.817299999999996
+            ],
+            [
+              -115.5794,
+              32.817299999999996
+            ],
+            [
+              -115.5794,
+              32.8373
+            ],
+            [
+              -115.5994,
+              32.8373
+            ],
+            [
+              -115.5994,
+              32.817299999999996
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "IMPERIAL_G2",
+        "name": "Imperial Grid 2",
+        "city_id": "IMPERIAL",
+        "city_name": "Imperial",
+        "grid_row": 1,
+        "grid_col": 2,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.5794,
+              32.817299999999996
+            ],
+            [
+              -115.5594,
+              32.817299999999996
+            ],
+            [
+              -115.5594,
+              32.8373
+            ],
+            [
+              -115.5794,
+              32.8373
+            ],
+            [
+              -115.5794,
+              32.817299999999996
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "IMPERIAL_G3",
+        "name": "Imperial Grid 3",
+        "city_id": "IMPERIAL",
+        "city_name": "Imperial",
+        "grid_row": 1,
+        "grid_col": 3,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.5594,
+              32.817299999999996
+            ],
+            [
+              -115.5394,
+              32.817299999999996
+            ],
+            [
+              -115.5394,
+              32.8373
+            ],
+            [
+              -115.5594,
+              32.8373
+            ],
+            [
+              -115.5594,
+              32.817299999999996
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "IMPERIAL_G4",
+        "name": "Imperial Grid 4",
+        "city_id": "IMPERIAL",
+        "city_name": "Imperial",
+        "grid_row": 2,
+        "grid_col": 1,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.5994,
+              32.8373
+            ],
+            [
+              -115.5794,
+              32.8373
+            ],
+            [
+              -115.5794,
+              32.857299999999995
+            ],
+            [
+              -115.5994,
+              32.857299999999995
+            ],
+            [
+              -115.5994,
+              32.8373
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "IMPERIAL_G5",
+        "name": "Imperial Grid 5",
+        "city_id": "IMPERIAL",
+        "city_name": "Imperial",
+        "grid_row": 2,
+        "grid_col": 2,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.5794,
+              32.8373
+            ],
+            [
+              -115.5594,
+              32.8373
+            ],
+            [
+              -115.5594,
+              32.857299999999995
+            ],
+            [
+              -115.5794,
+              32.857299999999995
+            ],
+            [
+              -115.5794,
+              32.8373
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "IMPERIAL_G6",
+        "name": "Imperial Grid 6",
+        "city_id": "IMPERIAL",
+        "city_name": "Imperial",
+        "grid_row": 2,
+        "grid_col": 3,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.5594,
+              32.8373
+            ],
+            [
+              -115.5394,
+              32.8373
+            ],
+            [
+              -115.5394,
+              32.857299999999995
+            ],
+            [
+              -115.5594,
+              32.857299999999995
+            ],
+            [
+              -115.5594,
+              32.8373
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "IMPERIAL_G7",
+        "name": "Imperial Grid 7",
+        "city_id": "IMPERIAL",
+        "city_name": "Imperial",
+        "grid_row": 3,
+        "grid_col": 1,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.5994,
+              32.857299999999995
+            ],
+            [
+              -115.5794,
+              32.857299999999995
+            ],
+            [
+              -115.5794,
+              32.8773
+            ],
+            [
+              -115.5994,
+              32.8773
+            ],
+            [
+              -115.5994,
+              32.857299999999995
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "IMPERIAL_G8",
+        "name": "Imperial Grid 8",
+        "city_id": "IMPERIAL",
+        "city_name": "Imperial",
+        "grid_row": 3,
+        "grid_col": 2,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.5794,
+              32.857299999999995
+            ],
+            [
+              -115.5594,
+              32.857299999999995
+            ],
+            [
+              -115.5594,
+              32.8773
+            ],
+            [
+              -115.5794,
+              32.8773
+            ],
+            [
+              -115.5794,
+              32.857299999999995
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "IMPERIAL_G9",
+        "name": "Imperial Grid 9",
+        "city_id": "IMPERIAL",
+        "city_name": "Imperial",
+        "grid_row": 3,
+        "grid_col": 3,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.5594,
+              32.857299999999995
+            ],
+            [
+              -115.5394,
+              32.857299999999995
+            ],
+            [
+              -115.5394,
+              32.8773
+            ],
+            [
+              -115.5594,
+              32.8773
+            ],
+            [
+              -115.5594,
+              32.857299999999995
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "CALEXICO_G1",
+        "name": "Calexico Grid 1",
+        "city_id": "CALEXICO",
+        "city_name": "Calexico",
+        "grid_row": 1,
+        "grid_col": 1,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.53890000000001,
+              32.6389
+            ],
+            [
+              -115.51223333333334,
+              32.6389
+            ],
+            [
+              -115.51223333333334,
+              32.66556666666666
+            ],
+            [
+              -115.53890000000001,
+              32.66556666666666
+            ],
+            [
+              -115.53890000000001,
+              32.6389
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "CALEXICO_G2",
+        "name": "Calexico Grid 2",
+        "city_id": "CALEXICO",
+        "city_name": "Calexico",
+        "grid_row": 1,
+        "grid_col": 2,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.51223333333334,
+              32.6389
+            ],
+            [
+              -115.48556666666667,
+              32.6389
+            ],
+            [
+              -115.48556666666667,
+              32.66556666666666
+            ],
+            [
+              -115.51223333333334,
+              32.66556666666666
+            ],
+            [
+              -115.51223333333334,
+              32.6389
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "CALEXICO_G3",
+        "name": "Calexico Grid 3",
+        "city_id": "CALEXICO",
+        "city_name": "Calexico",
+        "grid_row": 1,
+        "grid_col": 3,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.48556666666667,
+              32.6389
+            ],
+            [
+              -115.4589,
+              32.6389
+            ],
+            [
+              -115.4589,
+              32.66556666666666
+            ],
+            [
+              -115.48556666666667,
+              32.66556666666666
+            ],
+            [
+              -115.48556666666667,
+              32.6389
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "CALEXICO_G4",
+        "name": "Calexico Grid 4",
+        "city_id": "CALEXICO",
+        "city_name": "Calexico",
+        "grid_row": 2,
+        "grid_col": 1,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.53890000000001,
+              32.66556666666666
+            ],
+            [
+              -115.51223333333334,
+              32.66556666666666
+            ],
+            [
+              -115.51223333333334,
+              32.692233333333334
+            ],
+            [
+              -115.53890000000001,
+              32.692233333333334
+            ],
+            [
+              -115.53890000000001,
+              32.66556666666666
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "CALEXICO_G5",
+        "name": "Calexico Grid 5",
+        "city_id": "CALEXICO",
+        "city_name": "Calexico",
+        "grid_row": 2,
+        "grid_col": 2,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.51223333333334,
+              32.66556666666666
+            ],
+            [
+              -115.48556666666667,
+              32.66556666666666
+            ],
+            [
+              -115.48556666666667,
+              32.692233333333334
+            ],
+            [
+              -115.51223333333334,
+              32.692233333333334
+            ],
+            [
+              -115.51223333333334,
+              32.66556666666666
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "CALEXICO_G6",
+        "name": "Calexico Grid 6",
+        "city_id": "CALEXICO",
+        "city_name": "Calexico",
+        "grid_row": 2,
+        "grid_col": 3,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.48556666666667,
+              32.66556666666666
+            ],
+            [
+              -115.4589,
+              32.66556666666666
+            ],
+            [
+              -115.4589,
+              32.692233333333334
+            ],
+            [
+              -115.48556666666667,
+              32.692233333333334
+            ],
+            [
+              -115.48556666666667,
+              32.66556666666666
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "CALEXICO_G7",
+        "name": "Calexico Grid 7",
+        "city_id": "CALEXICO",
+        "city_name": "Calexico",
+        "grid_row": 3,
+        "grid_col": 1,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.53890000000001,
+              32.692233333333334
+            ],
+            [
+              -115.51223333333334,
+              32.692233333333334
+            ],
+            [
+              -115.51223333333334,
+              32.7189
+            ],
+            [
+              -115.53890000000001,
+              32.7189
+            ],
+            [
+              -115.53890000000001,
+              32.692233333333334
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "CALEXICO_G8",
+        "name": "Calexico Grid 8",
+        "city_id": "CALEXICO",
+        "city_name": "Calexico",
+        "grid_row": 3,
+        "grid_col": 2,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.51223333333334,
+              32.692233333333334
+            ],
+            [
+              -115.48556666666667,
+              32.692233333333334
+            ],
+            [
+              -115.48556666666667,
+              32.7189
+            ],
+            [
+              -115.51223333333334,
+              32.7189
+            ],
+            [
+              -115.51223333333334,
+              32.692233333333334
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "CALEXICO_G9",
+        "name": "Calexico Grid 9",
+        "city_id": "CALEXICO",
+        "city_name": "Calexico",
+        "grid_row": 3,
+        "grid_col": 3,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.48556666666667,
+              32.692233333333334
+            ],
+            [
+              -115.4589,
+              32.692233333333334
+            ],
+            [
+              -115.4589,
+              32.7189
+            ],
+            [
+              -115.48556666666667,
+              32.7189
+            ],
+            [
+              -115.48556666666667,
+              32.692233333333334
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "HOLTVILLE_G1",
+        "name": "Holtville Grid 1",
+        "city_id": "HOLTVILLE",
+        "city_name": "Holtville",
+        "grid_row": 1,
+        "grid_col": 1,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.40530000000001,
+              32.7862
+            ],
+            [
+              -115.38863333333335,
+              32.7862
+            ],
+            [
+              -115.38863333333335,
+              32.80286666666667
+            ],
+            [
+              -115.40530000000001,
+              32.80286666666667
+            ],
+            [
+              -115.40530000000001,
+              32.7862
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "HOLTVILLE_G2",
+        "name": "Holtville Grid 2",
+        "city_id": "HOLTVILLE",
+        "city_name": "Holtville",
+        "grid_row": 1,
+        "grid_col": 2,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.38863333333335,
+              32.7862
+            ],
+            [
+              -115.37196666666667,
+              32.7862
+            ],
+            [
+              -115.37196666666667,
+              32.80286666666667
+            ],
+            [
+              -115.38863333333335,
+              32.80286666666667
+            ],
+            [
+              -115.38863333333335,
+              32.7862
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "HOLTVILLE_G3",
+        "name": "Holtville Grid 3",
+        "city_id": "HOLTVILLE",
+        "city_name": "Holtville",
+        "grid_row": 1,
+        "grid_col": 3,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.37196666666667,
+              32.7862
+            ],
+            [
+              -115.3553,
+              32.7862
+            ],
+            [
+              -115.3553,
+              32.80286666666667
+            ],
+            [
+              -115.37196666666667,
+              32.80286666666667
+            ],
+            [
+              -115.37196666666667,
+              32.7862
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "HOLTVILLE_G4",
+        "name": "Holtville Grid 4",
+        "city_id": "HOLTVILLE",
+        "city_name": "Holtville",
+        "grid_row": 2,
+        "grid_col": 1,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.40530000000001,
+              32.80286666666667
+            ],
+            [
+              -115.38863333333335,
+              32.80286666666667
+            ],
+            [
+              -115.38863333333335,
+              32.81953333333333
+            ],
+            [
+              -115.40530000000001,
+              32.81953333333333
+            ],
+            [
+              -115.40530000000001,
+              32.80286666666667
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "HOLTVILLE_G5",
+        "name": "Holtville Grid 5",
+        "city_id": "HOLTVILLE",
+        "city_name": "Holtville",
+        "grid_row": 2,
+        "grid_col": 2,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.38863333333335,
+              32.80286666666667
+            ],
+            [
+              -115.37196666666667,
+              32.80286666666667
+            ],
+            [
+              -115.37196666666667,
+              32.81953333333333
+            ],
+            [
+              -115.38863333333335,
+              32.81953333333333
+            ],
+            [
+              -115.38863333333335,
+              32.80286666666667
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "HOLTVILLE_G6",
+        "name": "Holtville Grid 6",
+        "city_id": "HOLTVILLE",
+        "city_name": "Holtville",
+        "grid_row": 2,
+        "grid_col": 3,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.37196666666667,
+              32.80286666666667
+            ],
+            [
+              -115.3553,
+              32.80286666666667
+            ],
+            [
+              -115.3553,
+              32.81953333333333
+            ],
+            [
+              -115.37196666666667,
+              32.81953333333333
+            ],
+            [
+              -115.37196666666667,
+              32.80286666666667
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "HOLTVILLE_G7",
+        "name": "Holtville Grid 7",
+        "city_id": "HOLTVILLE",
+        "city_name": "Holtville",
+        "grid_row": 3,
+        "grid_col": 1,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.40530000000001,
+              32.81953333333333
+            ],
+            [
+              -115.38863333333335,
+              32.81953333333333
+            ],
+            [
+              -115.38863333333335,
+              32.8362
+            ],
+            [
+              -115.40530000000001,
+              32.8362
+            ],
+            [
+              -115.40530000000001,
+              32.81953333333333
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "HOLTVILLE_G8",
+        "name": "Holtville Grid 8",
+        "city_id": "HOLTVILLE",
+        "city_name": "Holtville",
+        "grid_row": 3,
+        "grid_col": 2,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.38863333333335,
+              32.81953333333333
+            ],
+            [
+              -115.37196666666667,
+              32.81953333333333
+            ],
+            [
+              -115.37196666666667,
+              32.8362
+            ],
+            [
+              -115.38863333333335,
+              32.8362
+            ],
+            [
+              -115.38863333333335,
+              32.81953333333333
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "HOLTVILLE_G9",
+        "name": "Holtville Grid 9",
+        "city_id": "HOLTVILLE",
+        "city_name": "Holtville",
+        "grid_row": 3,
+        "grid_col": 3,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.37196666666667,
+              32.81953333333333
+            ],
+            [
+              -115.3553,
+              32.81953333333333
+            ],
+            [
+              -115.3553,
+              32.8362
+            ],
+            [
+              -115.37196666666667,
+              32.8362
+            ],
+            [
+              -115.37196666666667,
+              32.81953333333333
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

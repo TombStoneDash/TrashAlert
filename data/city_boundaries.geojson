@@ -1,0 +1,221 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "city_id": "SAN_DIEGO",
+        "name": "San Diego",
+        "state": "CA",
+        "county": "San Diego"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -117.5111,
+              32.4657
+            ],
+            [
+              -116.81110000000001,
+              32.4657
+            ],
+            [
+              -116.81110000000001,
+              32.9657
+            ],
+            [
+              -117.5111,
+              32.9657
+            ],
+            [
+              -117.5111,
+              32.4657
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "city_id": "EL_CENTRO",
+        "name": "El Centro",
+        "state": "CA",
+        "county": "Imperial"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.62310000000001,
+              32.742000000000004
+            ],
+            [
+              -115.5031,
+              32.742000000000004
+            ],
+            [
+              -115.5031,
+              32.842
+            ],
+            [
+              -115.62310000000001,
+              32.842
+            ],
+            [
+              -115.62310000000001,
+              32.742000000000004
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "city_id": "BRAWLEY",
+        "name": "Brawley",
+        "state": "CA",
+        "county": "Imperial"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.5703,
+              32.938700000000004
+            ],
+            [
+              -115.49029999999999,
+              32.938700000000004
+            ],
+            [
+              -115.49029999999999,
+              33.0187
+            ],
+            [
+              -115.5703,
+              33.0187
+            ],
+            [
+              -115.5703,
+              32.938700000000004
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "city_id": "IMPERIAL",
+        "name": "Imperial",
+        "state": "CA",
+        "county": "Imperial"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.5994,
+              32.817299999999996
+            ],
+            [
+              -115.5394,
+              32.817299999999996
+            ],
+            [
+              -115.5394,
+              32.8773
+            ],
+            [
+              -115.5994,
+              32.8773
+            ],
+            [
+              -115.5994,
+              32.817299999999996
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "city_id": "CALEXICO",
+        "name": "Calexico",
+        "state": "CA",
+        "county": "Imperial"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.53890000000001,
+              32.6389
+            ],
+            [
+              -115.4589,
+              32.6389
+            ],
+            [
+              -115.4589,
+              32.7189
+            ],
+            [
+              -115.53890000000001,
+              32.7189
+            ],
+            [
+              -115.53890000000001,
+              32.6389
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "city_id": "HOLTVILLE",
+        "name": "Holtville",
+        "state": "CA",
+        "county": "Imperial"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -115.40530000000001,
+              32.7862
+            ],
+            [
+              -115.3553,
+              32.7862
+            ],
+            [
+              -115.3553,
+              32.8362
+            ],
+            [
+              -115.40530000000001,
+              32.8362
+            ],
+            [
+              -115.40530000000001,
+              32.7862
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

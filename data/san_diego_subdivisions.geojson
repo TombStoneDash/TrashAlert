@@ -1,0 +1,629 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "SAN_DIEGO_G1",
+        "name": "San Diego Grid 1",
+        "city_id": "SAN_DIEGO",
+        "city_name": "San Diego",
+        "grid_row": 1,
+        "grid_col": 1,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -117.5111,
+              32.4657
+            ],
+            [
+              -117.3361,
+              32.4657
+            ],
+            [
+              -117.3361,
+              32.5907
+            ],
+            [
+              -117.5111,
+              32.5907
+            ],
+            [
+              -117.5111,
+              32.4657
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "SAN_DIEGO_G2",
+        "name": "San Diego Grid 2",
+        "city_id": "SAN_DIEGO",
+        "city_name": "San Diego",
+        "grid_row": 1,
+        "grid_col": 2,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -117.3361,
+              32.4657
+            ],
+            [
+              -117.1611,
+              32.4657
+            ],
+            [
+              -117.1611,
+              32.5907
+            ],
+            [
+              -117.3361,
+              32.5907
+            ],
+            [
+              -117.3361,
+              32.4657
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "SAN_DIEGO_G3",
+        "name": "San Diego Grid 3",
+        "city_id": "SAN_DIEGO",
+        "city_name": "San Diego",
+        "grid_row": 1,
+        "grid_col": 3,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -117.1611,
+              32.4657
+            ],
+            [
+              -116.98610000000001,
+              32.4657
+            ],
+            [
+              -116.98610000000001,
+              32.5907
+            ],
+            [
+              -117.1611,
+              32.5907
+            ],
+            [
+              -117.1611,
+              32.4657
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "SAN_DIEGO_G4",
+        "name": "San Diego Grid 4",
+        "city_id": "SAN_DIEGO",
+        "city_name": "San Diego",
+        "grid_row": 1,
+        "grid_col": 4,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -116.98610000000001,
+              32.4657
+            ],
+            [
+              -116.81110000000001,
+              32.4657
+            ],
+            [
+              -116.81110000000001,
+              32.5907
+            ],
+            [
+              -116.98610000000001,
+              32.5907
+            ],
+            [
+              -116.98610000000001,
+              32.4657
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "SAN_DIEGO_G5",
+        "name": "San Diego Grid 5",
+        "city_id": "SAN_DIEGO",
+        "city_name": "San Diego",
+        "grid_row": 2,
+        "grid_col": 1,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -117.5111,
+              32.5907
+            ],
+            [
+              -117.3361,
+              32.5907
+            ],
+            [
+              -117.3361,
+              32.7157
+            ],
+            [
+              -117.5111,
+              32.7157
+            ],
+            [
+              -117.5111,
+              32.5907
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "SAN_DIEGO_G6",
+        "name": "San Diego Grid 6",
+        "city_id": "SAN_DIEGO",
+        "city_name": "San Diego",
+        "grid_row": 2,
+        "grid_col": 2,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -117.3361,
+              32.5907
+            ],
+            [
+              -117.1611,
+              32.5907
+            ],
+            [
+              -117.1611,
+              32.7157
+            ],
+            [
+              -117.3361,
+              32.7157
+            ],
+            [
+              -117.3361,
+              32.5907
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "SAN_DIEGO_G7",
+        "name": "San Diego Grid 7",
+        "city_id": "SAN_DIEGO",
+        "city_name": "San Diego",
+        "grid_row": 2,
+        "grid_col": 3,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -117.1611,
+              32.5907
+            ],
+            [
+              -116.98610000000001,
+              32.5907
+            ],
+            [
+              -116.98610000000001,
+              32.7157
+            ],
+            [
+              -117.1611,
+              32.7157
+            ],
+            [
+              -117.1611,
+              32.5907
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "SAN_DIEGO_G8",
+        "name": "San Diego Grid 8",
+        "city_id": "SAN_DIEGO",
+        "city_name": "San Diego",
+        "grid_row": 2,
+        "grid_col": 4,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -116.98610000000001,
+              32.5907
+            ],
+            [
+              -116.81110000000001,
+              32.5907
+            ],
+            [
+              -116.81110000000001,
+              32.7157
+            ],
+            [
+              -116.98610000000001,
+              32.7157
+            ],
+            [
+              -116.98610000000001,
+              32.5907
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "SAN_DIEGO_G9",
+        "name": "San Diego Grid 9",
+        "city_id": "SAN_DIEGO",
+        "city_name": "San Diego",
+        "grid_row": 3,
+        "grid_col": 1,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -117.5111,
+              32.7157
+            ],
+            [
+              -117.3361,
+              32.7157
+            ],
+            [
+              -117.3361,
+              32.8407
+            ],
+            [
+              -117.5111,
+              32.8407
+            ],
+            [
+              -117.5111,
+              32.7157
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "SAN_DIEGO_G10",
+        "name": "San Diego Grid 10",
+        "city_id": "SAN_DIEGO",
+        "city_name": "San Diego",
+        "grid_row": 3,
+        "grid_col": 2,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -117.3361,
+              32.7157
+            ],
+            [
+              -117.1611,
+              32.7157
+            ],
+            [
+              -117.1611,
+              32.8407
+            ],
+            [
+              -117.3361,
+              32.8407
+            ],
+            [
+              -117.3361,
+              32.7157
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "SAN_DIEGO_G11",
+        "name": "San Diego Grid 11",
+        "city_id": "SAN_DIEGO",
+        "city_name": "San Diego",
+        "grid_row": 3,
+        "grid_col": 3,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -117.1611,
+              32.7157
+            ],
+            [
+              -116.98610000000001,
+              32.7157
+            ],
+            [
+              -116.98610000000001,
+              32.8407
+            ],
+            [
+              -117.1611,
+              32.8407
+            ],
+            [
+              -117.1611,
+              32.7157
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "SAN_DIEGO_G12",
+        "name": "San Diego Grid 12",
+        "city_id": "SAN_DIEGO",
+        "city_name": "San Diego",
+        "grid_row": 3,
+        "grid_col": 4,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -116.98610000000001,
+              32.7157
+            ],
+            [
+              -116.81110000000001,
+              32.7157
+            ],
+            [
+              -116.81110000000001,
+              32.8407
+            ],
+            [
+              -116.98610000000001,
+              32.8407
+            ],
+            [
+              -116.98610000000001,
+              32.7157
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "SAN_DIEGO_G13",
+        "name": "San Diego Grid 13",
+        "city_id": "SAN_DIEGO",
+        "city_name": "San Diego",
+        "grid_row": 4,
+        "grid_col": 1,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -117.5111,
+              32.8407
+            ],
+            [
+              -117.3361,
+              32.8407
+            ],
+            [
+              -117.3361,
+              32.9657
+            ],
+            [
+              -117.5111,
+              32.9657
+            ],
+            [
+              -117.5111,
+              32.8407
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "SAN_DIEGO_G14",
+        "name": "San Diego Grid 14",
+        "city_id": "SAN_DIEGO",
+        "city_name": "San Diego",
+        "grid_row": 4,
+        "grid_col": 2,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -117.3361,
+              32.8407
+            ],
+            [
+              -117.1611,
+              32.8407
+            ],
+            [
+              -117.1611,
+              32.9657
+            ],
+            [
+              -117.3361,
+              32.9657
+            ],
+            [
+              -117.3361,
+              32.8407
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "SAN_DIEGO_G15",
+        "name": "San Diego Grid 15",
+        "city_id": "SAN_DIEGO",
+        "city_name": "San Diego",
+        "grid_row": 4,
+        "grid_col": 3,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -117.1611,
+              32.8407
+            ],
+            [
+              -116.98610000000001,
+              32.8407
+            ],
+            [
+              -116.98610000000001,
+              32.9657
+            ],
+            [
+              -117.1611,
+              32.9657
+            ],
+            [
+              -117.1611,
+              32.8407
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "subdivision_id": "SAN_DIEGO_G16",
+        "name": "San Diego Grid 16",
+        "city_id": "SAN_DIEGO",
+        "city_name": "San Diego",
+        "grid_row": 4,
+        "grid_col": 4,
+        "type": "grid"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -116.98610000000001,
+              32.8407
+            ],
+            [
+              -116.81110000000001,
+              32.8407
+            ],
+            [
+              -116.81110000000001,
+              32.9657
+            ],
+            [
+              -116.98610000000001,
+              32.9657
+            ],
+            [
+              -116.98610000000001,
+              32.8407
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}
