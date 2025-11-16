@@ -1,0 +1,41 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "austin_downtown",
+        "name": "Downtown",
+        "city": "Austin"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-97.7520, 30.2640],
+          [-97.7350, 30.2640],
+          [-97.7350, 30.2740],
+          [-97.7520, 30.2740],
+          [-97.7520, 30.2640]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "austin_east",
+        "name": "East Austin",
+        "city": "Austin"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-97.7200, 30.2500],
+          [-97.7000, 30.2500],
+          [-97.7000, 30.2800],
+          [-97.7200, 30.2800],
+          [-97.7200, 30.2500]
+        ]]
+      }
+    }
+  ]
+}

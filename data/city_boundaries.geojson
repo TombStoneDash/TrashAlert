@@ -1,0 +1,59 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Austin",
+        "state": "Texas",
+        "country": "USA"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-97.9383, 30.1328],
+          [-97.5698, 30.1328],
+          [-97.5698, 30.5167],
+          [-97.9383, 30.5167],
+          [-97.9383, 30.1328]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Portland",
+        "state": "Oregon",
+        "country": "USA"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-122.8367, 45.4215],
+          [-122.4714, 45.4215],
+          [-122.4714, 45.6520],
+          [-122.8367, 45.6520],
+          [-122.8367, 45.4215]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Denver",
+        "state": "Colorado",
+        "country": "USA"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-105.1099, 39.6143],
+          [-104.7994, 39.6143],
+          [-104.7994, 39.9142],
+          [-105.1099, 39.9142],
+          [-105.1099, 39.6143]
+        ]]
+      }
+    }
+  ]
+}

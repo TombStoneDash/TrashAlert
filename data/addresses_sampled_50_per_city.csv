@@ -1,0 +1,31 @@
+city,subdivision_id,house_number,street,lat,lon,source
+Austin,austin_downtown,100,Congress Avenue,30.26715,-97.74306,OSM
+Austin,austin_downtown,200,Congress Avenue,30.26815,-97.74306,OSM
+Austin,austin_downtown,300,Congress Avenue,30.26915,-97.74306,OSM
+Austin,austin_downtown,400,Congress Avenue,30.27015,-97.74306,OSM
+Austin,austin_downtown,101,6th Street,30.26950,-97.74200,OSM
+Austin,austin_downtown,201,6th Street,30.26960,-97.74100,OSM
+Austin,austin_east,500,E 7th Street,30.26500,-97.71500,OSM
+Austin,austin_east,600,E 7th Street,30.26600,-97.71400,OSM
+Austin,austin_east,700,E 7th Street,30.26700,-97.71300,OSM
+Austin,austin_east,800,E 7th Street,30.26800,-97.71200,OSM
+Portland,portland_pearl,1234,NW 10th Avenue,45.52750,-122.68100,OSM
+Portland,portland_pearl,1235,NW 10th Avenue,45.52760,-122.68100,OSM
+Portland,portland_pearl,1236,NW 10th Avenue,45.52770,-122.68100,OSM
+Portland,portland_pearl,1237,NW 10th Avenue,45.52780,-122.68100,OSM
+Portland,portland_pearl,1238,NW 10th Avenue,45.52790,-122.68100,OSM
+Portland,portland_hawthorne,3456,SE Hawthorne Blvd,45.51200,-122.64500,OSM
+Portland,portland_hawthorne,3457,SE Hawthorne Blvd,45.51210,-122.64500,OSM
+Portland,portland_hawthorne,3458,SE Hawthorne Blvd,45.51220,-122.64500,OSM
+Portland,portland_hawthorne,3459,SE Hawthorne Blvd,45.51230,-122.64500,OSM
+Portland,portland_hawthorne,3460,SE Hawthorne Blvd,45.51240,-122.64500,OSM
+Denver,,1000,16th Street Mall,39.74500,-104.99000,OSM
+Denver,,1001,16th Street Mall,39.74510,-104.99000,OSM
+Denver,,1002,16th Street Mall,39.74520,-104.99000,OSM
+Denver,,1003,16th Street Mall,39.74530,-104.99000,OSM
+Denver,,1004,16th Street Mall,39.74540,-104.99000,OSM
+Denver,,2000,Colfax Avenue,39.74000,-104.98000,OSM
+Denver,,2001,Colfax Avenue,39.74010,-104.98000,OSM
+Denver,,2002,Colfax Avenue,39.74020,-104.98000,OSM
+Denver,,2003,Colfax Avenue,39.74030,-104.98000,OSM
+Denver,,2004,Colfax Avenue,39.74040,-104.98000,OSM
