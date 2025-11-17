@@ -130,9 +130,23 @@ async def lookup_address(
     Returns:
         Pickup schedule with source information
     """
+    # Validate input
+    if not address or not address.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Address parameter is required and cannot be empty"
+        )
+
     # Normalize address to find it
     parts = normalize_address(address)
     normalized = parts['normalized_address']
+
+    # Check if normalization produced valid result
+    if not normalized or len(normalized) < 3:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid address format: '{address}'"
+        )
 
     # Try to find address
     addr_record = db.query(Address).filter(
@@ -196,7 +210,7 @@ async def lookup_address(
 
     # Priority 3: Unverified crowdsourced (if exists)
     elif consensus:
-        source = "CROWD_VERIFIED"  # Still show as crowd, but not fully verified
+        source = "CROWD_UNVERIFIED"  # Fixed: was incorrectly labeled as VERIFIED
         trash_day = consensus.consensus_trash_day
         recycling_day = consensus.consensus_recycling_day
         green_day = consensus.consensus_green_day
