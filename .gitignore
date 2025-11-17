@@ -23,11 +23,18 @@ wheels/
 .installed.cfg
 *.egg
 
+# Database
+*.db
+*.db-journal
+
 # Data files (commented out for now to show example output)
 # data/*.csv
 
 # Database files
 *.db
+# Database
+*.db
+*.db-journal
 
 # IDE
 .vscode/

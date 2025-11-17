@@ -1,0 +1,1 @@
+"""TrashAlert application package."""
