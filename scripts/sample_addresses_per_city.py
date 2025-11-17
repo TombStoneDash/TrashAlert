@@ -6,8 +6,11 @@ Tries to spread samples across subdivisions when available.
 
 import pandas as pd
 import logging
+import argparse
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List, Optional
+
+from config_utils import load_cities_config, filter_cities
 
 # Configure logging
 logging.basicConfig(
@@ -20,7 +23,8 @@ logger = logging.getLogger(__name__)
 def sample_addresses_per_city(
     input_csv: Path,
     output_csv: Path,
-    max_per_city: int = 50
+    max_per_city: int = 50,
+    city_filter: Optional[List[str]] = None
 ) -> pd.DataFrame:
     """
     Sample up to max_per_city addresses from each city.
@@ -29,12 +33,18 @@ def sample_addresses_per_city(
         input_csv: Path to raw addresses CSV
         output_csv: Path to write sampled addresses
         max_per_city: Maximum addresses per city (default 50)
+        city_filter: Optional list of city names to filter (None = all cities)
 
     Returns:
         Sampled DataFrame
     """
     logger.info(f"Loading raw addresses from {input_csv}")
     df = pd.read_csv(input_csv)
+
+    # Apply city filter if specified
+    if city_filter:
+        df = df[df['city_name'].isin(city_filter)]
+        logger.info(f"Filtered to {len(city_filter)} cities")
 
     logger.info(f"Loaded {len(df)} addresses from {df['city_name'].nunique()} cities")
 
@@ -212,19 +222,68 @@ def print_statistics(df: pd.DataFrame):
 
 def main():
     """Main entry point."""
+    parser = argparse.ArgumentParser(
+        description='Sample addresses per city from raw OSM data'
+    )
+    parser.add_argument(
+        '--only',
+        help='Process only specific city (e.g., "San Diego, California")'
+    )
+    parser.add_argument(
+        '--state',
+        help='Process only cities in specific state (e.g., "CA" or "California")'
+    )
+    parser.add_argument(
+        '--input',
+        type=Path,
+        help='Input CSV file (default: data/addresses_osm_raw.csv)'
+    )
+    parser.add_argument(
+        '--output',
+        type=Path,
+        help='Output CSV file (default: data/addresses_sampled_50_per_city.csv)'
+    )
+    parser.add_argument(
+        '--max-per-city',
+        type=int,
+        default=50,
+        help='Maximum addresses per city (default: 50)'
+    )
+
+    args = parser.parse_args()
+
     # Define paths
     base_dir = Path(__file__).parent.parent
-    input_csv = base_dir / 'data' / 'addresses_osm_raw.csv'
-    output_csv = base_dir / 'data' / 'addresses_sampled_50_per_city.csv'
+    input_csv = args.input or (base_dir / 'data' / 'addresses_osm_raw.csv')
+    output_csv = args.output or (base_dir / 'data' / 'addresses_sampled_50_per_city.csv')
 
     # Check if input exists
     if not input_csv.exists():
         logger.error(f"Input file not found: {input_csv}")
-        logger.error("Please ensure data/addresses_osm_raw.csv exists before running this script.")
+        logger.error("Please ensure the input file exists before running this script.")
         return 1
 
+    # Determine which cities to process
+    city_filter = None
+    if args.only or args.state:
+        logger.info("Loading cities from config...")
+        cities = load_cities_config()
+        cities = filter_cities(cities, only=args.only, state=args.state)
+        city_filter = [city['name'] for city in cities]
+
+        if not city_filter:
+            logger.error("No cities match the specified filters")
+            return 1
+
+        logger.info(f"Will process {len(city_filter)} cities: {', '.join(city_filter)}")
+
     # Sample addresses
-    sampled_df = sample_addresses_per_city(input_csv, output_csv, max_per_city=50)
+    sampled_df = sample_addresses_per_city(
+        input_csv,
+        output_csv,
+        max_per_city=args.max_per_city,
+        city_filter=city_filter
+    )
 
     # Print statistics
     print_statistics(sampled_df)
