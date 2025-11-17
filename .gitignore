@@ -30,6 +30,10 @@ wheels/
 # Data files (commented out for now to show example output)
 # data/*.csv
 
+# Database
+*.db
+*.db-journal
+
 # IDE
 .vscode/
 .idea/
