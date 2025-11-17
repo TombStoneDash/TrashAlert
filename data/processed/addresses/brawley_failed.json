@@ -1,0 +1,22 @@
+{
+  "city": "Brawley",
+  "state": "California",
+  "count": 3,
+  "failed_attempts": [
+    {
+      "lat": 32.98356157420755,
+      "lon": -115.51712850170004,
+      "reason": "geocoding_failed"
+    },
+    {
+      "lat": 32.973548634396245,
+      "lon": -115.50370431943898,
+      "reason": "geocoding_failed"
+    },
+    {
+      "lat": 32.97224766404793,
+      "lon": -115.52820786337976,
+      "reason": "geocoding_failed"
+    }
+  ]
+}
