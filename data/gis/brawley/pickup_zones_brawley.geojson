@@ -1,0 +1,93 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "BRAWLEY_ZONE_1",
+        "zone_name": "North Zone",
+        "trash_day": "Monday",
+        "recycling_day": "Monday",
+        "green_waste_day": "Thursday"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-115.55, 32.975],
+            [-115.52, 32.975],
+            [-115.52, 33.00],
+            [-115.55, 33.00],
+            [-115.55, 32.975]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "BRAWLEY_ZONE_2",
+        "zone_name": "South Zone",
+        "trash_day": "Tuesday",
+        "recycling_day": "Tuesday",
+        "green_waste_day": "Friday"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-115.55, 32.955],
+            [-115.52, 32.955],
+            [-115.52, 32.975],
+            [-115.55, 32.975],
+            [-115.55, 32.955]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "BRAWLEY_ZONE_3",
+        "zone_name": "East Zone",
+        "trash_day": "Wednesday",
+        "recycling_day": "Wednesday",
+        "green_waste_day": "Monday"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-115.535, 32.955],
+            [-115.51, 32.955],
+            [-115.51, 33.00],
+            [-115.535, 33.00],
+            [-115.535, 32.955]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "zone_id": "BRAWLEY_ZONE_4",
+        "zone_name": "West Zone",
+        "trash_day": "Thursday",
+        "recycling_day": "Thursday",
+        "green_waste_day": "Tuesday"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-115.56, 32.955],
+            [-115.535, 32.955],
+            [-115.535, 33.00],
+            [-115.56, 33.00],
+            [-115.56, 32.955]
+          ]
+        ]
+      }
+    }
+  ]
+}

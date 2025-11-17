@@ -32,6 +32,7 @@ wheels/
 
 # Database files
 *.db
+*.sqlite
 # Database
 *.db
 *.db-journal
