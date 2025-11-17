@@ -1,0 +1,41 @@
+{
+  "type": "Feature",
+  "properties": {
+    "name": "El Centro",
+    "state": "California",
+    "note": "Mock boundary for testing - replace with actual OSM data when available"
+  },
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          -115.6,
+          32.75
+        ],
+        [
+          -115.5,
+          32.75
+        ],
+        [
+          -115.5,
+          32.83
+        ],
+        [
+          -115.6,
+          32.83
+        ],
+        [
+          -115.6,
+          32.75
+        ]
+      ]
+    ]
+  },
+  "bbox": [
+    -115.6,
+    32.75,
+    -115.5,
+    32.83
+  ]
+}

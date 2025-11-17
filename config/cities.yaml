@@ -50,6 +50,38 @@ cities:
     pickup_zone_data_source: "Not available - will use OSM boundaries"
     notes: "Small agricultural town in Imperial County"
 
+  - name: Fresno
+    state: California
+    state_abbr: CA
+    country: USA
+    has_official_pickup_zones: false
+    pickup_zone_data_source: "Contact city directly - may require manual collection"
+    notes: "Major city in Central Valley, fifth largest in California"
+
+  - name: Riverside
+    state: California
+    state_abbr: CA
+    country: USA
+    has_official_pickup_zones: false
+    pickup_zone_data_source: "Contact city directly - may require manual collection"
+    notes: "Major city in Inland Empire region"
+
+  - name: Sacramento
+    state: California
+    state_abbr: CA
+    country: USA
+    has_official_pickup_zones: false
+    pickup_zone_data_source: "Contact city directly - may require manual collection"
+    notes: "State capital of California"
+
+  - name: Bakersfield
+    state: California
+    state_abbr: CA
+    country: USA
+    has_official_pickup_zones: false
+    pickup_zone_data_source: "Contact city directly - may require manual collection"
+    notes: "Major city in Kern County, Central Valley"
+
 # Future cities can be added here with the same structure
 # Example template:
 #
