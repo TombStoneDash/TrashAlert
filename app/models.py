@@ -75,3 +75,29 @@ class CrowdConsensus(Base):
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class RequestMetrics(Base):
+    """Track API request metrics for observability."""
+    __tablename__ = "request_metrics"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Request details
+    endpoint = Column(String, index=True, nullable=False)  # /lookup, /report
+    method = Column(String)  # GET, POST
+    status_code = Column(Integer, index=True)
+
+    # Performance metrics
+    response_time_ms = Column(Float)  # Response time in milliseconds
+
+    # Geographic tracking
+    city = Column(String, index=True)  # City from the request (if applicable)
+
+    # Additional context
+    error_message = Column(String)  # If request failed
+    user_agent = Column(String)
+    ip_address = Column(String)
+
+    # Timestamp
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
