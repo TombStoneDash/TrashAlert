@@ -125,7 +125,7 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 20px;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
 
         .result-card {
@@ -172,9 +172,134 @@
             margin-bottom: 5px;
         }
 
-        .result-card-zone {
-            font-size: 0.9rem;
-            color: #666;
+        .source-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .source-badge.official {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .source-badge.crowd-verified {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .source-badge.crowd-unverified {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .source-badge.unknown {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .report-section {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .report-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .toggle-report-button {
+            padding: 10px 20px;
+            background: #f59e0b;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .toggle-report-button:hover {
+            background: #d97706;
+        }
+
+        .report-form {
+            display: none;
+        }
+
+        .report-form.visible {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .submit-report-button {
+            padding: 12px 25px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .submit-report-button:hover {
+            background: #059669;
+        }
+
+        .submit-report-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .success-message {
+            background: #d1fae5;
+            border-left: 4px solid #10b981;
+            color: #065f46;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
         }
 
         .debug-panel {
@@ -272,6 +397,27 @@
             color: #666;
             font-size: 0.95rem;
         }
+
+        .info-text {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 10px;
+            font-style: italic;
+        }
+
+        @media (max-width: 600px) {
+            .search-form {
+                flex-direction: column;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .result-cards {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
@@ -301,9 +447,10 @@
                     type="text"
                     class="api-url-input"
                     id="apiUrl"
-                    value="http://localhost:8000/lookup"
-                    placeholder="http://localhost:8000/lookup"
+                    value="http://localhost:8000"
+                    placeholder="http://localhost:8000"
                 />
+                <p class="info-text">Base API URL (without /lookup or /report)</p>
             </div>
         </div>
 
@@ -312,6 +459,65 @@
             <div id="loadingContainer"></div>
             <div id="addressContainer"></div>
             <div class="result-cards" id="resultCards"></div>
+
+            <!-- Report Wrong Info Section -->
+            <div class="report-section" id="reportSection" style="display: none;">
+                <div class="report-header">
+                    <h3 class="report-title">Have different information?</h3>
+                    <button type="button" class="toggle-report-button" id="toggleReportButton">
+                        Report Wrong Info
+                    </button>
+                </div>
+
+                <form class="report-form" id="reportForm">
+                    <p style="margin-bottom: 15px; color: #666;">Help improve the data by reporting your actual collection days:</p>
+
+                    <div class="form-group">
+                        <label class="form-label" for="reportTrashDay">Trash Collection Day:</label>
+                        <select class="form-select" id="reportTrashDay">
+                            <option value="">-- No Change / Unknown --</option>
+                            <option value="MON">Monday</option>
+                            <option value="TUE">Tuesday</option>
+                            <option value="WED">Wednesday</option>
+                            <option value="THU">Thursday</option>
+                            <option value="FRI">Friday</option>
+                            <option value="SAT">Saturday</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="reportRecyclingDay">Recycling Collection Day:</label>
+                        <select class="form-select" id="reportRecyclingDay">
+                            <option value="">-- No Change / Unknown --</option>
+                            <option value="MON">Monday</option>
+                            <option value="TUE">Tuesday</option>
+                            <option value="WED">Wednesday</option>
+                            <option value="THU">Thursday</option>
+                            <option value="FRI">Friday</option>
+                            <option value="SAT">Saturday</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="reportGreenDay">Green Waste Collection Day:</label>
+                        <select class="form-select" id="reportGreenDay">
+                            <option value="">-- No Change / Unknown --</option>
+                            <option value="MON">Monday</option>
+                            <option value="TUE">Tuesday</option>
+                            <option value="WED">Wednesday</option>
+                            <option value="THU">Thursday</option>
+                            <option value="FRI">Friday</option>
+                            <option value="SAT">Saturday</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="submit-report-button" id="submitReportButton">
+                        Submit Report
+                    </button>
+
+                    <div id="reportSuccessMessage"></div>
+                </form>
+            </div>
 
             <div class="debug-panel">
                 <div class="debug-header" id="debugHeader">
@@ -341,9 +547,21 @@
         const debugToggle = debugHeader.querySelector('.debug-toggle');
         const debugJson = document.getElementById('debugJson');
 
+        // Report form elements
+        const reportSection = document.getElementById('reportSection');
+        const toggleReportButton = document.getElementById('toggleReportButton');
+        const reportForm = document.getElementById('reportForm');
+        const submitReportButton = document.getElementById('submitReportButton');
+        const reportSuccessMessage = document.getElementById('reportSuccessMessage');
+        const reportTrashDay = document.getElementById('reportTrashDay');
+        const reportRecyclingDay = document.getElementById('reportRecyclingDay');
+        const reportGreenDay = document.getElementById('reportGreenDay');
+
         // State
         let lastResponse = null;
         let debugCollapsed = true;
+        let reportFormVisible = false;
+        let currentAddress = null;
 
         // Debug panel toggle
         debugHeader.addEventListener('click', () => {
@@ -357,6 +575,18 @@
             }
         });
 
+        // Toggle report form
+        toggleReportButton.addEventListener('click', () => {
+            reportFormVisible = !reportFormVisible;
+            if (reportFormVisible) {
+                reportForm.classList.add('visible');
+                toggleReportButton.textContent = 'Hide Form';
+            } else {
+                reportForm.classList.remove('visible');
+                toggleReportButton.textContent = 'Report Wrong Info';
+            }
+        });
+
         // Form submission
         searchForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -366,43 +596,145 @@
             await lookupAddress(address);
         });
 
+        // Report form submission
+        reportForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!currentAddress) {
+                showError('Please perform a lookup first before reporting.');
+                return;
+            }
+
+            const trashDay = reportTrashDay.value || null;
+            const recyclingDay = reportRecyclingDay.value || null;
+            const greenDay = reportGreenDay.value || null;
+
+            if (!trashDay && !recyclingDay && !greenDay) {
+                alert('Please select at least one collection day to report.');
+                return;
+            }
+
+            await submitReport(currentAddress, trashDay, recyclingDay, greenDay);
+        });
+
         // Main lookup function
         async function lookupAddress(address) {
             // Show loading state
             showLoading();
             clearError();
             clearResults();
+            reportSection.style.display = 'none';
 
             try {
-                const apiUrl = apiUrlInput.value.trim();
-                const url = new URL(apiUrl);
-                url.searchParams.set('address', address);
+                const apiUrl = apiUrlInput.value.trim().replace(/\/$/, ''); // Remove trailing slash
+                const url = `${apiUrl}/lookup?address=${encodeURIComponent(address)}`;
 
-                const response = await fetch(url.toString());
+                const response = await fetch(url);
                 const data = await response.json();
 
                 // Store response for debug panel
                 lastResponse = {
+                    endpoint: 'GET /lookup',
                     status: response.status,
                     statusText: response.statusText,
-                    headers: Object.fromEntries(response.headers.entries()),
                     data: data
                 };
 
                 if (!response.ok) {
-                    throw new Error(data.error || data.detail || `API error: ${response.status}`);
+                    throw new Error(data.detail || data.error || `API error: ${response.status}`);
                 }
+
+                // Store current address for reporting
+                currentAddress = address;
 
                 // Display results
                 displayResults(address, data);
                 updateDebugPanel();
 
+                // Show report section
+                reportSection.style.display = 'block';
+
             } catch (error) {
                 showError(error.message);
-                lastResponse = { error: error.message };
+                lastResponse = { endpoint: 'GET /lookup', error: error.message };
                 updateDebugPanel();
             } finally {
                 hideLoading();
+            }
+        }
+
+        // Submit report function
+        async function submitReport(address, trashDay, recyclingDay, greenDay) {
+            submitReportButton.disabled = true;
+            submitReportButton.textContent = 'Submitting...';
+            reportSuccessMessage.innerHTML = '';
+
+            try {
+                const apiUrl = apiUrlInput.value.trim().replace(/\/$/, '');
+                const url = `${apiUrl}/report`;
+
+                const body = {
+                    address: address,
+                    trash_day: trashDay,
+                    recycling_day: recyclingDay,
+                    green_day: greenDay,
+                    user_hash: null  // Optional: could generate a stable hash from browser fingerprint
+                };
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(body)
+                });
+
+                const data = await response.json();
+
+                // Store response for debug panel
+                lastResponse = {
+                    endpoint: 'POST /report',
+                    status: response.status,
+                    statusText: response.statusText,
+                    request: body,
+                    data: data
+                };
+
+                if (!response.ok) {
+                    throw new Error(data.detail || data.error || `API error: ${response.status}`);
+                }
+
+                // Show success message
+                reportSuccessMessage.innerHTML = `
+                    <div class="success-message">
+                        <strong>Thank you!</strong> Your report has been submitted successfully.
+                        ${data.consensus ? ` Total reports for this address: ${data.consensus.reports_count}` : ''}
+                    </div>
+                `;
+
+                // Reset form
+                reportTrashDay.value = '';
+                reportRecyclingDay.value = '';
+                reportGreenDay.value = '';
+
+                // Update debug panel
+                updateDebugPanel();
+
+                // Optionally refresh the lookup to show updated data
+                setTimeout(() => {
+                    lookupAddress(address);
+                }, 1500);
+
+            } catch (error) {
+                reportSuccessMessage.innerHTML = `
+                    <div class="error-message">
+                        <strong>Error:</strong> ${escapeHtml(error.message)}
+                    </div>
+                `;
+                lastResponse = { endpoint: 'POST /report', error: error.message };
+                updateDebugPanel();
+            } finally {
+                submitReportButton.disabled = false;
+                submitReportButton.textContent = 'Submit Report';
             }
         }
 
@@ -414,12 +746,16 @@
             addressContainer.innerHTML = `
                 <div class="address-display">
                     <h3>Results for:</h3>
-                    <p>${escapeHtml(address)}</p>
+                    <p><strong>${escapeHtml(address)}</strong></p>
+                    <p style="font-size: 0.85rem; margin-top: 5px;">Normalized: ${escapeHtml(data.normalized_address || address)}</p>
                 </div>
             `;
 
             // Create result cards
             resultCards.innerHTML = '';
+
+            // Determine source badge
+            const sourceBadge = getSourceBadge(data.source);
 
             // Trash card
             if (data.trash_day) {
@@ -428,7 +764,7 @@
                     '🗑️',
                     'Trash Collection',
                     data.trash_day,
-                    data.zone || 'N/A'
+                    sourceBadge
                 );
             }
 
@@ -439,42 +775,54 @@
                     '♻️',
                     'Recycling Collection',
                     data.recycling_day,
-                    data.zone || 'N/A'
+                    sourceBadge
                 );
             }
 
-            // Green waste card (if available)
-            if (data.green_waste_day) {
+            // Green waste card
+            if (data.green_day) {
                 resultCards.innerHTML += createResultCard(
                     'green-waste',
                     '🌿',
                     'Green Waste Collection',
-                    data.green_waste_day,
-                    data.zone || 'N/A'
+                    data.green_day,
+                    sourceBadge
                 );
             }
 
             // Handle case where no days found
-            if (!data.trash_day && !data.recycling_day && !data.green_waste_day) {
+            if (!data.trash_day && !data.recycling_day && !data.green_day) {
                 resultCards.innerHTML = `
                     <div class="result-card">
                         <div class="result-card-icon">❌</div>
                         <div class="result-card-title">No collection days found</div>
                         <p style="color: #666; margin-top: 10px;">
-                            ${data.message || 'Unable to determine collection schedule for this address.'}
+                            We don't have pickup schedule information for this address yet.
+                            You can help by reporting your collection days below!
                         </p>
+                        ${sourceBadge}
                     </div>
                 `;
             }
         }
 
-        function createResultCard(type, icon, title, day, zone) {
+        function getSourceBadge(source) {
+            const badges = {
+                'OFFICIAL': '<span class="source-badge official">Official Data</span>',
+                'CROWD_VERIFIED': '<span class="source-badge crowd-verified">Verified by Community</span>',
+                'CROWD_UNVERIFIED': '<span class="source-badge crowd-unverified">Community Reported (Unverified)</span>',
+                'UNKNOWN': '<span class="source-badge unknown">Source Unknown</span>'
+            };
+            return badges[source] || badges['UNKNOWN'];
+        }
+
+        function createResultCard(type, icon, title, day, sourceBadge) {
             return `
                 <div class="result-card ${type}">
                     <div class="result-card-icon">${icon}</div>
                     <div class="result-card-title">${title}</div>
                     <div class="result-card-day">${escapeHtml(day)}</div>
-                    <div class="result-card-zone">Zone: ${escapeHtml(zone)}</div>
+                    ${sourceBadge}
                 </div>
             `;
         }
@@ -512,6 +860,7 @@
         function clearResults() {
             resultCards.innerHTML = '';
             addressContainer.innerHTML = '';
+            reportSuccessMessage.innerHTML = '';
         }
 
         function updateDebugPanel() {
@@ -521,6 +870,7 @@
         }
 
         function escapeHtml(text) {
+            if (!text) return '';
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
