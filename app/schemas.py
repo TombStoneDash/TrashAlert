@@ -44,7 +44,7 @@ class LookupResponse(BaseModel):
     green_day: Optional[str]
 
     # Source information
-    source: Literal["CROWD_VERIFIED", "OFFICIAL", "UNKNOWN"]
+    source: Literal["CROWD_VERIFIED", "CROWD_UNVERIFIED", "OFFICIAL", "UNKNOWN"]
 
     # Consensus metrics (if crowdsourced)
     consensus_reports_count: Optional[int] = None
