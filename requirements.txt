@@ -1,3 +1,16 @@
+# TrashAlert API Dependencies
+
+# Web framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.3
+
+# Data processing
+pandas==2.1.4
+
+# Development
+pytest==7.4.3
+httpx==0.26.0  # For testing FastAPI
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
 sqlalchemy==2.0.25
