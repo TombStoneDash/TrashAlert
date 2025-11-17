@@ -33,23 +33,28 @@ class ReportResponse(BaseModel):
     consensus: Optional[ConsensusInfo] = None
 
 
+class ConsensusDetails(BaseModel):
+    """Consensus details for crowdsourced data."""
+    reports_count: int
+    agreement_ratio: float
+
+
 class LookupResponse(BaseModel):
     """Response schema for GET /lookup endpoint."""
-    address: str
-    normalized_address: str
+    matched_address: str = Field(..., description="The matched address from database")
+    city_name: Optional[str] = Field(None, description="City name")
 
-    # Pickup schedule
-    trash_day: Optional[str]
-    recycling_day: Optional[str]
-    green_day: Optional[str]
+    # Pickup schedule (using full day names: Monday, Tuesday, etc.)
+    trash_day_of_week: Optional[str] = Field(None, description="Trash pickup day")
+    recycling_day_of_week: Optional[str] = Field(None, description="Recycling pickup day")
+    green_waste_day_of_week: Optional[str] = Field(None, description="Green waste pickup day")
 
     # Source information
-    source: Literal["CROWD_VERIFIED", "CROWD_UNVERIFIED", "OFFICIAL", "UNKNOWN"]
+    data_source: Literal["CROWD_VERIFIED", "CROWD_UNVERIFIED", "OFFICIAL", "UNKNOWN"] = Field(
+        ..., description="Data source: CROWD_VERIFIED > OFFICIAL > CROWD_UNVERIFIED > UNKNOWN"
+    )
 
     # Consensus metrics (if crowdsourced)
-    consensus_reports_count: Optional[int] = None
-    consensus_agreement_ratio: Optional[float] = None
-
-    # Coordinates
-    lat: Optional[float] = None
-    lon: Optional[float] = None
+    consensus_details: Optional[ConsensusDetails] = Field(
+        None, description="Consensus details if data is crowdsourced"
+    )
