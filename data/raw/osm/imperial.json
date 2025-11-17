@@ -1,0 +1,44 @@
+{
+  "version": 0.6,
+  "generator": "Overpass API (mock data for testing)",
+  "elements": [
+    {
+      "type": "node",
+      "id": 123456789,
+      "lat": 32.8484,
+      "lon": -115.5698,
+      "tags": {
+        "addr:housenumber": "100",
+        "addr:street": "Main Street",
+        "addr:city": "Imperial",
+        "addr:postcode": "92251"
+      }
+    },
+    {
+      "type": "node",
+      "id": 123456790,
+      "lat": 32.8494,
+      "lon": -115.5708,
+      "tags": {
+        "addr:housenumber": "200",
+        "addr:street": "Broadway",
+        "addr:city": "Imperial",
+        "addr:postcode": "92251"
+      }
+    },
+    {
+      "type": "way",
+      "id": 987654321,
+      "center": {
+        "lat": 32.8504,
+        "lon": -115.5718
+      },
+      "tags": {
+        "addr:housenumber": "300",
+        "addr:street": "Oak Avenue",
+        "addr:city": "Imperial",
+        "addr:postcode": "92251"
+      }
+    }
+  ]
+}

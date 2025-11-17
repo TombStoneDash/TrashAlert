@@ -1,0 +1,4 @@
+city_name,house_number,street,lat,lon,source,osm_addr_city,osm_id,osm_type,postcode
+Imperial,100,Main Street,32.8484,-115.5698,OSM,Imperial,node/123456789,node,92251
+Imperial,200,Broadway,32.8494,-115.5708,OSM,Imperial,node/123456790,node,92251
+Imperial,300,Oak Avenue,32.8504,-115.5718,OSM,Imperial,way/987654321,way,92251
