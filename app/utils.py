@@ -173,8 +173,8 @@ def update_crowd_consensus(db: Session, address_id: int) -> CrowdConsensus:
     ratios = [r for r in [trash_ratio, recycling_ratio, green_ratio] if r > 0]
     avg_ratio = sum(ratios) / len(ratios) if ratios else 0.0
 
-    # Verification threshold: >= 3 reports AND >= 67% agreement
-    is_verified = total_reports >= 3 and avg_ratio >= 0.67
+    # Verification threshold: >= 3 reports AND >= 75% agreement
+    is_verified = total_reports >= 3 and avg_ratio >= 0.75
 
     # Update or create consensus
     consensus = db.query(CrowdConsensus).filter(

@@ -2,6 +2,8 @@
 from fastapi import FastAPI, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from typing import Optional
+from datetime import datetime, timedelta
+from collections import defaultdict
 
 from app.database import get_db, engine, Base
 from app.models import Address, CrowdReport, CrowdConsensus
@@ -21,6 +23,53 @@ app = FastAPI(
     description="API for trash pickup schedules with crowdsourced data",
     version="1.0.0"
 )
+
+# Simple in-memory rate limiter
+# In production, use Redis or similar distributed cache
+# Format: {ip_address: [(timestamp1, address1), (timestamp2, address2), ...]}
+rate_limit_store = defaultdict(list)
+RATE_LIMIT_WINDOW = timedelta(minutes=15)  # 15-minute window
+MAX_REPORTS_PER_WINDOW = 10  # Max 10 reports per IP per 15 minutes
+MAX_REPORTS_PER_ADDRESS = 3  # Max 3 reports per IP per address per window
+
+
+def check_rate_limit(ip_address: str, normalized_address: str) -> bool:
+    """
+    Check if request should be rate limited.
+
+    Rules:
+    - Max 10 reports per IP per 15 minutes (global)
+    - Max 3 reports per IP per address per 15 minutes (prevents spam on single address)
+
+    Returns:
+        True if allowed, False if rate limited
+    """
+    now = datetime.now()
+    cutoff = now - RATE_LIMIT_WINDOW
+
+    # Clean old entries
+    rate_limit_store[ip_address] = [
+        (ts, addr) for ts, addr in rate_limit_store[ip_address]
+        if ts > cutoff
+    ]
+
+    recent_reports = rate_limit_store[ip_address]
+
+    # Check global limit
+    if len(recent_reports) >= MAX_REPORTS_PER_WINDOW:
+        return False
+
+    # Check per-address limit
+    address_reports = [addr for ts, addr in recent_reports if addr == normalized_address]
+    if len(address_reports) >= MAX_REPORTS_PER_ADDRESS:
+        return False
+
+    return True
+
+
+def record_report(ip_address: str, normalized_address: str):
+    """Record a report for rate limiting."""
+    rate_limit_store[ip_address].append((datetime.now(), normalized_address))
 
 
 @app.get("/")
@@ -72,6 +121,14 @@ async def submit_report(
     # Find or create address
     address = find_or_create_address(db, report.address)
 
+    # Check rate limit
+    client_ip = request.client.host if request.client else "unknown"
+    if not check_rate_limit(client_ip, address.normalized_address):
+        raise HTTPException(
+            status_code=429,
+            detail="Rate limit exceeded. Please try again later."
+        )
+
     # Create crowd report
     new_report = CrowdReport(
         address_id=address.id,
@@ -83,6 +140,9 @@ async def submit_report(
     )
     db.add(new_report)
     db.commit()
+
+    # Record report for rate limiting
+    record_report(client_ip, address.normalized_address)
 
     # Update consensus
     consensus = update_crowd_consensus(db, address.id)
