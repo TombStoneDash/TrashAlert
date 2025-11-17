@@ -110,17 +110,29 @@ TrashAlert is a trash day lookup system designed as a pilot project for San Dieg
 
 ### 3. Database Layer
 
-**Primary Tables**:
+**Core Tables**:
 - `cities`: City metadata and boundaries
 - `addresses`: Sampled addresses with coordinates
-- `trash_schedules`: Known/verified trash collection schedules
-- `user_reports`: Crowdsourced trash day reports
-- `consensus_schedules`: Computed consensus from reports
+- `subdivisions`: Neighborhood/subdivision information
+
+**Schedule Management Tables**:
+- `pickup_zones`: Defined zones within cities for trash pickup scheduling
+- `schedules`: Official trash/recycling/green waste schedules per zone or city
+- `schedule_exceptions`: Holiday and special event schedule exceptions
+
+**Crowdsourcing Tables**:
+- `crowd_reports`: Individual crowdsourced trash day reports
+- `crowd_consensus`: Computed consensus from crowdsourced reports
+- `address_pickup_info`: Legacy/backward compatibility table for direct address-to-schedule mapping
 
 **Relationships**:
 - Cities → Addresses (one-to-many)
-- Addresses → User Reports (one-to-many)
-- Addresses → Consensus Schedules (one-to-one)
+- Cities → Pickup Zones (one-to-many)
+- Cities → Schedules (one-to-many)
+- Cities → Schedule Exceptions (one-to-many)
+- Pickup Zones → Schedules (one-to-many)
+- Addresses → Crowd Reports (one-to-many)
+- Addresses → Crowd Consensus (one-to-one)
 
 ### 4. API Layer
 
@@ -186,6 +198,103 @@ GET  /api/addresses/search
 - Location-based lookup
 - Push notifications for trash days
 - Easy one-tap reporting
+
+## Database Schema Details
+
+### Schedule Management Tables
+
+#### pickup_zones
+Represents geographic zones within cities that have distinct pickup schedules.
+
+**Key Fields**:
+- `zone_id`: Primary key
+- `city_id`: Foreign key to cities table
+- `zone_name`: Human-readable zone name (e.g., "North Zone", "District 1")
+- `zone_identifier`: Unique identifier used by city (e.g., "NZ-01", "DIST1")
+- `geometry_reference`: Optional reference to GIS data or polygon coordinates
+- `metadata`: JSON field for additional zone information
+- `source`: Data source (e.g., "CITY_GIS", "CITY_WEBSITE")
+
+**Usage**: Cities may divide their service area into zones, each with different pickup schedules. This table stores those zone definitions.
+
+#### schedules
+Stores the official trash pickup schedules for zones or entire cities.
+
+**Key Fields**:
+- `schedule_id`: Primary key
+- `city_id`: Foreign key to cities table
+- `pickup_zone_id`: Foreign key to pickup_zones (NULL for city-wide schedules)
+- `trash_day_of_week`: Day of week for trash pickup (e.g., "Monday")
+- `recycling_day_of_week`: Day of week for recycling pickup
+- `green_waste_day_of_week`: Day of week for green waste pickup
+- `bulk_pickup_schedule`: Description of bulk pickup schedule
+- `source`: Data source (e.g., "CITY_GIS", "CITY_WEBSITE", "VERIFIED")
+- `effective_date`: When this schedule becomes active
+- `expiration_date`: When this schedule expires (NULL for indefinite)
+
+**Usage**: This table stores the authoritative schedule data. Schedules can be zone-specific or city-wide. Multiple schedules can exist for the same zone with different effective dates for planned changes.
+
+#### schedule_exceptions
+Tracks holidays and special events that affect pickup schedules.
+
+**Key Fields**:
+- `exception_id`: Primary key
+- `city_id`: Foreign key to cities table
+- `holiday_name`: Name of holiday or event (e.g., "Christmas", "Independence Day")
+- `exception_date`: Date of the exception
+- `rule_description`: Description of how pickup is affected (e.g., "No pickup, collected on next business day")
+- `affected_service_types`: Which services are affected (e.g., "trash,recycling")
+- `makeup_date`: When the missed pickup will occur
+- `source`: Data source
+
+**Usage**: Many cities delay pickups for holidays. This table stores those exceptions so users can be notified of schedule changes.
+
+### Crowdsourcing Tables
+
+#### crowd_reports
+Individual user-submitted reports about observed pickup days.
+
+**Key Fields**:
+- `report_id`: Primary key
+- `address_id`: Foreign key to addresses table
+- `reported_trash_day`: User-reported trash pickup day
+- `reported_recycling_day`: User-reported recycling day
+- `reported_green_day`: User-reported green waste day
+- `reported_at`: Timestamp of report submission
+- `report_source`: Source of report (e.g., "USER", "API", "MOBILE_APP")
+- `user_hash`: Anonymous user identifier for rate limiting
+
+**Usage**: Users submit observations about their actual pickup days. Multiple reports per address allow consensus calculation.
+
+#### crowd_consensus
+Computed consensus schedule based on crowdsourced reports.
+
+**Key Fields**:
+- `consensus_id`: Primary key
+- `address_id`: Foreign key to addresses table (unique constraint)
+- `trash_day`: Consensus trash pickup day
+- `recycling_day`: Consensus recycling day
+- `green_day`: Consensus green waste day
+- `reports_count`: Number of reports used to compute consensus
+- `agreement_ratio`: Ratio of reports agreeing with consensus (0.0-1.0)
+- `last_updated`: When consensus was last recalculated
+
+**Usage**: This table stores the calculated consensus from multiple user reports. It provides a fallback when official city data is unavailable and shows confidence level through agreement_ratio.
+
+### Data Integration Strategy
+
+The system supports multiple data sources with the following priority:
+
+1. **Official City Schedules** (schedules table): Highest priority when available
+2. **Crowdsourced Consensus** (crowd_consensus table): Used when official data is unavailable or incomplete
+3. **Legacy Mappings** (address_pickup_info table): Backward compatibility for existing data
+
+For any given address, the lookup logic:
+1. Check if address is in a known pickup_zone
+2. If yes, use the schedule for that zone
+3. If no official schedule exists, fall back to crowd_consensus
+4. Apply any schedule_exceptions for the current date
+5. Return combined result with confidence indicators
 
 ## Data Flow
 
@@ -287,7 +396,8 @@ GET  /api/addresses/search
 ### Phase 1: Data Pipeline (Current)
 - ✅ OSM address extraction
 - ✅ Address sampling script
-- ⏳ Database schema design
+- ✅ Database schema design
+- ✅ Schedule and zone models
 - ⏳ Data ingestion pipeline
 
 ### Phase 2: API Development
