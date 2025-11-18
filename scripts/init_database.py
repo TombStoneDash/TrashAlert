@@ -126,17 +126,51 @@ def init_database(db_path: Path) -> None:
         conn.close()
 
 
+def seed_pilot_cities(conn: sqlite3.Connection):
+    """
+    Seed the cities table with the 6 pilot cities.
+    """
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+
+    try:
+        from config.cities_config import get_pilot_cities
+        pilot_cities = get_pilot_cities()
+    except ImportError:
+        # Fallback if config module not available
+        pilot_cities = [
+            {'name': 'San Diego', 'state_abbr': 'CA'},
+            {'name': 'El Centro', 'state_abbr': 'CA'},
+            {'name': 'Imperial', 'state_abbr': 'CA'},
+            {'name': 'Brawley', 'state_abbr': 'CA'},
+            {'name': 'Holtville', 'state_abbr': 'CA'},
+            {'name': 'Calexico', 'state_abbr': 'CA'},
+        ]
+
+    cursor = conn.cursor()
+
+    for city in pilot_cities:
+        try:
+            cursor.execute("""
+                INSERT INTO cities (city_name, state)
+                VALUES (?, ?)
+            """, (city['name'], city.get('state_abbr', city.get('state', 'CA'))))
+            logger.info(f"  Seeded city: {city['name']}, {city.get('state_abbr', 'CA')}")
+        except sqlite3.IntegrityError:
+            # City already exists
+            pass
+
+    conn.commit()
+
+
+"""
+Extended functionality for loading address data with mock pickup schedules.
+"""
 # Initialize the TrashAlert database with sample data.
 # Creates tables and loads address data with mock pickup schedules.
 
-import sqlite3
 import pandas as pd
 import random
-from pathlib import Path
-import logging
-
-logging.basicConfig(level=logging.INFO, format='%(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
 
 # Set seed for reproducible mock data
 random.seed(42)
@@ -370,6 +404,10 @@ def main():
     try:
         # Create schema
         create_tables(conn)
+
+        # Seed pilot cities
+        logger.info("Seeding pilot cities...")
+        seed_pilot_cities(conn)
 
         # Load data
         load_address_data(conn, csv_path)

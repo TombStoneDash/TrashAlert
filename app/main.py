@@ -679,6 +679,9 @@ async def lookup_address(
 
 @app.get("/stats")
 async def get_stats(db: Session = Depends(get_db)):
+    """Get statistics about the database."""
+    from sqlalchemy import func, distinct
+
     """Get statistics about the database and cache performance."""
     total_addresses = db.query(Address).count()
     total_reports = db.query(CrowdReport).count()
@@ -687,6 +690,32 @@ async def get_stats(db: Session = Depends(get_db)):
         CrowdConsensus.is_verified == True
     ).count()
 
+    # Get city breakdown
+    city_stats = db.query(
+        Address.city,
+        func.count(Address.id).label('address_count')
+    ).group_by(Address.city).order_by(Address.city).all()
+
+    cities = [
+        {"city": city, "address_count": count}
+        for city, count in city_stats
+        if city  # Filter out None values
+    ]
+
+    return {
+        "total_addresses": total_addresses,
+        "total_reports": total_reports,
+        "total_consensus": total_consensus,
+        "verified_consensus": verified_consensus,
+        "cities": cities,
+        "pilot_cities": [
+            "El Centro",
+            "Imperial",
+            "Brawley",
+            "Holtville",
+            "Calexico",
+            "San Diego"
+        ]
     # Get cache statistics
     cache_stats = lookup_cache.get_stats()
 
