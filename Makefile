@@ -1,4 +1,4 @@
-.PHONY: test test-verbose test-coverage install clean help docker-up docker-down docker-logs docker-ps docker-rebuild
+.PHONY: test test-verbose test-coverage install clean help docker-up docker-down docker-logs docker-ps docker-rebuild migrate downgrade reset-db
 
 # Default target
 help:
@@ -10,6 +10,11 @@ help:
 	@echo "  make test-verbose  Run tests with verbose output"
 	@echo "  make test-coverage Run tests with coverage report"
 	@echo "  make clean         Clean up temporary files"
+	@echo ""
+	@echo "Database Migrations:"
+	@echo "  make migrate       Run database migrations (upgrade to latest)"
+	@echo "  make downgrade     Rollback last database migration"
+	@echo "  make reset-db      Reset database (WARNING: deletes all data)"
 	@echo ""
 	@echo "Docker Deployment:"
 	@echo "  make docker-up      Build and start all containers"
@@ -73,3 +78,29 @@ docker-rebuild:
 	docker-compose build --no-cache
 	docker-compose up -d
 	@echo "TrashAlert containers rebuilt and started."
+
+# Database migration commands
+migrate:
+	@echo "Running database migrations..."
+	alembic upgrade head
+	@echo "Migrations complete!"
+
+downgrade:
+	@echo "Rolling back last database migration..."
+	alembic downgrade -1
+	@echo "Rollback complete!"
+
+reset-db:
+	@echo "WARNING: This will delete all database data!"
+	@read -p "Are you sure? [y/N] " -n 1 -r; \
+	echo; \
+	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
+		echo "Resetting database..."; \
+		rm -f trashalert.db; \
+		alembic downgrade base; \
+		alembic upgrade head; \
+		echo "Database reset complete!"; \
+		echo "Run 'python init_db.py' to add sample data."; \
+	else \
+		echo "Database reset cancelled."; \
+	fi

@@ -23,7 +23,6 @@ class City(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
-    addresses = relationship("Address", back_populates="city")
     pickup_zones = relationship("PickupZone", back_populates="city")
 
 
@@ -54,9 +53,6 @@ class Address(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    # City relationship
-    city_id = Column(Integer, ForeignKey("cities.id"), nullable=True, index=True)
-
     # Address fields
     normalized_address = Column(String, index=True, nullable=False)
     house_number = Column(String)
@@ -78,9 +74,6 @@ class Address(Base):
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-    # Relationships
-    city = relationship("City", back_populates="addresses")
 
 
 class CrowdReport(Base):
