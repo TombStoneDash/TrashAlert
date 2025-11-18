@@ -36,6 +36,7 @@ logger = logging.getLogger(__name__)
 from app.middleware import RequestLoggingMiddleware
 from app.metrics import MetricsManager
 from app.logging_config import app_logger, error_logger
+from app.mobile import router as mobile_router
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -46,6 +47,9 @@ app = FastAPI(
     description="API for trash pickup schedules with crowdsourced data",
     version="1.0.0"
 )
+
+# Include mobile router
+app.include_router(mobile_router)
 
 # Simple in-memory rate limiter
 # In production, use Redis or similar distributed cache
@@ -242,7 +246,8 @@ async def root():
         "status": "healthy",
         "service": "TrashAlert API",
         "version": "1.0.0",
-        "endpoints": ["/lookup", "/report", "/stats"]
+        "endpoints": ["/lookup", "/report", "/stats"],
+        "mobile_endpoints": ["/mobile/lookup", "/mobile/daily-schedule", "/mobile/report"]
     }
 
 
