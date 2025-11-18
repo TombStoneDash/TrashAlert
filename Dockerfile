@@ -39,6 +39,10 @@ COPY --from=builder /root/.local /home/trashalert/.local
 # Copy application code
 COPY --chown=trashalert:trashalert . .
 
+# Copy and set up entrypoint script
+COPY --chown=trashalert:trashalert docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
+
 # Switch to non-root user
 USER trashalert
 
@@ -54,5 +58,8 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 
-# Run uvicorn server
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+# Set entrypoint for DB initialization
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+
+# Run uvicorn server (fixed path from api.main:app to app.main:app)
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]

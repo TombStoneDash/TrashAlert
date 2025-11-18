@@ -41,6 +41,131 @@ In a new terminal:
 python test_api.py
 ```
 
+## Docker Deployment
+
+The easiest way to run TrashAlert in production is using Docker. This provides a complete deployment with API, worker services, and nginx reverse proxy.
+
+### One-Command Deployment
+
+```bash
+make docker-up
+```
+
+This command will:
+- Build Docker images for the API and worker services
+- Initialize the SQLite database automatically
+- Start the FastAPI application
+- Start nginx as a reverse proxy
+- Start a worker container for scheduled pipeline tasks
+
+The API will be available at `http://localhost` (via nginx on port 80).
+
+### Docker Management Commands
+
+```bash
+# Start all containers
+make docker-up
+
+# Stop all containers
+make docker-down
+
+# View logs from all containers
+make docker-logs
+
+# Check container status
+make docker-ps
+
+# Rebuild containers from scratch
+make docker-rebuild
+```
+
+### Manual Docker Compose Usage
+
+If you prefer to use `docker-compose` directly:
+
+```bash
+# Build and start all services
+docker-compose up --build -d
+
+# View logs
+docker-compose logs -f
+
+# Stop all services
+docker-compose down
+
+# Check container status
+docker-compose ps
+```
+
+### Services
+
+The Docker deployment includes:
+
+- **api**: FastAPI application (exposed via nginx)
+- **worker**: Background worker for scheduled pipeline tasks
+- **nginx**: Reverse proxy (ports 80/443)
+- **certbot**: Automatic SSL certificate renewal (optional)
+
+### Data Persistence
+
+Data is persisted in Docker volumes:
+- `./data`: SQLite database
+- `./logs`: Application logs
+
+### Testing the Docker Deployment
+
+Once containers are running, test the API:
+
+```bash
+# Health check
+curl http://localhost/health
+
+# Lookup endpoint
+curl "http://localhost/lookup?address=1122%20Palmview%20Ave,%20El%20Centro,%20CA"
+
+# Submit a report
+curl -X POST http://localhost/report \
+  -H "Content-Type: application/json" \
+  -d '{
+    "address": "1122 Palmview Ave, El Centro, CA",
+    "trash_day": "WED",
+    "recycling_day": "FRI"
+  }'
+```
+
+### Running Worker Tasks
+
+To run pipeline tasks in the worker container:
+
+```bash
+# Execute a command in the worker container
+docker-compose exec worker python scripts/data_collection/schedule_runner.py --all
+
+# Run the full pipeline
+docker-compose exec worker python scripts/run_full_pipeline.py --city "El Centro"
+```
+
+### Switching to PostgreSQL
+
+Currently using SQLite for simplicity. To switch to PostgreSQL:
+
+1. Add a PostgreSQL service to `docker-compose.yml`
+2. Update `app/database.py` with PostgreSQL connection string
+3. Install `psycopg2-binary` in `requirements.txt`
+4. Update `SQLALCHEMY_DATABASE_URL` environment variable
+
+Example PostgreSQL service:
+```yaml
+postgres:
+  image: postgres:15-alpine
+  environment:
+    POSTGRES_DB: trashalert
+    POSTGRES_USER: trashalert
+    POSTGRES_PASSWORD: ${DB_PASSWORD}
+  volumes:
+    - postgres-data:/var/lib/postgresql/data
+```
+
 ## API Endpoints
 
 ### POST /report
