@@ -1,8 +1,51 @@
 """Database models for TrashAlert."""
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Text, JSON
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Index
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Text, JSON, Index
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from app.database import Base
+
+
+class City(Base):
+    """City table - stores cities supported by TrashAlert."""
+    __tablename__ = "cities"
+
+    id = Column(Integer, primary_key=True, index=True)
+    slug = Column(String, unique=True, index=True, nullable=False)  # URL-friendly identifier
+    name = Column(String, nullable=False)
+    state = Column(String, index=True)
+    county = Column(String)
+    region = Column(String)
+    timezone = Column(String, default="America/Los_Angeles")
+    enabled = Column(Boolean, default=True, index=True)
+    extra_metadata = Column(JSON)  # Flexible JSON for additional city-specific data
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    addresses = relationship("Address", back_populates="city")
+    pickup_zones = relationship("PickupZone", back_populates="city")
+
+
+class PickupZone(Base):
+    """Pickup zones - GIS or rule-based groupings for trash collection."""
+    __tablename__ = "pickup_zones"
+
+    id = Column(Integer, primary_key=True, index=True)
+    city_id = Column(Integer, ForeignKey("cities.id"), nullable=False, index=True)
+    name = Column(String, nullable=False)
+    external_ref = Column(String)  # External identifier from city GIS system
+    extra_metadata = Column(JSON)  # Flexible JSON for zone-specific data (geometry, etc.)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    city = relationship("City", back_populates="pickup_zones")
+
+    __table_args__ = (
+        Index('idx_pickup_zone_city_ref', 'city_id', 'external_ref'),
+    )
 
 
 class Address(Base):
@@ -11,11 +54,14 @@ class Address(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
+    # City relationship
+    city_id = Column(Integer, ForeignKey("cities.id"), nullable=True, index=True)
+
     # Address fields
     normalized_address = Column(String, index=True, nullable=False)
     house_number = Column(String)
     street = Column(String, index=True)
-    city = Column(String, index=True)
+    city_name = Column(String, index=True)  # Denormalized for backward compatibility
     state = Column(String, index=True)  # Added index for filtering by state
     zip_code = Column(String, index=True)  # Added index for filtering by zip
 
@@ -23,13 +69,16 @@ class Address(Base):
     lat = Column(Float)
     lon = Column(Float)
 
-    # Official pickup schedule (from GIS/rules)
+    # Official pickup schedule (from GIS/rules) - keeping for backward compatibility
     official_trash_day = Column(String)  # MON, TUE, WED, THU, FRI
     official_recycling_day = Column(String)
     official_green_day = Column(String)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    city = relationship("City", back_populates="addresses")
 
 
 class CrowdReport(Base):
@@ -83,27 +132,55 @@ class CrowdConsensus(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
 
+class AddressPickupInfo(Base):
+    """Per-address view merging official schedule + crowdsourced data."""
+    __tablename__ = "address_pickup_info"
+
+    id = Column(Integer, primary_key=True, index=True)
+    address_id = Column(Integer, ForeignKey("addresses.id"), nullable=False, unique=True, index=True)
+    pickup_zone_id = Column(Integer, ForeignKey("pickup_zones.id"), nullable=True, index=True)
+
+    # Consolidated pickup schedule (from official or crowd consensus)
+    trash_day_of_week = Column(String)
+    recycling_day_of_week = Column(String)
+    green_day_of_week = Column(String)
+
+    # Source tracking
+    source = Column(String, default="OFFICIAL")  # OFFICIAL, CROWD, HYBRID
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (
+        Index('idx_address_pickup_zone', 'address_id', 'pickup_zone_id'),
+    )
+
+
 class Schedule(Base):
-    """Official trash collection schedules extracted from city sources."""
+    """Official trash collection schedules per zone or address."""
     __tablename__ = "schedules"
 
     id = Column(Integer, primary_key=True, index=True)
-    address_id = Column(Integer, ForeignKey("addresses.id"), nullable=True, index=True)  # Nullable for pilot
+    city_id = Column(Integer, ForeignKey("cities.id"), nullable=False, index=True)
+    pickup_zone_id = Column(Integer, ForeignKey("pickup_zones.id"), nullable=True, index=True)
 
-    # Schedule information
-    day_of_week = Column(String, nullable=False)  # MON, TUE, WED, THU, FRI, SAT, SUN
-    collection_type = Column(String, nullable=False)  # trash, recycling, green_waste
-    zone = Column(String)  # Pickup zone identifier (if city uses zones)
-    recurrence = Column(String, default="weekly")  # weekly, biweekly, monthly
+    # Schedule information - consolidated for simplicity
+    trash_day_of_week = Column(String)  # MON, TUE, WED, THU, FRI, SAT, SUN
+    recycling_day_of_week = Column(String)
+    green_day_of_week = Column(String)
 
-    # Metadata
-    source_id = Column(Integer, ForeignKey("source_metadata.id"))
-    confidence = Column(Float, default=1.0)  # 0.0 - 1.0
+    # Source and metadata
+    source = Column(String, default="OFFICIAL")  # OFFICIAL, GIS, MANUAL, etc.
+    extra_metadata = Column(JSON)  # Flexible JSON for additional schedule data
 
     # Timestamps
-    effective_date = Column(DateTime(timezone=True))  # When this schedule becomes effective
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (
+        Index('idx_schedule_city_zone', 'city_id', 'pickup_zone_id'),
+    )
 
 
 class ScheduleException(Base):
@@ -156,10 +233,7 @@ class SourceMetadata(Base):
     last_parsed_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    # Composite indexes for common query patterns
-    __table_args__ = (
-        Index('idx_address_verified', 'address_id', 'is_verified'),
-    )
+
 
 class RequestMetrics(Base):
     """Track API request metrics for observability."""
