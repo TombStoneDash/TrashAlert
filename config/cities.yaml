@@ -1,6 +1,15 @@
 # Configuration for cities supported by TrashAlert
 # Each city entry includes metadata for pipeline processing
 # city_id format: {state_abbr_lower}_{city_name_snake_case}
+#
+# NATIONWIDE MODE FIELDS:
+# - bounding_box: [min_lon, min_lat, max_lon, max_lat] for OSM queries (optional)
+# - shapefile_path: Path to GIS shapefile/GeoJSON for pickup zones (optional)
+# - pickup_rule_template: Template name for schedule generation (optional)
+# - onboarding_status: PENDING, IN_PROGRESS, COMPLETE, VERIFIED (optional, defaults to PENDING)
+# - population: Population estimate (optional)
+# - region: Regional grouping (optional)
+# - timezone: IANA timezone (optional, defaults to America/Los_Angeles)
 
 cities:
   - city_id: ca_san_diego
@@ -11,6 +20,12 @@ cities:
     has_official_pickup_zones: true
     pickup_zone_data_source: "https://data.sandiego.gov/datasets/get-it-done-311/"
     notes: "Major city with extensive subdivision data available"
+    # Nationwide Mode fields
+    bounding_box: [-117.283, 32.534, -116.908, 33.114]
+    population: 1386000
+    region: "Southern California"
+    timezone: "America/Los_Angeles"
+    onboarding_status: "COMPLETE"
 
   - city_id: ca_el_centro
     name: El Centro
@@ -94,12 +109,21 @@ cities:
     notes: "Major city in Kern County, Central Valley"
 
 # Future cities can be added here with the same structure
-# Example template:
+# Example template for Nationwide Mode:
 #
-#  - name: City Name
+#  - city_id: xx_city_name
+#    name: City Name
 #    state: State Name
 #    state_abbr: XX
 #    country: USA
 #    has_official_pickup_zones: true/false
 #    pickup_zone_data_source: "URL or note"
 #    notes: "Any additional context"
+#    # Optional Nationwide Mode fields:
+#    bounding_box: [min_lon, min_lat, max_lon, max_lat]  # Auto-fetched if not provided
+#    shapefile_path: "data/gis/city_name/pickup_zones.geojson"
+#    pickup_rule_template: "template_name"  # e.g., "alternating_week", "zone_based", "manual"
+#    population: 50000
+#    region: "Region Name"
+#    timezone: "America/New_York"
+#    onboarding_status: "PENDING"  # PENDING, IN_PROGRESS, COMPLETE, VERIFIED

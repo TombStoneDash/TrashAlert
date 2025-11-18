@@ -55,9 +55,12 @@ htmlcov/
 .tox/
 .coverage.*
 # Docker and deployment
+.env
+.env.local
 .env.production
 certbot/
 nginx-cache/
+empty/
 
 # Logs
 *.log
