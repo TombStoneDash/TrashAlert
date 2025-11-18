@@ -320,10 +320,21 @@ class AddressSamplingEngine:
         Returns:
             Address data dictionary or None if failed
         """
-        # Check cache first
+        # Check Redis cache first (if available)
+        try:
+            from app.redis_cache import redis_cache
+            cache_key = f"reverse_geocode:{lat:.6f},{lon:.6f}"
+            cached = redis_cache.get(cache_key)
+            if cached is not None:
+                logger.debug(f"Redis cache hit for ({lat:.6f}, {lon:.6f})")
+                return cached
+        except ImportError:
+            pass  # Redis not available in this context
+
+        # Check file cache
         cached = self.cache.get(lat, lon)
         if cached is not None:
-            logger.debug(f"Cache hit for ({lat:.6f}, {lon:.6f})")
+            logger.debug(f"File cache hit for ({lat:.6f}, {lon:.6f})")
             return cached
 
         # Make API request with retry logic
@@ -356,8 +367,17 @@ class AddressSamplingEngine:
                 else:
                     result = data
 
-                # Cache result (even if None to avoid repeated failures)
+                # Cache result in file cache (even if None to avoid repeated failures)
                 self.cache.set(lat, lon, result)
+
+                # Also cache in Redis (if available) with 1 hour TTL
+                try:
+                    from app.redis_cache import redis_cache
+                    cache_key = f"reverse_geocode:{lat:.6f},{lon:.6f}"
+                    redis_cache.set(cache_key, result, ttl=3600)
+                except ImportError:
+                    pass  # Redis not available in this context
+
                 return result
 
             except requests.exceptions.RequestException as e:

@@ -1,0 +1,77 @@
+# TrashAlert API - Production Dockerfile
+# Multi-stage build for minimal final image size and fast deploys
+
+# ============================================================================
+# STAGE 1: Builder - Install dependencies
+# ============================================================================
+FROM python:3.11-slim as builder
+
+# Set working directory
+WORKDIR /app
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libgeos-dev \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install Python dependencies to user directory for easier copying
+RUN pip install --no-cache-dir --user -r requirements.txt
+
+# ============================================================================
+# STAGE 2: Runtime - Minimal production image
+# ============================================================================
+FROM python:3.11-slim
+
+# Install runtime dependencies only (much smaller than build deps)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgeos-c1v5 \
+    libpq5 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user for security
+RUN useradd -m -u 1000 trashalert && \
+    mkdir -p /app/data /app/logs && \
+    chown -R trashalert:trashalert /app
+
+WORKDIR /app
+
+# Copy Python packages from builder stage
+COPY --from=builder /root/.local /home/trashalert/.local
+
+# Copy application code
+COPY --chown=trashalert:trashalert app ./app
+COPY --chown=trashalert:trashalert config ./config
+COPY --chown=trashalert:trashalert frontend ./frontend
+COPY --chown=trashalert:trashalert init_db.py .
+COPY --chown=trashalert:trashalert docker-entrypoint.sh .
+
+# Make entrypoint executable
+RUN chmod +x /app/docker-entrypoint.sh
+
+# Switch to non-root user
+USER trashalert
+
+# Add local Python packages to PATH
+ENV PATH=/home/trashalert/.local/bin:$PATH \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+# Expose API port
+EXPOSE 8000
+
+# Health check using curl (more reliable than Python in some cases)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Set entrypoint for DB initialization
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+
+# Default command - run API server
+# Workers can be configured via UVICORN_WORKERS env var (default: 4)
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]

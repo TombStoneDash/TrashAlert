@@ -1,0 +1,76 @@
+# TrashAlert Worker - Production Dockerfile
+# Multi-stage build for minimal final image size and fast deploys
+# Optimized for background tasks and data pipeline processing
+
+# ============================================================================
+# STAGE 1: Builder - Install dependencies
+# ============================================================================
+FROM python:3.11-slim as builder
+
+# Set working directory
+WORKDIR /app
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libgeos-dev \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install Python dependencies to user directory for easier copying
+RUN pip install --no-cache-dir --user -r requirements.txt
+
+# ============================================================================
+# STAGE 2: Runtime - Minimal production image
+# ============================================================================
+FROM python:3.11-slim
+
+# Install runtime dependencies (same as API, but optimized for worker tasks)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgeos-c1v5 \
+    libpq5 \
+    curl \
+    cron \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user for security
+RUN useradd -m -u 1000 trashalert && \
+    mkdir -p /app/data /app/logs && \
+    chown -R trashalert:trashalert /app
+
+WORKDIR /app
+
+# Copy Python packages from builder stage
+COPY --from=builder /root/.local /home/trashalert/.local
+
+# Copy application code (same as API - workers need access to all code)
+COPY --chown=trashalert:trashalert app ./app
+COPY --chown=trashalert:trashalert config ./config
+COPY --chown=trashalert:trashalert init_db.py .
+COPY --chown=trashalert:trashalert docker-entrypoint.sh .
+
+# Make entrypoint executable
+RUN chmod +x /app/docker-entrypoint.sh
+
+# Switch to non-root user
+USER trashalert
+
+# Add local Python packages to PATH
+ENV PATH=/home/trashalert/.local/bin:$PATH \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    WORKER_MODE=true
+
+# Health check - simple Python check that worker is alive
+HEALTHCHECK --interval=60s --timeout=10s --start-period=10s --retries=3 \
+    CMD python -c "import sys; sys.exit(0)" || exit 1
+
+# Set entrypoint for DB initialization
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+
+# Default command - keep container alive for manual task execution or cron jobs
+# Override this in docker-compose.yml or with a custom command for specific worker tasks
+CMD ["tail", "-f", "/dev/null"]
