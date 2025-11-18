@@ -10,6 +10,9 @@ import CrowdReports from './pages/CrowdReports';
 import Schedules from './pages/Schedules';
 import Consensus from './pages/Consensus';
 import Logs from './pages/Logs';
+import TruckTracking from './pages/TruckTracking';
+import Heatmap from './pages/Heatmap';
+import Leaderboard from './pages/Leaderboard';
 
 function App() {
   return (
@@ -31,7 +34,10 @@ function App() {
             <Route path="/reports" element={<CrowdReports />} />
             <Route path="/schedules" element={<Schedules />} />
             <Route path="/consensus" element={<Consensus />} />
+            <Route path="/heatmap" element={<Heatmap />} />
             <Route path="/logs" element={<Logs />} />
+            <Route path="/trucks" element={<TruckTracking />} />
+            <Route path="/leaderboard" element={<Leaderboard />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

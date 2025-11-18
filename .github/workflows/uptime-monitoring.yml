@@ -1,0 +1,98 @@
+name: Uptime Monitoring
+
+on:
+  schedule:
+    # Run every 5 minutes
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  monitor:
+    name: Check Service Health
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check API Health
+      id: api_health
+      continue-on-error: true
+      run: |
+        response=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.API_URL }}/health)
+        if [ $response -eq 200 ]; then
+          echo "status=healthy" >> $GITHUB_OUTPUT
+        else
+          echo "status=unhealthy" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+
+    - name: Check Frontend Health
+      id: frontend_health
+      continue-on-error: true
+      run: |
+        response=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.FRONTEND_URL }})
+        if [ $response -eq 200 ]; then
+          echo "status=healthy" >> $GITHUB_OUTPUT
+        else
+          echo "status=unhealthy" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+
+    - name: Create Issue on Failure
+      if: failure()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const apiStatus = '${{ steps.api_health.outputs.status }}';
+          const frontendStatus = '${{ steps.frontend_health.outputs.status }}';
+
+          let body = '## Service Health Check Failed\n\n';
+          body += `**Time**: ${new Date().toISOString()}\n\n`;
+
+          if (apiStatus === 'unhealthy') {
+            body += '- ❌ API is down\n';
+          } else {
+            body += '- ✅ API is healthy\n';
+          }
+
+          if (frontendStatus === 'unhealthy') {
+            body += '- ❌ Frontend is down\n';
+          } else {
+            body += '- ✅ Frontend is healthy\n';
+          }
+
+          // Check if an issue already exists
+          const issues = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'open',
+            labels: 'uptime-alert'
+          });
+
+          if (issues.data.length === 0) {
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Service Health Check Failed',
+              body: body,
+              labels: ['uptime-alert', 'bug', 'critical']
+            });
+          }
+
+    - name: Send Slack Notification
+      if: failure()
+      env:
+        SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+      run: |
+        curl -X POST $SLACK_WEBHOOK \
+          -H 'Content-Type: application/json' \
+          -d '{
+            "text": "🚨 TrashAlert Service Down",
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*TrashAlert Health Check Failed*\nOne or more services are down. Check GitHub Issues for details."
+                }
+              }
+            ]
+          }' || echo "Slack webhook not configured"

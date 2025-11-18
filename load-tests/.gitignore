@@ -1,0 +1,21 @@
+# Load test results and generated files
+results/*.txt
+results/*.csv
+results/*.json
+results/.warmed_up
+
+# Keep directory structure but ignore result files
+!results/.gitkeep
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Temporary files
+*.tmp
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
