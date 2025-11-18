@@ -7,7 +7,8 @@ import {
   Calendar,
   CheckCircle,
   FileText,
-  LogOut
+  LogOut,
+  Flame
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -22,6 +23,7 @@ const Sidebar = () => {
     { path: '/reports', icon: Flag, label: 'Crowd Reports' },
     { path: '/schedules', icon: Calendar, label: 'Schedules' },
     { path: '/consensus', icon: CheckCircle, label: 'Consensus Status' },
+    { path: '/heatmap', icon: Flame, label: 'Heatmap Analytics' },
     { path: '/logs', icon: FileText, label: 'Logs' },
   ];
 

@@ -188,4 +188,12 @@ export const statsAPI = {
   },
 };
 
+// Analytics endpoints
+export const analyticsAPI = {
+  getHeatmap: async (params = {}) => {
+    const response = await api.get('/analytics/heatmap', { params });
+    return response.data;
+  },
+};
+
 export default api;
