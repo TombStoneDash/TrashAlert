@@ -504,6 +504,68 @@ class InterpretAddressResponse(BaseModel):
     error: Optional[str] = Field(None, description="Error message if interpretation failed")
 
 
+class PredictRequest(BaseModel):
+    """Request schema for POST /predict endpoint."""
+    address_id: Optional[int] = Field(None, description="Address ID to predict for (for delay predictions)")
+    prediction_type: Literal["delay", "seasonal"] = Field(
+        ..., description="Type of prediction: 'delay' or 'seasonal'"
+    )
+    weeks_ahead: Optional[int] = Field(
+        4, ge=1, le=12, description="Number of weeks ahead for seasonal predictions"
+    )
+
+    @model_validator(mode='after')
+    def validate_prediction_type(self):
+        """Ensure address_id is provided for delay predictions."""
+        if self.prediction_type == 'delay' and self.address_id is None:
+            raise ValueError("address_id is required for delay predictions")
+        return self
+
+
+class DelayPrediction(BaseModel):
+    """Delay prediction results."""
+    success: bool
+    address_id: Optional[int] = None
+    delay_likely: Optional[bool] = None
+    delay_probability: Optional[float] = None
+    confidence: Optional[float] = None
+    message: Optional[str] = None
+
+
+class SeasonalPrediction(BaseModel):
+    """Single seasonal prediction data point."""
+    week: int
+    month: int
+    date: str
+    predicted_reports: int
+
+
+class SeasonalPredictionResponse(BaseModel):
+    """Seasonal prediction results."""
+    success: bool
+    predictions: Optional[list[SeasonalPrediction]] = None
+    message: Optional[str] = None
+
+
+class PredictResponse(BaseModel):
+    """Response schema for POST /predict endpoint."""
+    prediction_type: str
+    delay: Optional[DelayPrediction] = None
+    seasonal: Optional[SeasonalPredictionResponse] = None
+
+
+class TrainModelRequest(BaseModel):
+    """Request schema for POST /predict/train endpoint."""
+    model_type: Literal["delay", "seasonal", "both"] = Field(
+        ..., description="Which model to train"
+    )
+
+
+class TrainModelResponse(BaseModel):
+    """Response schema for POST /predict/train endpoint."""
+    success: bool
+    results: list[dict]
+    message: str
 class HeatmapPoint(BaseModel):
     """A single point in the heatmap with location and intensity."""
     lat: float = Field(..., description="Latitude")

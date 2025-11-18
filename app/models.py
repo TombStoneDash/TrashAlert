@@ -318,6 +318,28 @@ class RequestMetrics(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 
+class PredictionModel(Base):
+    """Store trained prediction models and their metadata."""
+    __tablename__ = "prediction_models"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Model identification
+    model_type = Column(String, nullable=False, index=True)  # 'delay', 'seasonal'
+    version = Column(String, nullable=False)  # Semantic version
+
+    # Model storage
+    model_data = Column(Text, nullable=False)  # Base64-encoded model pickle
+
+    # Training metadata
+    training_samples = Column(Integer, default=0)
+    training_accuracy = Column(Float)
+    training_features = Column(JSON)  # List of features used
+
+    # Model status
+    is_active = Column(Boolean, default=False, index=True)  # Only one active model per type
+
+    # Timestamps
 class User(Base):
     """User table for gamification and authentication."""
     __tablename__ = "users"
@@ -400,6 +422,33 @@ class PipelineRun(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     __table_args__ = (
+        Index('idx_model_type_active', 'model_type', 'is_active'),
+    )
+
+
+class PredictionCache(Base):
+    """Cache prediction results to avoid recomputation."""
+    __tablename__ = "prediction_cache"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Prediction key
+    address_id = Column(Integer, ForeignKey("addresses.id"), nullable=False, index=True)
+    prediction_type = Column(String, nullable=False, index=True)  # 'delay', 'seasonal'
+
+    # Prediction results
+    prediction_result = Column(JSON, nullable=False)  # Stores the prediction data
+    confidence = Column(Float)
+
+    # Model tracking
+    model_version = Column(String)
+
+    # Cache metadata
+    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index('idx_prediction_cache_lookup', 'address_id', 'prediction_type', 'expires_at'),
         Index('idx_pipeline_run_status_started', 'status', 'started_at'),
     )
 
