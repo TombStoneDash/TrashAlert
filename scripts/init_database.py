@@ -124,9 +124,10 @@ def init_database(db_path: Path) -> None:
         raise
     finally:
         conn.close()
-Initialize the TrashAlert database with sample data.
-Creates tables and loads address data with mock pickup schedules.
-"""
+
+
+# Initialize the TrashAlert database with sample data.
+# Creates tables and loads address data with mock pickup schedules.
 
 import sqlite3
 import pandas as pd
@@ -347,8 +348,8 @@ def main():
     base_dir = Path(__file__).parent.parent
     db_path = base_dir / 'data' / 'trashalert.db'
 
-    init_database(db_path)
-    logger.info(f"✓ Database initialized at {db_path}")
+    # init_database(db_path)  # Disabled - conflicts with create_tables below
+    # logger.info(f"✓ Database initialized at {db_path}")
     csv_path = base_dir / 'data' / 'addresses_sampled_50_per_city.csv'
 
     # Check if CSV exists
