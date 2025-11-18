@@ -10,6 +10,8 @@ import logging
 import time
 
 from app.database import get_db, engine, Base
+from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics, User
+from app.schemas import ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ConsensusDetails
 from app.models import Address, CrowdReport, CrowdConsensus
 from app.schemas import (
     ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ConsensusDetails,
@@ -41,6 +43,8 @@ logger = logging.getLogger(__name__)
 from app.middleware import RequestLoggingMiddleware
 from app.metrics import MetricsManager
 from app.logging_config import app_logger, error_logger
+from app.auth import get_optional_current_user, require_authenticated
+from app.routers import auth, admin
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -48,9 +52,13 @@ Base.metadata.create_all(bind=engine)
 # Initialize FastAPI
 app = FastAPI(
     title="TrashAlert API",
-    description="API for trash pickup schedules with crowdsourced data",
-    version="1.0.0"
+    description="API for trash pickup schedules with crowdsourced data and RBAC",
+    version="2.0.0"
 )
+
+# Include routers
+app.include_router(auth.router)
+app.include_router(admin.router)
 
 # Simple in-memory rate limiter
 # In production, use Redis or similar distributed cache
@@ -251,19 +259,23 @@ async def root() -> Dict[str, Any]:
     }
 
 
-@app.post("/report", response_model=ReportResponse)
+@app.post("/report", response_model=ReportResponse, dependencies=[Depends(require_authenticated)])
 async def submit_report(
     report: ReportRequest,
     request: Request,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_optional_current_user)
 ):
     """
     Submit a crowdsourced report for trash pickup schedule.
 
+    **Authentication Required:** This endpoint requires authentication with any role
+    (user, reporter, city_partner, admin).
+
     This endpoint:
     1. Normalizes the provided address
     2. Finds or creates an address record
-    3. Stores the report in crowd_reports table
+    3. Stores the report in crowd_reports table (linked to authenticated user)
     4. Updates consensus calculations
     5. Returns the updated consensus
 
@@ -271,6 +283,7 @@ async def submit_report(
         report: Report data including address and pickup days
         request: FastAPI request (for IP tracking and metrics)
         db: Database session
+        current_user: Current authenticated user (optional for backward compatibility)
 
     Returns:
         Report response with consensus information
@@ -301,13 +314,14 @@ async def submit_report(
             f"City: {city} - Trash: {trash_day}, Recycling: {recycling_day}, Green: {green_day}"
         )
 
-        # Create crowd report
+        # Create crowd report (link to authenticated user if available)
         new_report = CrowdReport(
             address_id=address.id,
             trash_day=trash_day,
             recycling_day=recycling_day,
             green_day=green_day,
-            user_hash=report.user_hash,
+            user_hash=report.user_hash,  # Keep for backward compatibility
+            user_id=current_user.id if current_user else None,  # Link to authenticated user
             ip_address=request.client.host if request.client else None
         )
         db.add(new_report)
