@@ -1,5 +1,5 @@
 """Database models for TrashAlert."""
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Index
 from sqlalchemy.sql import func
 from app.database import Base
 
@@ -15,8 +15,8 @@ class Address(Base):
     house_number = Column(String)
     street = Column(String, index=True)
     city = Column(String, index=True)
-    state = Column(String)
-    zip_code = Column(String)
+    state = Column(String, index=True)  # Added index for filtering by state
+    zip_code = Column(String, index=True)  # Added index for filtering by zip
 
     # Coordinates
     lat = Column(Float)
@@ -47,8 +47,13 @@ class CrowdReport(Base):
     user_hash = Column(String, index=True)
 
     # Metadata
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    ip_address = Column(String)  # Could be useful for spam prevention
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    ip_address = Column(String, index=True)  # Index for spam prevention queries
+
+    # Composite indexes for common query patterns
+    __table_args__ = (
+        Index('idx_address_created', 'address_id', 'created_at'),
+    )
 
 
 class CrowdConsensus(Base):
@@ -70,12 +75,16 @@ class CrowdConsensus(Base):
     green_agreement_ratio = Column(Float, default=0.0)
 
     # Verification status
-    is_verified = Column(Boolean, default=False)  # True if meets threshold
+    is_verified = Column(Boolean, default=False, index=True)  # True if meets threshold
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
+    # Composite indexes for common query patterns
+    __table_args__ = (
+        Index('idx_address_verified', 'address_id', 'is_verified'),
+    )
 
 class RequestMetrics(Base):
     """Track API request metrics for observability."""
