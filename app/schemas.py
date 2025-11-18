@@ -504,6 +504,24 @@ class InterpretAddressResponse(BaseModel):
     error: Optional[str] = Field(None, description="Error message if interpretation failed")
 
 
+class HeatmapPoint(BaseModel):
+    """A single point in the heatmap with location and intensity."""
+    lat: float = Field(..., description="Latitude")
+    lon: float = Field(..., description="Longitude")
+    intensity: float = Field(..., description="Intensity value (normalized 0-1)")
+    count: Optional[int] = Field(None, description="Raw count for this location")
+    details: Optional[dict] = Field(None, description="Additional context for this point")
+
+
+class HeatmapResponse(BaseModel):
+    """Response schema for GET /analytics/heatmap endpoint."""
+    metric: str = Field(..., description="Heatmap metric type (report_density, low_confidence, high_activity)")
+    city: Optional[str] = Field(None, description="City filter applied")
+    points: list[HeatmapPoint] = Field(..., description="Heatmap data points")
+    total_points: int = Field(..., description="Total number of points returned")
+    max_intensity: float = Field(..., description="Maximum intensity value in dataset")
+    min_intensity: float = Field(..., description="Minimum intensity value in dataset")
+    generated_at: str = Field(..., description="Timestamp when heatmap was generated")
 # Gamification Schemas
 
 class BadgeSchema(BaseModel):

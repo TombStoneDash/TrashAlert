@@ -27,6 +27,7 @@ from app.schemas import ReportRequest, ReportResponse, LookupResponse, Consensus
 from app.models import Address, CrowdReport, CrowdConsensus
 from app.schemas import (
     ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ConsensusDetails,
+    InterpretAddressRequest, InterpretAddressResponse, HeatmapResponse, HeatmapPoint
     InterpretAddressRequest, InterpretAddressResponse,
     LeaderboardResponse, UserStatsResponse
 )
@@ -343,6 +344,7 @@ async def root() -> Dict[str, Any]:
         "status": "healthy",
         "service": "TrashAlert API",
         "version": "1.0.0",
+        "endpoints": ["/lookup", "/report", "/interpret-address", "/stats", "/analytics/heatmap"]
         "endpoints": [
             "/lookup",
             "/report",
@@ -1151,6 +1153,216 @@ async def get_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
     }
 
 
+@app.get("/analytics/heatmap", response_model=HeatmapResponse)
+async def get_heatmap_data(
+    metric: str = "report_density",
+    city: Optional[str] = None,
+    limit: int = 1000,
+    db: Session = Depends(get_db)
+):
+    """
+    Get heatmap data for visualization in admin dashboard.
+
+    Supported metrics:
+    - report_density: Shows areas with high concentration of crowdsourced reports
+    - low_confidence: Shows areas with low consensus agreement (potential issues)
+    - high_activity: Shows addresses with most recent reporting activity
+
+    Args:
+        metric: Type of heatmap to generate
+        city: Optional city filter
+        limit: Maximum number of points to return (default 1000)
+        db: Database session
+
+    Returns:
+        HeatmapResponse with coordinate points and intensity values
+    """
+    from sqlalchemy import func
+
+    app_logger.info(f"Generating heatmap: metric={metric}, city={city}, limit={limit}")
+
+    points = []
+    max_intensity = 0.0
+    min_intensity = 1.0
+
+    try:
+        if metric == "report_density":
+            # Count reports per address location
+            query = db.query(
+                Address.lat,
+                Address.lon,
+                Address.normalized_address,
+                Address.city_name,
+                func.count(CrowdReport.id).label('report_count')
+            ).join(
+                CrowdReport, Address.id == CrowdReport.address_id
+            ).filter(
+                Address.lat.isnot(None),
+                Address.lon.isnot(None)
+            )
+
+            if city:
+                query = query.filter(Address.city_name.ilike(f"%{city}%"))
+
+            query = query.group_by(
+                Address.id,
+                Address.lat,
+                Address.lon,
+                Address.normalized_address,
+                Address.city_name
+            ).order_by(
+                func.count(CrowdReport.id).desc()
+            ).limit(limit)
+
+            results = query.all()
+
+            # Normalize intensities
+            if results:
+                max_count = max(r.report_count for r in results)
+                min_count = min(r.report_count for r in results)
+                count_range = max_count - min_count if max_count > min_count else 1
+
+                for row in results:
+                    intensity = (row.report_count - min_count) / count_range if count_range > 0 else 0.5
+                    points.append(HeatmapPoint(
+                        lat=row.lat,
+                        lon=row.lon,
+                        intensity=intensity,
+                        count=row.report_count,
+                        details={
+                            "address": row.normalized_address,
+                            "city": row.city_name,
+                            "metric_type": "report_count"
+                        }
+                    ))
+                    max_intensity = max(max_intensity, intensity)
+                    min_intensity = min(min_intensity, intensity)
+
+        elif metric == "low_confidence":
+            # Show areas with low agreement ratios (potential problems)
+            query = db.query(
+                Address.lat,
+                Address.lon,
+                Address.normalized_address,
+                Address.city_name,
+                CrowdConsensus.trash_agreement_ratio,
+                CrowdConsensus.recycling_agreement_ratio,
+                CrowdConsensus.total_reports
+            ).join(
+                CrowdConsensus, Address.id == CrowdConsensus.address_id
+            ).filter(
+                Address.lat.isnot(None),
+                Address.lon.isnot(None),
+                CrowdConsensus.total_reports >= 2  # Only show where there are multiple reports
+            )
+
+            if city:
+                query = query.filter(Address.city_name.ilike(f"%{city}%"))
+
+            query = query.limit(limit)
+            results = query.all()
+
+            for row in results:
+                # Calculate average disagreement (inverse of agreement)
+                ratios = [r for r in [row.trash_agreement_ratio, row.recycling_agreement_ratio] if r > 0]
+                avg_agreement = sum(ratios) / len(ratios) if ratios else 0.5
+                disagreement = 1.0 - avg_agreement  # Higher disagreement = higher intensity
+
+                points.append(HeatmapPoint(
+                    lat=row.lat,
+                    lon=row.lon,
+                    intensity=disagreement,
+                    count=row.total_reports,
+                    details={
+                        "address": row.normalized_address,
+                        "city": row.city_name,
+                        "agreement_ratio": round(avg_agreement, 2),
+                        "metric_type": "disagreement"
+                    }
+                ))
+                max_intensity = max(max_intensity, disagreement)
+                min_intensity = min(min_intensity, disagreement)
+
+        elif metric == "high_activity":
+            # Show addresses with most recent activity
+            query = db.query(
+                Address.lat,
+                Address.lon,
+                Address.normalized_address,
+                Address.city_name,
+                func.count(CrowdReport.id).label('report_count'),
+                func.max(CrowdReport.created_at).label('latest_report')
+            ).join(
+                CrowdReport, Address.id == CrowdReport.address_id
+            ).filter(
+                Address.lat.isnot(None),
+                Address.lon.isnot(None)
+            )
+
+            if city:
+                query = query.filter(Address.city_name.ilike(f"%{city}%"))
+
+            # Filter to last 30 days
+            thirty_days_ago = datetime.now() - timedelta(days=30)
+            query = query.filter(CrowdReport.created_at >= thirty_days_ago)
+
+            query = query.group_by(
+                Address.id,
+                Address.lat,
+                Address.lon,
+                Address.normalized_address,
+                Address.city_name
+            ).order_by(
+                func.count(CrowdReport.id).desc()
+            ).limit(limit)
+
+            results = query.all()
+
+            if results:
+                max_count = max(r.report_count for r in results)
+                min_count = min(r.report_count for r in results)
+                count_range = max_count - min_count if max_count > min_count else 1
+
+                for row in results:
+                    intensity = (row.report_count - min_count) / count_range if count_range > 0 else 0.5
+                    points.append(HeatmapPoint(
+                        lat=row.lat,
+                        lon=row.lon,
+                        intensity=intensity,
+                        count=row.report_count,
+                        details={
+                            "address": row.normalized_address,
+                            "city": row.city_name,
+                            "latest_report": row.latest_report.isoformat() if row.latest_report else None,
+                            "metric_type": "recent_activity"
+                        }
+                    ))
+                    max_intensity = max(max_intensity, intensity)
+                    min_intensity = min(min_intensity, intensity)
+
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid metric '{metric}'. Supported: report_density, low_confidence, high_activity"
+            )
+
+        app_logger.info(f"Heatmap generated: {len(points)} points")
+
+        return HeatmapResponse(
+            metric=metric,
+            city=city,
+            points=points,
+            total_points=len(points),
+            max_intensity=max_intensity if points else 0.0,
+            min_intensity=min_intensity if points else 0.0,
+            generated_at=datetime.now().isoformat()
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_logger.error(f"Heatmap generation error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to generate heatmap data")
 # ============================================================================
 # GAMIFICATION ENDPOINTS
 # ============================================================================
