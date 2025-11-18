@@ -1,0 +1,69 @@
+# Better Stack (formerly Better Uptime) Configuration
+# https://betterstack.com/uptime
+
+monitors:
+  - name: TrashAlert API Health
+    url: https://your-api-url.railway.app/health
+    monitor_type: http
+    request_timeout: 30
+    check_frequency: 60
+    expected_status_codes: [200]
+    regions:
+      - us-east
+      - us-west
+      - eu-west
+    notification_channels:
+      - email
+      - slack
+
+  - name: TrashAlert API Performance
+    url: https://your-api-url.railway.app/lookup?address=1122%20Palmview%20Ave,%20El%20Centro,%20CA
+    monitor_type: http
+    request_timeout: 30
+    check_frequency: 300
+    expected_status_codes: [200]
+    response_time_threshold: 2000
+    regions:
+      - us-east
+
+  - name: TrashAlert Admin Dashboard
+    url: https://your-dashboard-url.vercel.app
+    monitor_type: http
+    request_timeout: 30
+    check_frequency: 60
+    expected_status_codes: [200]
+    regions:
+      - us-east
+
+  - name: SSL Certificate
+    url: https://your-api-url.railway.app
+    monitor_type: ssl
+    check_frequency: 86400
+    ssl_expiration_reminder_days: 30
+
+alerts:
+  email:
+    - alerts@yourdomain.com
+
+  slack:
+    webhook_url: ${SLACK_WEBHOOK_URL}
+
+  pagerduty:
+    integration_key: ${PAGERDUTY_KEY}
+
+on_call_schedule:
+  - name: Primary
+    timezone: America/Los_Angeles
+    layers:
+      - users: ["user@example.com"]
+        start_time: "09:00"
+        end_time: "17:00"
+        days: ["monday", "tuesday", "wednesday", "thursday", "friday"]
+
+escalation_policy:
+  - wait: 5
+    notify: email
+  - wait: 10
+    notify: slack
+  - wait: 15
+    notify: pagerduty
