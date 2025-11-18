@@ -1,0 +1,41 @@
+{
+  "type": "Feature",
+  "properties": {
+    "name": "Sacramento",
+    "state": "California",
+    "note": "Mock boundary for testing - replace with actual OSM data when available"
+  },
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          -121.6,
+          38.4
+        ],
+        [
+          -121.3,
+          38.4
+        ],
+        [
+          -121.3,
+          38.7
+        ],
+        [
+          -121.6,
+          38.7
+        ],
+        [
+          -121.6,
+          38.4
+        ]
+      ]
+    ]
+  },
+  "bbox": [
+    -121.6,
+    38.4,
+    -121.3,
+    38.7
+  ]
+}

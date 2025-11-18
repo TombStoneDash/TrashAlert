@@ -1,0 +1,18 @@
+{
+  "type": "Feature",
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [[
+      [-115.5100, 32.6600],
+      [-115.5100, 32.6900],
+      [-115.4800, 32.6900],
+      [-115.4800, 32.6600],
+      [-115.5100, 32.6600]
+    ]]
+  },
+  "properties": {
+    "name": "Calexico",
+    "admin_level": "8",
+    "note": "Approximate bounding box for Calexico city limits"
+  }
+}

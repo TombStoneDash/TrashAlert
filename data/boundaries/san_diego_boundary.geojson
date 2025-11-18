@@ -1,0 +1,41 @@
+{
+  "type": "Feature",
+  "properties": {
+    "name": "San Diego",
+    "state": "California",
+    "note": "Mock boundary for testing - replace with actual OSM data when available"
+  },
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          -117.3,
+          32.5
+        ],
+        [
+          -116.9,
+          32.5
+        ],
+        [
+          -116.9,
+          33.0
+        ],
+        [
+          -117.3,
+          33.0
+        ],
+        [
+          -117.3,
+          32.5
+        ]
+      ]
+    ]
+  },
+  "bbox": [
+    -117.3,
+    32.5,
+    -116.9,
+    33.0
+  ]
+}
