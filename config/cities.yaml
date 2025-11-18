@@ -1,8 +1,10 @@
 # Configuration for cities supported by TrashAlert
 # Each city entry includes metadata for pipeline processing
+# city_id format: {state_abbr_lower}_{city_name_snake_case}
 
 cities:
-  - name: San Diego
+  - city_id: ca_san_diego
+    name: San Diego
     state: California
     state_abbr: CA
     country: USA
@@ -10,7 +12,8 @@ cities:
     pickup_zone_data_source: "https://data.sandiego.gov/datasets/get-it-done-311/"
     notes: "Major city with extensive subdivision data available"
 
-  - name: El Centro
+  - city_id: ca_el_centro
+    name: El Centro
     state: California
     state_abbr: CA
     country: USA
@@ -18,7 +21,8 @@ cities:
     pickup_zone_data_source: "Contact city directly - may require manual collection"
     notes: "County seat of Imperial County"
 
-  - name: Calexico
+  - city_id: ca_calexico
+    name: Calexico
     state: California
     state_abbr: CA
     country: USA
@@ -26,7 +30,8 @@ cities:
     pickup_zone_data_source: "Not available - will use OSM boundaries"
     notes: "Border city in Imperial County"
 
-  - name: Brawley
+  - city_id: ca_brawley
+    name: Brawley
     state: California
     state_abbr: CA
     country: USA
@@ -34,7 +39,8 @@ cities:
     pickup_zone_data_source: "Not available - will use OSM boundaries"
     notes: "Agricultural city in Imperial County"
 
-  - name: Imperial
+  - city_id: ca_imperial
+    name: Imperial
     state: California
     state_abbr: CA
     country: USA
@@ -42,7 +48,8 @@ cities:
     pickup_zone_data_source: "Not available - will use OSM boundaries"
     notes: "Small city in Imperial County"
 
-  - name: Holtville
+  - city_id: ca_holtville
+    name: Holtville
     state: California
     state_abbr: CA
     country: USA
@@ -50,7 +57,8 @@ cities:
     pickup_zone_data_source: "Not available - will use OSM boundaries"
     notes: "Small agricultural town in Imperial County"
 
-  - name: Fresno
+  - city_id: ca_fresno
+    name: Fresno
     state: California
     state_abbr: CA
     country: USA
@@ -58,7 +66,8 @@ cities:
     pickup_zone_data_source: "Contact city directly - may require manual collection"
     notes: "Major city in Central Valley, fifth largest in California"
 
-  - name: Riverside
+  - city_id: ca_riverside
+    name: Riverside
     state: California
     state_abbr: CA
     country: USA
@@ -66,7 +75,8 @@ cities:
     pickup_zone_data_source: "Contact city directly - may require manual collection"
     notes: "Major city in Inland Empire region"
 
-  - name: Sacramento
+  - city_id: ca_sacramento
+    name: Sacramento
     state: California
     state_abbr: CA
     country: USA
@@ -74,7 +84,8 @@ cities:
     pickup_zone_data_source: "Contact city directly - may require manual collection"
     notes: "State capital of California"
 
-  - name: Bakersfield
+  - city_id: ca_bakersfield
+    name: Bakersfield
     state: California
     state_abbr: CA
     country: USA
