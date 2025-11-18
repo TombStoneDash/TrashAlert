@@ -1,6 +1,6 @@
 # TrashAlert Frontend
 
-A simple, single-page web UI for testing the TrashAlert trash and recycling collection lookup API.
+A simple, single-page web UI for the TrashAlert trash and recycling collection lookup API with crowdsourcing capabilities.
 
 ## Features
 
@@ -10,6 +10,8 @@ A simple, single-page web UI for testing the TrashAlert trash and recycling coll
   - 🗑️ Trash Collection (Green border)
   - ♻️ Recycling Collection (Blue border)
   - 🌿 Green Waste Collection (Lime border)
+- **NEW: Report Wrong Info button** - allows users to submit corrections
+- **NEW: Source badges** - shows whether data is from official sources, crowdsourced, or verified
 - Configurable API endpoint URL (saved to localStorage)
 - Debug panel showing raw JSON responses
 - Responsive design that works on mobile and desktop
@@ -40,11 +42,11 @@ Before using the frontend, you need to start the backend API server.
 
 3. Start the API server:
    ```bash
-   # If you have a main.py or api.py file:
-   uvicorn main:app --reload --port 8000
+   # Start the main app with both /lookup and /report endpoints:
+   uvicorn app.main:app --reload --port 8000
 
-   # Or if your API is in a different file:
-   uvicorn your_api_file:app --reload --port 8000
+   # Or use the simpler API (lookup only):
+   uvicorn api.main:app --reload --port 8000
    ```
 
 4. Verify the API is running by visiting:
@@ -104,45 +106,89 @@ If you're using Visual Studio Code:
 1. **Start the Backend API** (see above)
 2. **Start the Frontend** (see above)
 3. **Open the Frontend** in your browser
-4. **Configure the API URL** (if different from `http://localhost:8000/lookup`)
-   - The default is `http://localhost:8000/lookup`
+4. **Configure the API URL** (if different from `http://localhost:8000`)
+   - The default is `http://localhost:8000`
    - You can change this in the "API Endpoint" field
    - The URL is saved to your browser's localStorage
 5. **Enter an Address** in the search box
    - Example: `123 Main St, Brawley`
    - Example: `2158 Main St`
 6. **Click "Look Up"** to fetch collection schedule
-7. **View Results** in the color-coded cards
-8. **Check Debug Panel** (click to expand) to see the raw JSON response
+7. **View Results** in the color-coded cards with source badges
+8. **Report Corrections** (optional)
+   - Click "Report Wrong Info" button
+   - Select the correct collection days
+   - Click "Submit Report" to contribute to crowdsourced data
+9. **Check Debug Panel** (click to expand) to see the raw JSON response
 
 ## API Contract
 
 The frontend expects the API to respond with the following JSON structure:
 
-### Request
+### Lookup Request
 
 ```
 GET /lookup?address=123+Main+St,+Brawley
 ```
 
-### Response (Success)
+### Lookup Response (Success)
 
 ```json
 {
   "address": "123 Main St, Brawley",
-  "zone": "Zone A",
-  "trash_day": "Monday",
-  "recycling_day": "Wednesday",
-  "green_waste_day": "Friday"
+  "normalized_address": "123 main st",
+  "trash_day": "MON",
+  "recycling_day": "WED",
+  "green_day": "FRI",
+  "source": "OFFICIAL",
+  "consensus_reports_count": null,
+  "consensus_agreement_ratio": null,
+  "lat": 32.7481,
+  "lon": -115.5630
 }
 ```
 
-### Response (Error)
+### Report Request
+
+```
+POST /report
+Content-Type: application/json
+
+{
+  "address": "123 Main St, Brawley",
+  "trash_day": "MON",
+  "recycling_day": "WED",
+  "green_day": null,
+  "user_hash": null
+}
+```
+
+### Report Response (Success)
 
 ```json
 {
-  "error": "Address not found",
-  "detail": "The specified address could not be matched to any known location"
+  "success": true,
+  "message": "Report submitted successfully",
+  "address_id": 123,
+  "normalized_address": "123 main st",
+  "consensus": {
+    "trash_day": "MON",
+    "recycling_day": "WED",
+    "green_day": null,
+    "reports_count": 5,
+    "trash_agreement_ratio": 1.0,
+    "recycling_agreement_ratio": 0.8,
+    "green_agreement_ratio": 0.0,
+    "is_verified": false
+  }
+}
+```
+
+### Error Response
+
+```json
+{
+  "detail": "Address parameter is required and cannot be empty"
 }
 ```
 
@@ -153,10 +199,10 @@ GET /lookup?address=123+Main+St,+Brawley
 Edit `index.html` and find this line:
 
 ```javascript
-value="http://localhost:8000/lookup"
+value="http://localhost:8000"
 ```
 
-Change it to your desired default API URL.
+Change it to your desired default API base URL (without /lookup or /report).
 
 ### Styling
 

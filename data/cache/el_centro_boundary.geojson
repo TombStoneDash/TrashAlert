@@ -1,0 +1,18 @@
+{
+  "type": "Feature",
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [[
+      [-115.5800, 32.7600],
+      [-115.5800, 32.8100],
+      [-115.5200, 32.8100],
+      [-115.5200, 32.7600],
+      [-115.5800, 32.7600]
+    ]]
+  },
+  "properties": {
+    "name": "El Centro",
+    "admin_level": "8",
+    "note": "Approximate bounding box for El Centro city limits"
+  }
+}

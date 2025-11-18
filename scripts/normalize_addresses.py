@@ -106,7 +106,30 @@ def setup_database(db_path: str):
         )
     """)
 
-    # Create addresses_normalized table
+    # Create addresses table matching src/models.py schema
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS addresses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            house_number TEXT NOT NULL,
+            street TEXT NOT NULL,
+            city TEXT NOT NULL,
+            subdivision_id TEXT,
+            lat REAL NOT NULL,
+            lon REAL NOT NULL,
+            normalized_address TEXT NOT NULL,
+            trash_day_of_week TEXT,
+            osm_id TEXT,
+            source TEXT
+        )
+    """)
+
+    # Create index on normalized_address for faster lookups
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_addresses_normalized
+        ON addresses(normalized_address)
+    """)
+
+    # Also create addresses_normalized table for CSV export compatibility
     cursor.execute("""
         DROP TABLE IF EXISTS addresses_normalized
     """)
@@ -191,7 +214,7 @@ def normalize_and_dedupe(addresses: list, conn: sqlite3.Connection):
         # Normalize street name
         street_normalized = normalize_street_name(addr['street'])
 
-        # Insert into database (will skip if duplicate due to UNIQUE constraint)
+        # Insert into addresses_normalized table (for CSV export)
         try:
             cursor.execute("""
                 INSERT INTO addresses_normalized
@@ -214,6 +237,31 @@ def normalize_and_dedupe(addresses: list, conn: sqlite3.Connection):
         except sqlite3.IntegrityError:
             # Duplicate found (shouldn't happen with our deduplication above)
             stats['duplicates_removed'] += 1
+            continue
+
+        # Insert into addresses table (main table matching src/models.py)
+        try:
+            cursor.execute("""
+                INSERT INTO addresses
+                (house_number, street, city, subdivision_id, lat, lon,
+                 normalized_address, trash_day_of_week, osm_id, source)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                addr['house_number'],
+                street_normalized,
+                city_name,
+                addr.get('subdivision_id'),
+                float(addr['lat']) if addr['lat'] else None,
+                float(addr['lon']) if addr['lon'] else None,
+                full_address,
+                None,  # trash_day_of_week will be populated later
+                addr.get('osm_id'),
+                'osm'  # source is OSM data
+            ))
+
+        except sqlite3.IntegrityError:
+            # Duplicate in addresses table - this is okay, skip silently
+            pass
 
     conn.commit()
     return stats
@@ -294,10 +342,10 @@ def show_schema(db_path: str):
 
 def main():
     """Main execution function."""
-    # Paths
-    csv_input = 'data/addresses_sampled_50_per_city.csv'
+    # Paths - updated to use addresses_osm_raw.csv and trashalert.db
+    csv_input = 'data/addresses_osm_raw.csv'
     csv_output = 'data/addresses_normalized.csv'
-    db_path = 'data/trashpilot.db'
+    db_path = 'data/trashalert.db'
 
     print("Starting address normalization and deduplication...")
 
@@ -322,22 +370,31 @@ def main():
     # Show schema
     show_schema(db_path)
 
-    # Show sample data
+    # Show sample data from addresses table
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM addresses_normalized LIMIT 5")
+    cursor.execute("SELECT * FROM addresses LIMIT 5")
     rows = cursor.fetchall()
 
     if rows:
         print("\n" + "=" * 80)
-        print("SAMPLE NORMALIZED ADDRESSES")
+        print("SAMPLE ADDRESSES IN 'addresses' TABLE")
         print("=" * 80)
-        cursor.execute("PRAGMA table_info(addresses_normalized)")
+        cursor.execute("PRAGMA table_info(addresses)")
         columns = [col[1] for col in cursor.fetchall()]
 
         for row in rows:
             for col, val in zip(columns, row):
                 print(f"  {col}: {val}")
             print("-" * 80)
+
+    # Show counts
+    cursor.execute("SELECT COUNT(*) FROM addresses")
+    addresses_count = cursor.fetchone()[0]
+    cursor.execute("SELECT COUNT(*) FROM addresses_normalized")
+    addresses_normalized_count = cursor.fetchone()[0]
+
+    print(f"\nTotal rows in 'addresses' table: {addresses_count}")
+    print(f"Total rows in 'addresses_normalized' table: {addresses_normalized_count}")
 
     conn.close()
     print("\nNormalization complete!")

@@ -138,8 +138,9 @@ def sample_addresses(test_db):
 
 
 @pytest.fixture
-def client():
+def client(test_db):
     """Create a test client for the API."""
+    # test_db must be initialized before creating client
     return TestClient(app)
 
 

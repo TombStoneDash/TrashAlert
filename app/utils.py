@@ -89,11 +89,18 @@ def find_or_create_address(db: Session, address_str: str,
         return existing
 
     # If coordinates provided, try to find nearby address (within 50 meters)
+    # Use bounding box query to limit database results (approximately 100m box)
     if lat and lon:
+        # Calculate rough bounding box (0.001 degrees ≈ 111 meters)
+        lat_delta = 0.001
+        lon_delta = 0.001
+
         nearby = db.query(Address).filter(
             Address.lat.isnot(None),
-            Address.lon.isnot(None)
-        ).all()
+            Address.lon.isnot(None),
+            Address.lat.between(lat - lat_delta, lat + lat_delta),
+            Address.lon.between(lon - lon_delta, lon + lon_delta)
+        ).limit(50).all()  # Limit to 50 nearby candidates
 
         for addr in nearby:
             distance = geodesic((lat, lon), (addr.lat, addr.lon)).meters
