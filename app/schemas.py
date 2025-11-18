@@ -1,6 +1,7 @@
 """Pydantic schemas for API request/response validation."""
 from typing import Optional, Literal
 from pydantic import BaseModel, Field, field_validator, model_validator
+from app.security import validate_input_security
 
 
 class ReportRequest(BaseModel):
@@ -9,14 +10,20 @@ class ReportRequest(BaseModel):
     trash_day: Optional[str] = Field(None, max_length=20, description="Trash pickup day (MON, TUE, WED, THU, FRI)")
     recycling_day: Optional[str] = Field(None, max_length=20, description="Recycling pickup day")
     green_day: Optional[str] = Field(None, max_length=20, description="Green waste pickup day")
-    user_hash: Optional[str] = Field(None, max_length=64, description="Optional stable user identifier")
+    user_hash: Optional[str] = Field(None, max_length=64, pattern=r'^[a-zA-Z0-9_-]+$', description="Optional stable user identifier (alphanumeric, dash, underscore only)")
 
     @field_validator('address')
     @classmethod
     def validate_address_not_empty(cls, v: str) -> str:
-        """Ensure address is not just whitespace."""
+        """Ensure address is not just whitespace and check for malicious patterns."""
         if not v or not v.strip():
             raise ValueError("Address cannot be empty or whitespace only")
+
+        # Check for security threats (SQL injection, XSS, etc.)
+        security_issues = validate_input_security(v, "address")
+        if security_issues:
+            raise ValueError(f"Invalid address: contains potentially malicious content")
+
         # Remove excessive whitespace
         return ' '.join(v.split())
 
@@ -148,9 +155,15 @@ class InterpretAddressRequest(BaseModel):
     @field_validator('text')
     @classmethod
     def validate_text_not_empty(cls, v: str) -> str:
-        """Ensure text is not just whitespace."""
+        """Ensure text is not just whitespace and check for malicious patterns."""
         if not v or not v.strip():
             raise ValueError("Text cannot be empty or whitespace only")
+
+        # Check for security threats (SQL injection, XSS, etc.)
+        security_issues = validate_input_security(v, "text")
+        if security_issues:
+            raise ValueError(f"Invalid text: contains potentially malicious content")
+
         return v.strip()
 
 

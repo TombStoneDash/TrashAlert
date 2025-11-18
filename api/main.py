@@ -152,15 +152,31 @@ async def lookup_address(
         )
 
 
-# Add CORS middleware for web clients (optional, but helpful for testing)
+# Add CORS middleware for web clients
+# SECURITY: Never use allow_origins=["*"] with allow_credentials=True
+# This is a serious security vulnerability that allows any website to
+# make authenticated requests on behalf of users
 from fastapi.middleware.cors import CORSMiddleware
+import os
+
+# Get allowed origins from environment variable or use secure defaults
+ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+if not ALLOWED_ORIGINS or ALLOWED_ORIGINS == [""]:
+    # Default to localhost for development
+    ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8000"
+    ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, restrict this to your domain
+    allow_origins=ALLOWED_ORIGINS,  # Explicitly defined origins only
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],  # Only necessary methods
+    allow_headers=["Content-Type", "Authorization", "X-Requested-With"],  # Explicit headers
+    max_age=600,  # Cache preflight requests for 10 minutes
 )
 
 
