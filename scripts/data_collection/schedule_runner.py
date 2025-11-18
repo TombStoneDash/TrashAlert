@@ -169,6 +169,15 @@ class ScheduleRunner:
             self.db.commit()
             logger.info(f"✓ Stored {stats['schedules']} schedules and {stats['exceptions']} exceptions")
 
+            # Invalidate caches after successful schedule import
+            try:
+                from app.redis_cache import redis_cache
+                redis_cache.invalidate_lookup_cache()
+                redis_cache.invalidate_stats_cache()
+                logger.info("✓ Invalidated lookup and stats caches after schedule import")
+            except ImportError:
+                logger.debug("Redis cache not available for invalidation")
+
         except Exception as e:
             self.db.rollback()
             logger.error(f"Failed to store results: {e}")

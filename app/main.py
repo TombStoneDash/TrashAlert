@@ -26,6 +26,7 @@ from app.utils import (
 )
 from app.rate_limiter import rate_limiter
 from app.cache import lookup_cache
+from app.redis_cache import redis_cache
 
 # Configure structured logging
 logging.basicConfig(
@@ -311,6 +312,10 @@ async def submit_report(
         # Update consensus
         consensus = update_crowd_consensus(db, address.id)
 
+        # Invalidate caches for this address
+        redis_cache.invalidate_lookup_cache(address_id=address.id)
+        redis_cache.invalidate_stats_cache()
+
         # Build response
         consensus_info = None
         if consensus:
@@ -432,6 +437,19 @@ async def lookup_address(
                 status_code=400,
                 detail="Must provide either 'address' or both 'lat' and 'lon'"
             )
+
+        # Check Redis cache first
+        cache_key = redis_cache._generate_key(
+            "lookup",
+            address=address,
+            lat=lat,
+            lon=lon,
+            city_id=city_id
+        )
+        cached_response = redis_cache.get(cache_key)
+        if cached_response:
+            app_logger.info(f"Cache hit for lookup: {address or f'({lat},{lon})'}")
+            return LookupResponse(**cached_response)
 
         # Step 1: Find address record using appropriate method
         addr_record = None
@@ -580,7 +598,10 @@ async def lookup_address(
             consensus_details=consensus_details
         )
 
-        # Step 7: Record metrics
+        # Step 7: Cache the response
+        redis_cache.set(cache_key, response.model_dump(), ttl=300)  # 5 minutes
+
+        # Step 8: Record metrics
         response_time_ms = (time.time() - start_time) * 1000
         MetricsManager.record_request(
             db=db,
@@ -616,10 +637,19 @@ async def lookup_address(
 
 @app.get("/stats")
 async def get_stats(db: Session = Depends(get_db)):
-    """Get statistics about the database."""
+    """Get statistics about the database and cache performance."""
     from sqlalchemy import func, distinct
 
-    """Get statistics about the database and cache performance."""
+    # Check Redis cache first
+    cache_key = "stats:general"
+    cached_stats = redis_cache.get(cache_key)
+    if cached_stats:
+        app_logger.info("Cache hit for stats")
+        # Add cache stats to the cached response
+        cached_stats["cache_stats"] = redis_cache.get_stats()
+        return cached_stats
+
+    # Generate stats
     total_addresses = db.query(Address).count()
     total_reports = db.query(CrowdReport).count()
     total_consensus = db.query(CrowdConsensus).count()
@@ -639,7 +669,7 @@ async def get_stats(db: Session = Depends(get_db)):
         if city  # Filter out None values
     ]
 
-    return {
+    stats = {
         "total_addresses": total_addresses,
         "total_reports": total_reports,
         "total_consensus": total_consensus,
@@ -652,7 +682,11 @@ async def get_stats(db: Session = Depends(get_db)):
             "Holtville",
             "Calexico",
             "San Diego"
-        ]
+        ],
+        "cache_stats": redis_cache.get_stats()
     }
+
+    # Cache the stats for 60 seconds (shorter TTL since stats change frequently)
+    redis_cache.set(cache_key, stats, ttl=60)
 
     return stats
