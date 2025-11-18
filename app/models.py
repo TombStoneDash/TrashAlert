@@ -16,6 +16,7 @@ class Address(Base):
     house_number = Column(String)
     street = Column(String, index=True)
     city = Column(String, index=True)
+    city_id = Column(String, index=True)  # Links to cities.yaml (e.g., 'san_diego', 'fresno')
     state = Column(String, index=True)  # Added index for filtering by state
     zip_code = Column(String, index=True)  # Added index for filtering by zip
 
@@ -156,10 +157,7 @@ class SourceMetadata(Base):
     last_parsed_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    # Composite indexes for common query patterns
-    __table_args__ = (
-        Index('idx_address_verified', 'address_id', 'is_verified'),
-    )
+
 
 class RequestMetrics(Base):
     """Track API request metrics for observability."""

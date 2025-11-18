@@ -17,9 +17,12 @@ from app.schemas import ReportRequest, ReportResponse, LookupResponse, Consensus
 from app.utils import (
     normalize_address,
     find_or_create_address,
+    find_address_by_coordinates,
     update_crowd_consensus,
     validate_day,
-    day_abbrev_to_full
+    day_abbrev_to_full,
+    get_city_id_from_name,
+    get_city_name_from_id
 )
 from app.rate_limiter import rate_limiter
 from app.cache import lookup_cache
@@ -327,60 +330,6 @@ async def submit_report(
             f"Total reports: {consensus.total_reports if consensus else 0}"
         )
 
-        response = ReportResponse(
-            success=True,
-            message="Report submitted successfully",
-            address_id=address.id,
-            normalized_address=address.normalized_address,
-            consensus=consensus_info
-        )
-
-    # Find or create address
-    address = find_or_create_address(db, report.address)
-
-    # Check rate limit
-    client_ip = request.client.host if request.client else "unknown"
-    if not check_rate_limit(client_ip, address.normalized_address):
-        raise HTTPException(
-            status_code=429,
-            detail="Rate limit exceeded. Please try again later."
-        )
-
-    # Create crowd report
-    new_report = CrowdReport(
-        address_id=address.id,
-        trash_day=trash_day,
-        recycling_day=recycling_day,
-        green_day=green_day,
-        user_hash=report.user_hash,
-        ip_address=request.client.host if request.client else None
-    )
-    db.add(new_report)
-    db.commit()
-
-    # Record report for rate limiting
-    record_report(client_ip, address.normalized_address)
-
-    # Update consensus
-    consensus = update_crowd_consensus(db, address.id)
-
-    # Invalidate cache for this address since data changed
-    cache_key = f"lookup:{address.normalized_address}"
-    lookup_cache.delete(cache_key)
-    logger.debug(f"Cache invalidated for address: {address.normalized_address}")
-
-    # Build response
-    consensus_info = None
-    if consensus:
-        consensus_info = ConsensusInfo(
-            trash_day=consensus.consensus_trash_day,
-            recycling_day=consensus.consensus_recycling_day,
-            green_day=consensus.consensus_green_day,
-            reports_count=consensus.total_reports,
-            trash_agreement_ratio=consensus.trash_agreement_ratio,
-            recycling_agreement_ratio=consensus.recycling_agreement_ratio,
-            green_agreement_ratio=consensus.green_agreement_ratio,
-            is_verified=consensus.is_verified
         # Record successful metric
         response_time_ms = (time.time() - start_time) * 1000
         MetricsManager.record_request(
@@ -394,7 +343,13 @@ async def submit_report(
             ip_address=request.client.host if request.client else None
         )
 
-        return response
+        return ReportResponse(
+            success=True,
+            message="Report submitted successfully",
+            address_id=address.id,
+            normalized_address=address.normalized_address,
+            consensus=consensus_info
+        )
 
     except HTTPException:
         # Re-raise HTTP exceptions (already logged)
@@ -431,109 +386,130 @@ async def submit_report(
 
 @app.get("/lookup", response_model=LookupResponse)
 async def lookup_address(
-    address: str,
-    request: Request,
+    address: Optional[str] = None,
+    lat: Optional[float] = None,
+    lon: Optional[float] = None,
+    city_id: Optional[str] = None,
+    request: Request = None,
     db: Session = Depends(get_db)
 ):
     """
     Look up trash pickup schedule for an address.
 
-    This endpoint merges data from multiple sources with priority:
-    1. Verified crowdsourced consensus (if available and verified)
-    2. Official GIS/rules data
-    3. Unverified crowdsourced data (if no official data)
+    Supports multiple input formats:
+    1. Full address string (address)
+    2. Coordinates (lat + lon)
+    3. Address + city_id for more precise matching
 
-    Includes caching for improved performance (5-minute TTL).
+    Data source priority:
+    1. CROWD_VERIFIED - Verified crowdsourced consensus (≥3 reports, ≥67% agreement)
+    2. OFFICIAL - Official municipal data
+    3. CROWD_UNVERIFIED - Unverified crowdsourced data
+    4. UNKNOWN - No data available
 
     Args:
-        address: Address to look up
-        request: FastAPI request (for metrics)
+        address: Full address string (optional)
+        lat: Latitude (optional, requires lon)
+        lon: Longitude (optional, requires lat)
+        city_id: City identifier from cities.yaml (optional)
+        request: FastAPI request object
         db: Database session
 
     Returns:
-        Pickup schedule with source information
+        LookupResponse with schedule and source information
     """
     start_time = time.time()
-    city = None
+    city_name = None
     status_code = 200
-    error_msg = None
 
     try:
-        # Validate input
-        if not address or not address.strip():
-            status_code = 400
-            error_msg = "Address parameter is required and cannot be empty"
-            raise HTTPException(status_code=status_code, detail=error_msg)
+        # Validate input format
+        has_address = bool(address and address.strip())
+        has_coords = lat is not None and lon is not None
 
-        # Normalize address to find it
-        parts = normalize_address(address)
-        normalized = parts['normalized_address']
-        city = parts.get('city', None)
+        if not has_address and not has_coords:
+            raise HTTPException(
+                status_code=400,
+                detail="Must provide either 'address' or both 'lat' and 'lon'"
+            )
 
-        app_logger.info(f"Lookup request: {address} -> Normalized: {normalized}, City: {city}")
+        # Step 1: Find address record using appropriate method
+        addr_record = None
 
-        # Check if normalization produced valid result
-        if not normalized or len(normalized) < 3:
-            status_code = 400
-            error_msg = f"Invalid address format: '{address}'"
-            raise HTTPException(status_code=status_code, detail=error_msg)
+        if has_coords:
+            # Coordinate-based lookup
+            app_logger.info(f"Lookup by coordinates: ({lat}, {lon}), city_id={city_id}")
+            addr_record = find_address_by_coordinates(
+                db=db,
+                lat=lat,
+                lon=lon,
+                max_distance_meters=50,
+                city_id=city_id
+            )
 
-        # Try to find address
-        addr_record = db.query(Address).filter(
-            Address.normalized_address == normalized
-        ).first()
+        elif has_address:
+            # Address string lookup
+            parts = normalize_address(address)
+            normalized = parts['normalized_address']
+            city_name = parts.get('city')
 
+            # Get city_id from city name if not provided
+            if not city_id and city_name:
+                city_id = get_city_id_from_name(city_name)
+
+            app_logger.info(f"Lookup by address: {address} -> {normalized}, city_id={city_id}")
+
+            # Try exact match first
+            query = db.query(Address).filter(
+                Address.normalized_address == normalized
+            )
+
+            # Filter by city_id if provided
+            if city_id:
+                query = query.filter(Address.city_id == city_id)
+
+            addr_record = query.first()
+
+        # Step 2: Return UNKNOWN if no address found
         if not addr_record:
-            # Address not found - return UNKNOWN
-            app_logger.warning(f"Address not found: {normalized}")
-            response = LookupResponse(
-                address=address,
-                normalized_address=normalized,
-                trash_day=None,
-                recycling_day=None,
-                green_day=None,
-                source="UNKNOWN",
+            app_logger.warning(f"Address not found for lookup")
+
+            return LookupResponse(
+                matched_address=address or f"({lat}, {lon})",
+                city_id=city_id,
+                city_name=city_name or get_city_name_from_id(city_id) if city_id else None,
+                lat=lat,
+                lon=lon,
+                trash_day_of_week=None,
+                recycling_day_of_week=None,
+                green_waste_day_of_week=None,
+                data_source="UNKNOWN",
                 consensus_reports_count=None,
                 consensus_agreement_ratio=None,
-                lat=None,
-                lon=None
+                consensus_details=None
             )
 
-            # Record metric
-            response_time_ms = (time.time() - start_time) * 1000
-            MetricsManager.record_request(
-                db=db,
-                endpoint='/lookup',
-                method='GET',
-                status_code=status_code,
-                response_time_ms=response_time_ms,
-                city=city,
-                user_agent=request.headers.get('user-agent'),
-                ip_address=request.client.host if request.client else None
-            )
-
-            return response
-
-        # Get consensus data if available
+        # Step 3: Get consensus data if available
         consensus = db.query(CrowdConsensus).filter(
             CrowdConsensus.address_id == addr_record.id
         ).first()
 
-        # Determine source and data to return
-        source = "UNKNOWN"
+        # Step 4: Apply source priority logic
+        data_source = "UNKNOWN"
         trash_day = None
         recycling_day = None
         green_day = None
-        reports_count = None
-        agreement_ratio = None
+        consensus_reports_count = None
+        consensus_agreement_ratio = None
+        consensus_details = None
 
-        # Priority 1: Verified crowdsourced consensus
+        # Priority 1: CROWD_VERIFIED
         if consensus and consensus.is_verified:
-            source = "CROWD_VERIFIED"
+            data_source = "CROWD_VERIFIED"
             trash_day = consensus.consensus_trash_day
             recycling_day = consensus.consensus_recycling_day
             green_day = consensus.consensus_green_day
-            reports_count = consensus.total_reports
+            consensus_reports_count = consensus.total_reports
 
             # Calculate overall agreement ratio
             ratios = [
@@ -543,24 +519,29 @@ async def lookup_address(
                     consensus.green_agreement_ratio
                 ] if r > 0
             ]
-            agreement_ratio = sum(ratios) / len(ratios) if ratios else 0.0
+            consensus_agreement_ratio = round(sum(ratios) / len(ratios), 2) if ratios else 0.0
 
-        # Priority 2: Official data
+            consensus_details = ConsensusDetails(
+                reports_count=consensus.total_reports,
+                agreement_ratio=consensus_agreement_ratio
+            )
+
+        # Priority 2: OFFICIAL
         elif any([addr_record.official_trash_day,
                   addr_record.official_recycling_day,
                   addr_record.official_green_day]):
-            source = "OFFICIAL"
+            data_source = "OFFICIAL"
             trash_day = addr_record.official_trash_day
             recycling_day = addr_record.official_recycling_day
             green_day = addr_record.official_green_day
 
-        # Priority 3: Unverified crowdsourced (if exists)
+        # Priority 3: CROWD_UNVERIFIED
         elif consensus:
-            source = "CROWD_UNVERIFIED"
+            data_source = "CROWD_UNVERIFIED"
             trash_day = consensus.consensus_trash_day
             recycling_day = consensus.consensus_recycling_day
             green_day = consensus.consensus_green_day
-            reports_count = consensus.total_reports
+            consensus_reports_count = consensus.total_reports
 
             ratios = [
                 r for r in [
@@ -569,24 +550,37 @@ async def lookup_address(
                     consensus.green_agreement_ratio
                 ] if r > 0
             ]
-            agreement_ratio = sum(ratios) / len(ratios) if ratios else 0.0
+            consensus_agreement_ratio = round(sum(ratios) / len(ratios), 2) if ratios else 0.0
 
-        app_logger.info(f"Lookup result: {normalized} -> Source: {source}")
+            consensus_details = ConsensusDetails(
+                reports_count=consensus.total_reports,
+                agreement_ratio=consensus_agreement_ratio
+            )
+
+        # Step 5: Convert day abbreviations to full names
+        trash_day_full = day_abbrev_to_full(trash_day)
+        recycling_day_full = day_abbrev_to_full(recycling_day)
+        green_day_full = day_abbrev_to_full(green_day)
+
+        # Step 6: Build response
+        app_logger.info(f"Lookup result: {addr_record.normalized_address} -> Source: {data_source}")
 
         response = LookupResponse(
-            address=address,
-            normalized_address=addr_record.normalized_address,
-            trash_day=trash_day,
-            recycling_day=recycling_day,
-            green_day=green_day,
-            source=source,
-            consensus_reports_count=reports_count,
-            consensus_agreement_ratio=agreement_ratio,
+            matched_address=addr_record.normalized_address,
+            city_id=addr_record.city_id,
+            city_name=addr_record.city,
             lat=addr_record.lat,
-            lon=addr_record.lon
+            lon=addr_record.lon,
+            trash_day_of_week=trash_day_full,
+            recycling_day_of_week=recycling_day_full,
+            green_waste_day_of_week=green_day_full,
+            data_source=data_source,
+            consensus_reports_count=consensus_reports_count,
+            consensus_agreement_ratio=consensus_agreement_ratio,
+            consensus_details=consensus_details
         )
 
-        # Record successful metric
+        # Step 7: Record metrics
         response_time_ms = (time.time() - start_time) * 1000
         MetricsManager.record_request(
             db=db,
@@ -594,154 +588,17 @@ async def lookup_address(
             method='GET',
             status_code=status_code,
             response_time_ms=response_time_ms,
-            city=city,
-            user_agent=request.headers.get('user-agent'),
-            ip_address=request.client.host if request.client else None
+            city=addr_record.city if addr_record else city_name,
+            user_agent=request.headers.get('user-agent') if request else None,
+            ip_address=request.client.host if request and request.client else None
         )
 
-    # Check cache first
-    cache_key = f"lookup:{normalized}"
-    cached_result = lookup_cache.get(cache_key)
-
-    if cached_result:
-        logger.debug(f"Cache hit for address: {normalized}")
-        return LookupResponse(**cached_result)
-
-    # Optimized query: Use LEFT JOIN to get address and consensus in one query
-    from sqlalchemy.orm import joinedload
-
-    addr_record = db.query(Address).filter(
-        Address.normalized_address == normalized
-    ).first()
-
-    if not addr_record:
-        # Address not found - return UNKNOWN
-        return LookupResponse(
-            matched_address=normalized,
-            city_name=parts.get('city'),
-            trash_day_of_week=None,
-            recycling_day_of_week=None,
-            green_waste_day_of_week=None,
-            data_source="UNKNOWN",
-            consensus_details=None
-        )
-
-    # Get consensus data if available (single query)
-    consensus = db.query(CrowdConsensus).filter(
-        CrowdConsensus.address_id == addr_record.id
-    ).first()
-
-    # Determine source and data to return
-    data_source = "UNKNOWN"
-    trash_day = None
-    recycling_day = None
-    green_day = None
-    consensus_details = None
-
-    # Priority 1: Verified crowdsourced consensus
-    if consensus and consensus.is_verified:
-        data_source = "CROWD_VERIFIED"
-        trash_day = consensus.consensus_trash_day
-        recycling_day = consensus.consensus_recycling_day
-        green_day = consensus.consensus_green_day
-
-        # Calculate overall agreement ratio
-        ratios = [
-            r for r in [
-                consensus.trash_agreement_ratio,
-                consensus.recycling_agreement_ratio,
-                consensus.green_agreement_ratio
-            ] if r > 0
-        ]
-        agreement_ratio = sum(ratios) / len(ratios) if ratios else 0.0
-
-        consensus_details = ConsensusDetails(
-            reports_count=consensus.total_reports,
-            agreement_ratio=round(agreement_ratio, 2)
-        )
-
-    # Priority 2: Official data
-    elif any([addr_record.official_trash_day,
-              addr_record.official_recycling_day,
-              addr_record.official_green_day]):
-        data_source = "OFFICIAL"
-        trash_day = addr_record.official_trash_day
-        recycling_day = addr_record.official_recycling_day
-        green_day = addr_record.official_green_day
-
-    # Priority 3: Unverified crowdsourced (if exists)
-    elif consensus:
-        data_source = "CROWD_UNVERIFIED"
-        trash_day = consensus.consensus_trash_day
-        recycling_day = consensus.consensus_recycling_day
-        green_day = consensus.consensus_green_day
-
-        ratios = [
-            r for r in [
-                consensus.trash_agreement_ratio,
-                consensus.recycling_agreement_ratio,
-                consensus.green_agreement_ratio
-            ] if r > 0
-        ]
-        agreement_ratio = sum(ratios) / len(ratios) if ratios else 0.0
-
-        consensus_details = ConsensusDetails(
-            reports_count=consensus.total_reports,
-            agreement_ratio=round(agreement_ratio, 2)
-        )
-
-    # Convert day abbreviations to full names
-    trash_day_full = day_abbrev_to_full(trash_day)
-    recycling_day_full = day_abbrev_to_full(recycling_day)
-    green_day_full = day_abbrev_to_full(green_day)
-
-    return LookupResponse(
-        matched_address=addr_record.normalized_address,
-        city_name=addr_record.city,
-        trash_day_of_week=trash_day_full,
-        recycling_day_of_week=recycling_day_full,
-        green_waste_day_of_week=green_day_full,
-        data_source=data_source,
-        consensus_details=consensus_details
-    )
-    # Build response
-    response_data = {
-        "address": address,
-        "normalized_address": addr_record.normalized_address,
-        "trash_day": trash_day,
-        "recycling_day": recycling_day,
-        "green_day": green_day,
-        "source": source,
-        "consensus_reports_count": reports_count,
-        "consensus_agreement_ratio": agreement_ratio,
-        "lat": addr_record.lat,
-        "lon": addr_record.lon
-    }
-
-    # Cache the result for 5 minutes (300 seconds)
-    lookup_cache.set(cache_key, response_data, ttl=300)
-
-    return LookupResponse(**response_data)
         return response
 
     except HTTPException:
-        # Re-raise HTTP exceptions (already logged)
-        response_time_ms = (time.time() - start_time) * 1000
-        MetricsManager.record_request(
-            db=db,
-            endpoint='/lookup',
-            method='GET',
-            status_code=status_code,
-            response_time_ms=response_time_ms,
-            city=city,
-            error_message=error_msg,
-            user_agent=request.headers.get('user-agent'),
-            ip_address=request.client.host if request.client else None
-        )
         raise
     except Exception as e:
-        # Log unexpected errors
-        error_logger.error(f"Lookup error for '{address}': {str(e)}", exc_info=True)
+        error_logger.error(f"Lookup error: {str(e)}", exc_info=True)
         response_time_ms = (time.time() - start_time) * 1000
         MetricsManager.record_request(
             db=db,
@@ -749,10 +606,10 @@ async def lookup_address(
             method='GET',
             status_code=500,
             response_time_ms=response_time_ms,
-            city=city,
+            city=city_name,
             error_message=str(e),
-            user_agent=request.headers.get('user-agent'),
-            ip_address=request.client.host if request.client else None
+            user_agent=request.headers.get('user-agent') if request else None,
+            ip_address=request.client.host if request and request.client else None
         )
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -796,40 +653,6 @@ async def get_stats(db: Session = Depends(get_db)):
             "Calexico",
             "San Diego"
         ]
-    # Get cache statistics
-    cache_stats = lookup_cache.get_stats()
-
-    return {
-        "database": {
-            "total_addresses": total_addresses,
-            "total_reports": total_reports,
-            "total_consensus": total_consensus,
-            "verified_consensus": verified_consensus
-        },
-        "cache": cache_stats
-    """
-    Get comprehensive statistics about the API and database.
-
-    Returns:
-        JSON object with:
-        - api_metrics: Request counts, response times, error rates
-        - lookup_by_city: Number of /lookup calls per city
-        - report_by_city: Number of /report submissions per city
-        - database_stats: Address, report, and consensus counts
-        - endpoint_details: Detailed stats for each endpoint
-    """
-    app_logger.info("Stats endpoint requested")
-
-    # Get comprehensive metrics from MetricsManager
-    stats = MetricsManager.get_overall_stats(db)
-
-    # Get detailed endpoint statistics
-    lookup_details = MetricsManager.get_endpoint_stats(db, '/lookup')
-    report_details = MetricsManager.get_endpoint_stats(db, '/report')
-
-    stats['endpoint_details'] = {
-        'lookup': lookup_details,
-        'report': report_details
     }
 
     return stats
