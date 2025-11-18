@@ -22,10 +22,6 @@ class City(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationships
-    addresses = relationship("Address", back_populates="city")
-    pickup_zones = relationship("PickupZone", back_populates="city")
-
 
 class PickupZone(Base):
     """Pickup zones - GIS or rule-based groupings for trash collection."""
@@ -40,9 +36,6 @@ class PickupZone(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationships
-    city = relationship("City", back_populates="pickup_zones")
-
     __table_args__ = (
         Index('idx_pickup_zone_city_ref', 'city_id', 'external_ref'),
     )
@@ -54,14 +47,10 @@ class Address(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    # City relationship
-    city_id = Column(Integer, ForeignKey("cities.id"), nullable=True, index=True)
-
     # Address fields
     normalized_address = Column(String, index=True, nullable=False)
     house_number = Column(String)
     street = Column(String, index=True)
-    city = Column(String, index=True)
     city_id = Column(String, index=True)  # Links to cities.yaml (e.g., 'san_diego', 'fresno')
     city_name = Column(String, index=True)  # Denormalized for backward compatibility
     state = Column(String, index=True)  # Added index for filtering by state
@@ -78,9 +67,6 @@ class Address(Base):
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-    # Relationships
-    city = relationship("City", back_populates="addresses")
 
 
 class CrowdReport(Base):

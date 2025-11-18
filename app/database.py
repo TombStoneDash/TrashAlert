@@ -8,7 +8,8 @@ SQLALCHEMY_DATABASE_URL = "sqlite:///./trashalert.db"
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False}  # Needed for SQLite
+    connect_args={"check_same_thread": False},  # Needed for SQLite
+    echo=False  # Disable SQL logging
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
