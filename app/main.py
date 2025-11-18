@@ -3,7 +3,7 @@ from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, Dict, List, Tuple, Any
 from datetime import datetime, timedelta
 from collections import defaultdict
 import logging
@@ -236,7 +236,7 @@ async def rate_limit_and_logging_middleware(request: Request, call_next):
 
 
 @app.get("/")
-async def root():
+async def root() -> Dict[str, Any]:
     """Health check endpoint."""
     return {
         "status": "healthy",
@@ -615,11 +615,9 @@ async def lookup_address(
 
 
 @app.get("/stats")
-async def get_stats(db: Session = Depends(get_db)):
-    """Get statistics about the database."""
-    from sqlalchemy import func, distinct
-
+async def get_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Get statistics about the database and cache performance."""
+    from sqlalchemy import func, distinct
     total_addresses = db.query(Address).count()
     total_reports = db.query(CrowdReport).count()
     total_consensus = db.query(CrowdConsensus).count()
