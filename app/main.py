@@ -40,6 +40,14 @@ from app.utils import (
 from app.ai_service import create_ai_interpreter
 from app.rate_limiter import rate_limiter
 from app.cache import lookup_cache
+from app.routing_optimizer import RouteOptimizer
+from app.routing_optimizer.schemas import (
+    OptimizeRouteRequest,
+    OptimizeRouteResponse,
+    RouteStop,
+    RouteStatistics,
+    Coordinate
+)
 from app.ai_classifier import (
     AIClassifierRequest,
     AIClassifierResponse,
@@ -293,6 +301,7 @@ async def root() -> Dict[str, Any]:
         "status": "healthy",
         "service": "TrashAlert API",
         "version": "1.0.0",
+        "endpoints": ["/lookup", "/report", "/stats", "/optimize-route"]
         "endpoints": ["/lookup", "/report", "/stats", "/zone"]
         "endpoints": ["/lookup", "/report", "/interpret-address", "/stats"]
     }
@@ -1040,6 +1049,133 @@ async def get_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
     }
 
 
+@app.get("/optimize-route", response_model=OptimizeRouteResponse)
+async def optimize_route(
+    city_id: str,
+    max_stops: Optional[int] = None,
+    use_time_windows: bool = False,
+    request: Request = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Optimize trash collection route for a city.
+
+    This endpoint:
+    1. Retrieves all addresses for the specified city
+    2. Uses OR-Tools to optimize the collection route
+    3. Returns the optimized route order with statistics
+
+    Args:
+        city_id: City identifier (e.g., 'san_diego', 'el_centro')
+        max_stops: Maximum number of stops to include (optional)
+        use_time_windows: Enable time window constraints (optional, experimental)
+        request: FastAPI request object
+        db: Database session
+
+    Returns:
+        OptimizeRouteResponse with optimized route and statistics
+    """
+    start_time = time.time()
+    status_code = 200
+
+    try:
+        # Validate city_id
+        city_id_normalized = city_id.strip().lower()
+
+        app_logger.info(f"Optimizing route for city: {city_id_normalized}, max_stops: {max_stops}")
+
+        # Query addresses for the city
+        query = db.query(Address).filter(
+            Address.city_id == city_id_normalized,
+            Address.lat.isnot(None),
+            Address.lon.isnot(None)
+        )
+
+        # Apply max_stops limit if specified
+        if max_stops and max_stops > 0:
+            query = query.limit(max_stops)
+
+        addresses = query.all()
+
+        if not addresses:
+            app_logger.warning(f"No addresses found for city: {city_id_normalized}")
+            raise HTTPException(
+                status_code=404,
+                detail=f"No addresses found for city '{city_id_normalized}'"
+            )
+
+        if len(addresses) < 2:
+            app_logger.warning(f"Need at least 2 addresses for optimization, found {len(addresses)}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Need at least 2 addresses to optimize route, found {len(addresses)}"
+            )
+
+        # Extract coordinates and metadata
+        coordinates = [(addr.lat, addr.lon) for addr in addresses]
+        address_ids = [addr.id for addr in addresses]
+        address_strings = [addr.normalized_address for addr in addresses]
+
+        app_logger.info(f"Optimizing route for {len(coordinates)} addresses")
+
+        # Initialize optimizer and run optimization
+        optimizer = RouteOptimizer()
+        result = optimizer.optimize(
+            coordinates=coordinates,
+            depot_index=0,
+            use_time_windows=use_time_windows,
+            time_limit_seconds=30
+        )
+
+        if not result["success"]:
+            app_logger.error(f"Optimization failed: {result['message']}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Optimization failed: {result['message']}"
+            )
+
+        # Create route stops
+        route_stops = optimizer.create_route_stops(
+            coordinates=coordinates,
+            optimized_order=result["optimized_order"],
+            address_ids=address_ids,
+            addresses=address_strings
+        )
+
+        # Calculate distance reduction
+        distance_reduction = optimizer.calculate_distance_reduction(
+            coordinates=coordinates,
+            optimized_distance_km=result["total_distance_km"]
+        )
+
+        # Build statistics
+        statistics = RouteStatistics(
+            total_distance_km=result["total_distance_km"],
+            total_distance_miles=result["total_distance_miles"],
+            total_stops=len(route_stops),
+            distance_reduction_percent=distance_reduction
+        )
+
+        # Prepare heatmap data (just the coordinates in optimized order)
+        heatmap_data = [
+            (stop.lat, stop.lon) for stop in route_stops
+        ]
+
+        app_logger.info(
+            f"Route optimized: {len(route_stops)} stops, "
+            f"{result['total_distance_km']:.2f} km, "
+            f"{distance_reduction:.1f}% reduction"
+        )
+
+        # Record metrics
+        response_time_ms = (time.time() - start_time) * 1000
+        MetricsManager.record_request(
+            db=db,
+            endpoint='/optimize-route',
+            method='GET',
+            status_code=status_code,
+            response_time_ms=response_time_ms,
+            city=city_id_normalized,
 @app.post("/ai-classify", response_model=AIClassifierResponse)
 async def ai_classify(
     request_data: AIClassifierRequest,
@@ -1163,6 +1299,32 @@ async def ai_classify(
             ip_address=request.client.host if request and request.client else None
         )
 
+        return OptimizeRouteResponse(
+            success=True,
+            message=f"Route optimized successfully for {city_id_normalized}",
+            city_id=city_id_normalized,
+            optimized_route=route_stops,
+            statistics=statistics,
+            heatmap_data=heatmap_data
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_logger.error(f"Route optimization error: {str(e)}", exc_info=True)
+        response_time_ms = (time.time() - start_time) * 1000
+        MetricsManager.record_request(
+            db=db,
+            endpoint='/optimize-route',
+            method='GET',
+            status_code=500,
+            response_time_ms=response_time_ms,
+            city=city_id,
+            error_message=str(e),
+            user_agent=request.headers.get('user-agent') if request else None,
+            ip_address=request.client.host if request and request.client else None
+        )
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
         raise HTTPException(
             status_code=503,
             detail="AI classification service not configured. Please set OPENAI_API_KEY."
