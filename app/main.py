@@ -84,6 +84,7 @@ from app.middleware import (
 )
 from app.metrics import MetricsManager
 from app.logging_config import app_logger, error_logger
+from app.mobile import router as mobile_router
 from app.admin_routes import router as admin_router
 from app.auth import get_optional_current_user, require_authenticated
 from app.routers import auth, admin
@@ -98,6 +99,8 @@ app = FastAPI(
     version="2.0.0"
 )
 
+# Include mobile router
+app.include_router(mobile_router)
 
 # ============================================================================
 # GraphQL Setup
@@ -331,6 +334,8 @@ async def root() -> Dict[str, Any]:
         "status": "healthy",
         "service": "TrashAlert API",
         "version": "1.0.0",
+        "endpoints": ["/lookup", "/report", "/stats"],
+        "mobile_endpoints": ["/mobile/lookup", "/mobile/daily-schedule", "/mobile/report"]
         "endpoints": {
             "rest": ["/lookup", "/report", "/stats"],
             "graphql": "/graphql",
