@@ -10,6 +10,8 @@ import logging
 import time
 
 from app.database import get_db, engine, Base
+from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics
+from app.schemas import ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ZoneResponse
 from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics, ApiKey
 from app.schemas import (
     ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ConsensusDetails,
@@ -38,6 +40,12 @@ from app.utils import (
 from app.ai_service import create_ai_interpreter
 from app.rate_limiter import rate_limiter
 from app.cache import lookup_cache
+from app.zone_locator import (
+    find_zone,
+    find_city,
+    validate_coordinates,
+    get_zone_statistics
+)
 from app.api_key_auth import require_api_key, record_api_key_usage
 from app.mobile_rate_limiter import mobile_rate_limiter
 
@@ -278,6 +286,7 @@ async def root() -> Dict[str, Any]:
         "status": "healthy",
         "service": "TrashAlert API",
         "version": "1.0.0",
+        "endpoints": ["/lookup", "/report", "/stats", "/zone"]
         "endpoints": ["/lookup", "/report", "/interpret-address", "/stats"]
     }
 
@@ -656,6 +665,112 @@ async def lookup_address(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@app.get("/zone", response_model=ZoneResponse)
+async def get_zone(
+    lat: float,
+    lon: float,
+    city: Optional[str] = None
+):
+    """
+    Find the service zone for a given geographic coordinate.
+
+    This endpoint uses geofencing with point-in-polygon operations to determine
+    which pickup zone contains the specified location.
+
+    Args:
+        lat: Latitude (decimal degrees, -90 to 90)
+        lon: Longitude (decimal degrees, -180 to 180)
+        city: Optional city name or slug to narrow search (e.g., "brawley", "San Diego")
+
+    Returns:
+        ZoneResponse with zone information if found, or found=False if no zone matches
+
+    Example:
+        GET /zone?lat=32.9786&lon=-115.5303
+        GET /zone?lat=32.9786&lon=-115.5303&city=brawley
+    """
+    # Validate coordinates
+    is_valid, error_msg = validate_coordinates(lat, lon)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail=error_msg)
+
+    # Convert city name to slug if provided
+    city_slug = None
+    if city:
+        # Normalize city input (handle "San Diego", "san_diego", "san diego", etc.)
+        city_slug = city.lower().strip().replace(' ', '_').replace('-', '_')
+
+    # Find zone
+    try:
+        zone_info = find_zone(lat, lon, city_slug=city_slug)
+
+        if zone_info:
+            # Get full city name from slug
+            city_name = None
+            if zone_info.get('city_slug'):
+                # Try to get display name from cities.yaml
+                from app.utils import load_cities_config
+                config = load_cities_config()
+                for city_config in config.get('cities', []):
+                    # Match by city_id or name
+                    city_id = city_config.get('city_id', '')
+                    if city_id.endswith(zone_info['city_slug']):
+                        city_name = city_config.get('name')
+                        break
+
+                # Fallback: convert slug to title case
+                if not city_name:
+                    city_name = zone_info['city_slug'].replace('_', ' ').title()
+
+            return ZoneResponse(
+                found=True,
+                lat=lat,
+                lon=lon,
+                zone_id=zone_info.get('zone_id'),
+                zone_name=zone_info.get('zone_name'),
+                city_slug=zone_info.get('city_slug'),
+                city_name=city_name,
+                trash_day=zone_info.get('trash_day'),
+                recycling_day=zone_info.get('recycling_day'),
+                green_waste_day=zone_info.get('green_waste_day'),
+                properties=zone_info.get('properties')
+            )
+        else:
+            # No zone found - check if at least in a city boundary
+            city_info = find_city(lat, lon)
+
+            city_name = None
+            city_slug_found = None
+            if city_info:
+                city_slug_found = city_info.get('city_slug')
+                city_name = city_info.get('properties', {}).get('name')
+
+            return ZoneResponse(
+                found=False,
+                lat=lat,
+                lon=lon,
+                zone_id=None,
+                zone_name=None,
+                city_slug=city_slug_found,
+                city_name=city_name,
+                trash_day=None,
+                recycling_day=None,
+                green_waste_day=None,
+                properties=city_info.get('properties') if city_info else None
+            )
+
+    except Exception as e:
+        logger.error(f"Error in /zone endpoint: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error processing zone lookup: {str(e)}"
+        )
+
+
+@app.get("/stats")
+async def get_stats(db: Session = Depends(get_db)):
+    """Get statistics about the database."""
+    from sqlalchemy import func, distinct
 @app.post("/interpret-address", response_model=InterpretAddressResponse)
 async def interpret_address(
     request_data: InterpretAddressRequest,

@@ -136,6 +136,25 @@ class LookupResponse(BaseModel):
     )
 
 
+class ZoneResponse(BaseModel):
+    """Response schema for GET /zone endpoint."""
+    found: bool = Field(..., description="Whether a zone was found for the coordinates")
+    lat: float = Field(..., description="Queried latitude")
+    lon: float = Field(..., description="Queried longitude")
+
+    # Zone information (if found)
+    zone_id: Optional[str] = Field(None, description="Unique zone identifier")
+    zone_name: Optional[str] = Field(None, description="Human-readable zone name")
+    city_slug: Optional[str] = Field(None, description="City identifier")
+    city_name: Optional[str] = Field(None, description="Full city name")
+
+    # Pickup schedule (if available)
+    trash_day: Optional[str] = Field(None, description="Trash pickup day")
+    recycling_day: Optional[str] = Field(None, description="Recycling pickup day")
+    green_waste_day: Optional[str] = Field(None, description="Green waste pickup day")
+
+    # Additional properties
+    properties: Optional[dict] = Field(None, description="Additional zone properties from GeoJSON")
 # Admin API Key Schemas
 
 class CreateAPIKeyRequest(BaseModel):
