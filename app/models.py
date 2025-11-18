@@ -316,6 +316,83 @@ class RequestMetrics(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 
+class PipelineRun(Base):
+    """Track bulk pipeline execution runs."""
+    __tablename__ = "pipeline_runs"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Run metadata
+    run_type = Column(String, nullable=False)  # full, incremental, repair
+    status = Column(String, nullable=False, index=True)  # pending, running, completed, failed, paused
+
+    # Filters used
+    city_filter = Column(String)  # city_id, state, or 'all'
+
+    # Progress tracking
+    total_cities = Column(Integer, default=0)
+    completed_cities = Column(Integer, default=0)
+    failed_cities = Column(Integer, default=0)
+
+    # Statistics
+    total_addresses_fetched = Column(Integer, default=0)
+    total_addresses_processed = Column(Integer, default=0)
+
+    # Error tracking
+    last_error = Column(Text)
+    error_count = Column(Integer, default=0)
+
+    # Checkpoint for resumability
+    last_processed_city_id = Column(String, index=True)
+    checkpoint_data = Column(JSON)  # Flexible JSON for checkpoint state
+
+    # Timestamps
+    started_at = Column(DateTime(timezone=True), index=True)
+    completed_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (
+        Index('idx_pipeline_run_status_started', 'status', 'started_at'),
+    )
+
+
+class PipelineCityStatus(Base):
+    """Track per-city status within a pipeline run."""
+    __tablename__ = "pipeline_city_status"
+
+    id = Column(Integer, primary_key=True, index=True)
+    pipeline_run_id = Column(Integer, ForeignKey("pipeline_runs.id"), nullable=False, index=True)
+
+    # City information
+    city_id = Column(String, nullable=False, index=True)
+    city_name = Column(String, nullable=False)
+
+    # Status
+    status = Column(String, nullable=False, index=True)  # pending, running, completed, failed, skipped
+
+    # Step tracking
+    current_step = Column(String)  # boundaries, subdivisions, addresses, sampling, normalization
+    steps_completed = Column(JSON)  # List of completed step names
+
+    # Statistics
+    addresses_fetched = Column(Integer, default=0)
+    addresses_sampled = Column(Integer, default=0)
+    addresses_normalized = Column(Integer, default=0)
+
+    # Error handling
+    error_message = Column(Text)
+    retry_count = Column(Integer, default=0)
+
+    # Timestamps
+    started_at = Column(DateTime(timezone=True))
+    completed_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    __table_args__ = (
+        Index('idx_city_status_run_city', 'pipeline_run_id', 'city_id'),
+        Index('idx_city_status_status', 'status'),
 class APIKey(Base):
     """B2B API keys for authenticated access."""
 class ApiKey(Base):

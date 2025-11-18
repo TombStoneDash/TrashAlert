@@ -10,6 +10,8 @@ import logging
 import time
 
 from app.database import get_db, engine, Base
+from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics, PipelineRun, PipelineCityStatus
+from app.schemas import ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ConsensusDetails
 from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics
 from app.schemas import ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ZoneResponse
 from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics, ApiKey
@@ -1048,6 +1050,231 @@ async def get_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
         "ai_cache_stats": cache_stats
     }
 
+    return stats
+
+
+# ============================================================================
+# PIPELINE STATUS ENDPOINTS
+# ============================================================================
+
+@app.get("/pipeline/runs")
+async def get_pipeline_runs(
+    status: Optional[str] = None,
+    limit: int = 20,
+    db: Session = Depends(get_db)
+):
+    """
+    Get list of pipeline runs with optional status filter.
+
+    Args:
+        status: Filter by status (pending, running, completed, failed, paused)
+        limit: Maximum number of runs to return
+        db: Database session
+
+    Returns:
+        List of pipeline runs with summary information
+    """
+    query = db.query(PipelineRun)
+
+    if status:
+        query = query.filter(PipelineRun.status == status)
+
+    runs = query.order_by(PipelineRun.started_at.desc()).limit(limit).all()
+
+    results = []
+    for run in runs:
+        # Calculate progress
+        progress_pct = 0
+        if run.total_cities > 0:
+            progress_pct = round((run.completed_cities / run.total_cities) * 100, 1)
+
+        # Calculate duration
+        duration_seconds = None
+        if run.completed_at and run.started_at:
+            duration_seconds = (run.completed_at - run.started_at).total_seconds()
+        elif run.started_at:
+            duration_seconds = (datetime.utcnow() - run.started_at).total_seconds()
+
+        results.append({
+            "id": run.id,
+            "run_type": run.run_type,
+            "status": run.status,
+            "city_filter": run.city_filter,
+            "total_cities": run.total_cities,
+            "completed_cities": run.completed_cities,
+            "failed_cities": run.failed_cities,
+            "progress_percent": progress_pct,
+            "total_addresses_fetched": run.total_addresses_fetched,
+            "total_addresses_processed": run.total_addresses_processed,
+            "error_count": run.error_count,
+            "last_error": run.last_error,
+            "started_at": run.started_at.isoformat() if run.started_at else None,
+            "completed_at": run.completed_at.isoformat() if run.completed_at else None,
+            "duration_seconds": duration_seconds
+        })
+
+    return {
+        "runs": results,
+        "count": len(results)
+    }
+
+
+@app.get("/pipeline/runs/{run_id}")
+async def get_pipeline_run_detail(
+    run_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get detailed information about a specific pipeline run.
+
+    Args:
+        run_id: Pipeline run ID
+        db: Database session
+
+    Returns:
+        Detailed run information including per-city status
+    """
+    run = db.query(PipelineRun).filter(PipelineRun.id == run_id).first()
+
+    if not run:
+        raise HTTPException(status_code=404, detail=f"Pipeline run {run_id} not found")
+
+    # Get all city statuses
+    city_statuses = db.query(PipelineCityStatus).filter(
+        PipelineCityStatus.pipeline_run_id == run_id
+    ).order_by(PipelineCityStatus.city_name).all()
+
+    # Calculate progress
+    progress_pct = 0
+    if run.total_cities > 0:
+        progress_pct = round((run.completed_cities / run.total_cities) * 100, 1)
+
+    # Calculate duration
+    duration_seconds = None
+    if run.completed_at and run.started_at:
+        duration_seconds = (run.completed_at - run.started_at).total_seconds()
+    elif run.started_at:
+        duration_seconds = (datetime.utcnow() - run.started_at).total_seconds()
+
+    # Build city status list
+    cities = []
+    for city_status in city_statuses:
+        city_duration = None
+        if city_status.completed_at and city_status.started_at:
+            city_duration = (city_status.completed_at - city_status.started_at).total_seconds()
+
+        cities.append({
+            "city_id": city_status.city_id,
+            "city_name": city_status.city_name,
+            "status": city_status.status,
+            "current_step": city_status.current_step,
+            "steps_completed": city_status.steps_completed or [],
+            "addresses_fetched": city_status.addresses_fetched,
+            "addresses_sampled": city_status.addresses_sampled,
+            "addresses_normalized": city_status.addresses_normalized,
+            "error_message": city_status.error_message,
+            "retry_count": city_status.retry_count,
+            "started_at": city_status.started_at.isoformat() if city_status.started_at else None,
+            "completed_at": city_status.completed_at.isoformat() if city_status.completed_at else None,
+            "duration_seconds": city_duration
+        })
+
+    return {
+        "run": {
+            "id": run.id,
+            "run_type": run.run_type,
+            "status": run.status,
+            "city_filter": run.city_filter,
+            "total_cities": run.total_cities,
+            "completed_cities": run.completed_cities,
+            "failed_cities": run.failed_cities,
+            "progress_percent": progress_pct,
+            "total_addresses_fetched": run.total_addresses_fetched,
+            "total_addresses_processed": run.total_addresses_processed,
+            "error_count": run.error_count,
+            "last_error": run.last_error,
+            "last_processed_city_id": run.last_processed_city_id,
+            "checkpoint_data": run.checkpoint_data,
+            "started_at": run.started_at.isoformat() if run.started_at else None,
+            "completed_at": run.completed_at.isoformat() if run.completed_at else None,
+            "duration_seconds": duration_seconds
+        },
+        "cities": cities
+    }
+
+
+@app.get("/pipeline/status")
+async def get_current_pipeline_status(db: Session = Depends(get_db)):
+    """
+    Get status of currently running or most recent pipeline runs.
+
+    Returns:
+        Summary of active and recent pipeline runs
+    """
+    # Get currently running pipeline
+    active_run = db.query(PipelineRun).filter(
+        PipelineRun.status == "running"
+    ).order_by(PipelineRun.started_at.desc()).first()
+
+    # Get most recent completed run
+    recent_run = db.query(PipelineRun).filter(
+        PipelineRun.status.in_(["completed", "failed"])
+    ).order_by(PipelineRun.completed_at.desc()).first()
+
+    result = {
+        "has_active_run": active_run is not None,
+        "active_run": None,
+        "recent_run": None
+    }
+
+    if active_run:
+        progress_pct = 0
+        if active_run.total_cities > 0:
+            progress_pct = round((active_run.completed_cities / active_run.total_cities) * 100, 1)
+
+        duration_seconds = None
+        if active_run.started_at:
+            duration_seconds = (datetime.utcnow() - active_run.started_at).total_seconds()
+
+        result["active_run"] = {
+            "id": active_run.id,
+            "run_type": active_run.run_type,
+            "status": active_run.status,
+            "city_filter": active_run.city_filter,
+            "total_cities": active_run.total_cities,
+            "completed_cities": active_run.completed_cities,
+            "failed_cities": active_run.failed_cities,
+            "progress_percent": progress_pct,
+            "total_addresses_fetched": active_run.total_addresses_fetched,
+            "started_at": active_run.started_at.isoformat() if active_run.started_at else None,
+            "duration_seconds": duration_seconds
+        }
+
+    if recent_run:
+        progress_pct = 0
+        if recent_run.total_cities > 0:
+            progress_pct = round((recent_run.completed_cities / recent_run.total_cities) * 100, 1)
+
+        duration_seconds = None
+        if recent_run.completed_at and recent_run.started_at:
+            duration_seconds = (recent_run.completed_at - recent_run.started_at).total_seconds()
+
+        result["recent_run"] = {
+            "id": recent_run.id,
+            "run_type": recent_run.run_type,
+            "status": recent_run.status,
+            "city_filter": recent_run.city_filter,
+            "total_cities": recent_run.total_cities,
+            "completed_cities": recent_run.completed_cities,
+            "failed_cities": recent_run.failed_cities,
+            "progress_percent": progress_pct,
+            "total_addresses_fetched": recent_run.total_addresses_fetched,
+            "started_at": recent_run.started_at.isoformat() if recent_run.started_at else None,
+            "completed_at": recent_run.completed_at.isoformat() if recent_run.completed_at else None,
+            "duration_seconds": duration_seconds
+        }
+
+    return result
 
 @app.get("/optimize-route", response_model=OptimizeRouteResponse)
 async def optimize_route(
