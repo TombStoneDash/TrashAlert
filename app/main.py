@@ -13,7 +13,9 @@ from app.database import get_db, engine, Base
 from app.models import Address, CrowdReport, CrowdConsensus
 from app.schemas import (
     ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ConsensusDetails,
-    InterpretAddressRequest, InterpretAddressResponse
+    InterpretAddressRequest, InterpretAddressResponse, PredictRequest, PredictResponse,
+    DelayPrediction, SeasonalPredictionResponse, SeasonalPrediction,
+    TrainModelRequest, TrainModelResponse
 )
 from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics
 from app.utils import (
@@ -41,6 +43,7 @@ logger = logging.getLogger(__name__)
 from app.middleware import RequestLoggingMiddleware
 from app.metrics import MetricsManager
 from app.logging_config import app_logger, error_logger
+from app.prediction_service import PredictionService
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -247,7 +250,7 @@ async def root() -> Dict[str, Any]:
         "status": "healthy",
         "service": "TrashAlert API",
         "version": "1.0.0",
-        "endpoints": ["/lookup", "/report", "/interpret-address", "/stats"]
+        "endpoints": ["/lookup", "/report", "/interpret-address", "/stats", "/predict", "/predict/train"]
     }
 
 
@@ -876,3 +879,193 @@ async def get_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
     }
 
     return stats
+
+
+@app.post("/predict", response_model=PredictResponse)
+async def predict(
+    request_data: PredictRequest,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Make predictions about pickup patterns.
+
+    Supports two prediction types:
+    1. 'delay' - Predict likelihood of pickup delays for a specific address
+    2. 'seasonal' - Predict report volume patterns for upcoming weeks
+
+    Args:
+        request_data: Prediction request with type and parameters
+        request: FastAPI request object
+        db: Database session
+
+    Returns:
+        PredictResponse with prediction results
+    """
+    start_time = time.time()
+    status_code = 200
+    error_msg = None
+
+    try:
+        prediction_service = PredictionService(db)
+
+        if request_data.prediction_type == 'delay':
+            # Delay prediction for specific address
+            app_logger.info(f"Predicting delays for address_id={request_data.address_id}")
+            result = prediction_service.predict_delay(request_data.address_id)
+
+            delay_prediction = DelayPrediction(**result)
+
+            response_time_ms = (time.time() - start_time) * 1000
+            MetricsManager.record_request(
+                db=db,
+                endpoint='/predict',
+                method='POST',
+                status_code=status_code,
+                response_time_ms=response_time_ms,
+                user_agent=request.headers.get('user-agent'),
+                ip_address=request.client.host if request.client else None
+            )
+
+            return PredictResponse(
+                prediction_type='delay',
+                delay=delay_prediction
+            )
+
+        elif request_data.prediction_type == 'seasonal':
+            # Seasonal pattern prediction
+            app_logger.info(f"Predicting seasonal patterns for {request_data.weeks_ahead} weeks")
+            result = prediction_service.predict_seasonal_volume(request_data.weeks_ahead)
+
+            if result['success']:
+                predictions = [
+                    SeasonalPrediction(**pred) for pred in result['predictions']
+                ]
+                seasonal_response = SeasonalPredictionResponse(
+                    success=True,
+                    predictions=predictions
+                )
+            else:
+                seasonal_response = SeasonalPredictionResponse(
+                    success=False,
+                    message=result.get('message', 'Seasonal prediction failed')
+                )
+
+            response_time_ms = (time.time() - start_time) * 1000
+            MetricsManager.record_request(
+                db=db,
+                endpoint='/predict',
+                method='POST',
+                status_code=status_code,
+                response_time_ms=response_time_ms,
+                user_agent=request.headers.get('user-agent'),
+                ip_address=request.client.host if request.client else None
+            )
+
+            return PredictResponse(
+                prediction_type='seasonal',
+                seasonal=seasonal_response
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_logger.error(f"Prediction error: {str(e)}", exc_info=True)
+        response_time_ms = (time.time() - start_time) * 1000
+        MetricsManager.record_request(
+            db=db,
+            endpoint='/predict',
+            method='POST',
+            status_code=500,
+            response_time_ms=response_time_ms,
+            error_message=str(e),
+            user_agent=request.headers.get('user-agent'),
+            ip_address=request.client.host if request.client else None
+        )
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.post("/predict/train", response_model=TrainModelResponse)
+async def train_models(
+    request_data: TrainModelRequest,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Train prediction models on crowdsourced data.
+
+    This endpoint trains ML models using historical crowd reports.
+    Models are stored in the database and can be used for predictions.
+
+    Args:
+        request_data: Training request specifying which models to train
+        request: FastAPI request object
+        db: Database session
+
+    Returns:
+        TrainModelResponse with training results
+    """
+    start_time = time.time()
+    status_code = 200
+
+    try:
+        prediction_service = PredictionService(db)
+        results = []
+
+        if request_data.model_type in ['delay', 'both']:
+            app_logger.info("Training delay prediction model")
+            delay_result = prediction_service.train_delay_model()
+            results.append(delay_result)
+
+        if request_data.model_type in ['seasonal', 'both']:
+            app_logger.info("Training seasonal prediction model")
+            seasonal_result = prediction_service.train_seasonal_model()
+            results.append(seasonal_result)
+
+        success = all(r.get('success', False) for r in results)
+        message = "Models trained successfully" if success else "Some models failed to train"
+
+        response_time_ms = (time.time() - start_time) * 1000
+        MetricsManager.record_request(
+            db=db,
+            endpoint='/predict/train',
+            method='POST',
+            status_code=status_code,
+            response_time_ms=response_time_ms,
+            user_agent=request.headers.get('user-agent'),
+            ip_address=request.client.host if request.client else None
+        )
+
+        return TrainModelResponse(
+            success=success,
+            results=results,
+            message=message
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_logger.error(f"Model training error: {str(e)}", exc_info=True)
+        response_time_ms = (time.time() - start_time) * 1000
+        MetricsManager.record_request(
+            db=db,
+            endpoint='/predict/train',
+            method='POST',
+            status_code=500,
+            response_time_ms=response_time_ms,
+            error_message=str(e),
+            user_agent=request.headers.get('user-agent'),
+            ip_address=request.client.host if request.client else None
+        )
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get("/predict/models")
+async def get_model_info(db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """Get information about currently active prediction models."""
+    try:
+        prediction_service = PredictionService(db)
+        return prediction_service.get_model_info()
+    except Exception as e:
+        error_logger.error(f"Error fetching model info: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
