@@ -84,6 +84,7 @@ from app.middleware import (
 )
 from app.metrics import MetricsManager
 from app.logging_config import app_logger, error_logger
+from app.security import add_security_headers, validate_request_security
 from app.mobile import router as mobile_router
 from app.admin_routes import router as admin_router
 from app.auth import get_optional_current_user, require_authenticated
@@ -175,6 +176,11 @@ def check_rate_limit(ip_address: str, normalized_address: str) -> bool:
 def record_report(ip_address: str, normalized_address: str):
     """Record a report for rate limiting."""
     rate_limit_store[ip_address].append((datetime.now(), normalized_address))
+# Add security middleware
+app.middleware("http")(add_security_headers)
+app.middleware("http")(validate_request_security)
+
+# Add request logging middleware
 
 # Initialize API key rate limiter
 api_key_rate_limiter = APIKeyRateLimiter()
@@ -271,8 +277,9 @@ async def rate_limit_and_logging_middleware(request: Request, call_next):
     """Apply rate limiting and log all requests with timing information."""
     start_time = time.time()
 
-    # Get client IP
-    client_ip = request.client.host if request.client else "unknown"
+    # Get client IP (respecting X-Forwarded-For header)
+    from app.security import get_client_ip
+    client_ip = get_client_ip(request)
 
     # Log incoming request
     logger.info(f"→ {request.method} {request.url.path} from {client_ip}")
@@ -402,12 +409,16 @@ async def submit_report(
             f"City: {city} - Trash: {trash_day}, Recycling: {recycling_day}, Green: {green_day}"
         )
 
+        # Create crowd report
+        from app.security import get_client_ip
         # Create crowd report (link to authenticated user if available)
         new_report = CrowdReport(
             address_id=address.id,
             trash_day=trash_day,
             recycling_day=recycling_day,
             green_day=green_day,
+            user_hash=report.user_hash,
+            ip_address=get_client_ip(request)
             user_hash=report.user_hash,  # Keep for backward compatibility
             user_id=current_user.id if current_user else None,  # Link to authenticated user
             ip_address=request.client.host if request.client else None
@@ -443,6 +454,7 @@ async def submit_report(
 
         # Record successful metric
         response_time_ms = (time.time() - start_time) * 1000
+        from app.security import get_client_ip
         MetricsManager.record_request(
             db=db,
             endpoint='/report',
@@ -451,7 +463,7 @@ async def submit_report(
             response_time_ms=response_time_ms,
             city=city,
             user_agent=request.headers.get('user-agent'),
-            ip_address=request.client.host if request.client else None
+            ip_address=get_client_ip(request)
         )
 
         return ReportResponse(
@@ -465,6 +477,7 @@ async def submit_report(
     except HTTPException:
         # Re-raise HTTP exceptions (already logged)
         response_time_ms = (time.time() - start_time) * 1000
+        from app.security import get_client_ip
         MetricsManager.record_request(
             db=db,
             endpoint='/report',
@@ -474,13 +487,14 @@ async def submit_report(
             city=city,
             error_message=error_msg,
             user_agent=request.headers.get('user-agent'),
-            ip_address=request.client.host if request.client else None
+            ip_address=get_client_ip(request)
         )
         raise
     except Exception as e:
         # Log unexpected errors
         error_logger.error(f"Report submission error: {str(e)}", exc_info=True)
         response_time_ms = (time.time() - start_time) * 1000
+        from app.security import get_client_ip
         MetricsManager.record_request(
             db=db,
             endpoint='/report',
@@ -490,7 +504,7 @@ async def submit_report(
             city=city,
             error_message=str(e),
             user_agent=request.headers.get('user-agent'),
-            ip_address=request.client.host if request.client else None
+            ip_address=get_client_ip(request)
         )
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -709,6 +723,7 @@ async def lookup_address(
 
         # Step 8: Record metrics
         response_time_ms = (time.time() - start_time) * 1000
+        from app.security import get_client_ip
         MetricsManager.record_request(
             db=db,
             endpoint='/lookup',
@@ -717,7 +732,7 @@ async def lookup_address(
             response_time_ms=response_time_ms,
             city=addr_record.city if addr_record else city_name,
             user_agent=request.headers.get('user-agent') if request else None,
-            ip_address=request.client.host if request and request.client else None
+            ip_address=get_client_ip(request) if request else None
         )
 
         return response
@@ -727,6 +742,7 @@ async def lookup_address(
     except Exception as e:
         error_logger.error(f"Lookup error: {str(e)}", exc_info=True)
         response_time_ms = (time.time() - start_time) * 1000
+        from app.security import get_client_ip
         MetricsManager.record_request(
             db=db,
             endpoint='/lookup',
@@ -736,7 +752,7 @@ async def lookup_address(
             city=city_name,
             error_message=str(e),
             user_agent=request.headers.get('user-agent') if request else None,
-            ip_address=request.client.host if request and request.client else None
+            ip_address=get_client_ip(request) if request else None
         )
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -992,6 +1008,7 @@ async def interpret_address(
             app_logger.warning(f"Failed to interpret: {text}")
 
             response_time_ms = (time.time() - start_time) * 1000
+            from app.security import get_client_ip
             MetricsManager.record_request(
                 db=db,
                 endpoint='/interpret-address',
@@ -1001,7 +1018,7 @@ async def interpret_address(
                 city=city_name,
                 error_message=error_msg,
                 user_agent=request.headers.get('user-agent'),
-                ip_address=request.client.host if request.client else None
+                ip_address=get_client_ip(request)
             )
 
             return InterpretAddressResponse(
@@ -1029,6 +1046,7 @@ async def interpret_address(
 
     # Generate stats
         response_time_ms = (time.time() - start_time) * 1000
+        from app.security import get_client_ip
         MetricsManager.record_request(
             db=db,
             endpoint='/interpret-address',
@@ -1037,7 +1055,7 @@ async def interpret_address(
             response_time_ms=response_time_ms,
             city=city,
             user_agent=request.headers.get('user-agent'),
-            ip_address=request.client.host if request.client else None
+            ip_address=get_client_ip(request)
         )
 
         return InterpretAddressResponse(
@@ -1060,6 +1078,7 @@ async def interpret_address(
     except Exception as e:
         error_logger.error(f"Address interpretation error: {str(e)}", exc_info=True)
         response_time_ms = (time.time() - start_time) * 1000
+        from app.security import get_client_ip
         MetricsManager.record_request(
             db=db,
             endpoint='/interpret-address',
@@ -1069,7 +1088,7 @@ async def interpret_address(
             city=city_name,
             error_message=str(e),
             user_agent=request.headers.get('user-agent'),
-            ip_address=request.client.host if request.client else None
+            ip_address=get_client_ip(request)
         )
         raise HTTPException(status_code=500, detail="Internal server error")
 
