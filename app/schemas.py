@@ -1,6 +1,11 @@
 """Pydantic schemas for API request/response validation."""
-from typing import Optional, Literal
+from typing import Optional, Literal, List, Dict, Any
+from datetime import datetime
 from pydantic import BaseModel, Field, field_validator, model_validator
+from app.security import validate_input_security
+from typing import Optional, Literal
+from pydantic import BaseModel, Field, field_validator, model_validator, EmailStr
+from datetime import datetime
 
 
 class ReportRequest(BaseModel):
@@ -9,14 +14,20 @@ class ReportRequest(BaseModel):
     trash_day: Optional[str] = Field(None, max_length=20, description="Trash pickup day (MON, TUE, WED, THU, FRI)")
     recycling_day: Optional[str] = Field(None, max_length=20, description="Recycling pickup day")
     green_day: Optional[str] = Field(None, max_length=20, description="Green waste pickup day")
-    user_hash: Optional[str] = Field(None, max_length=64, description="Optional stable user identifier")
+    user_hash: Optional[str] = Field(None, max_length=64, pattern=r'^[a-zA-Z0-9_-]+$', description="Optional stable user identifier (alphanumeric, dash, underscore only)")
 
     @field_validator('address')
     @classmethod
     def validate_address_not_empty(cls, v: str) -> str:
-        """Ensure address is not just whitespace."""
+        """Ensure address is not just whitespace and check for malicious patterns."""
         if not v or not v.strip():
             raise ValueError("Address cannot be empty or whitespace only")
+
+        # Check for security threats (SQL injection, XSS, etc.)
+        security_issues = validate_input_security(v, "address")
+        if security_issues:
+            raise ValueError(f"Invalid address: contains potentially malicious content")
+
         # Remove excessive whitespace
         return ' '.join(v.split())
 
@@ -132,6 +143,312 @@ class LookupResponse(BaseModel):
     )
 
 
+class ZoneResponse(BaseModel):
+    """Response schema for GET /zone endpoint."""
+    found: bool = Field(..., description="Whether a zone was found for the coordinates")
+    lat: float = Field(..., description="Queried latitude")
+    lon: float = Field(..., description="Queried longitude")
+
+    # Zone information (if found)
+    zone_id: Optional[str] = Field(None, description="Unique zone identifier")
+    zone_name: Optional[str] = Field(None, description="Human-readable zone name")
+    city_slug: Optional[str] = Field(None, description="City identifier")
+    city_name: Optional[str] = Field(None, description="Full city name")
+
+    # Pickup schedule (if available)
+    trash_day: Optional[str] = Field(None, description="Trash pickup day")
+    recycling_day: Optional[str] = Field(None, description="Recycling pickup day")
+    green_waste_day: Optional[str] = Field(None, description="Green waste pickup day")
+
+    # Additional properties
+    properties: Optional[dict] = Field(None, description="Additional zone properties from GeoJSON")
+# Admin API Key Schemas
+
+class CreateAPIKeyRequest(BaseModel):
+    """Request schema for creating a new API key."""
+    company_name: str = Field(..., min_length=1, max_length=200, description="Company name")
+    contact_email: Optional[str] = Field(None, description="Contact email")
+    rate_limit_per_minute: Optional[int] = Field(60, ge=1, le=1000, description="Requests per minute")
+    rate_limit_per_hour: Optional[int] = Field(1000, ge=1, le=100000, description="Requests per hour")
+    rate_limit_per_day: Optional[int] = Field(10000, ge=1, le=1000000, description="Requests per day")
+    expires_at: Optional[datetime] = Field(None, description="Expiration date (optional)")
+    notes: Optional[str] = Field(None, description="Admin notes")
+
+
+class APIKeyResponse(BaseModel):
+    """Response schema for API key details."""
+    id: int
+    key_prefix: str
+    company_name: str
+    contact_email: Optional[str]
+    is_active: bool
+    rate_limit_per_minute: int
+    rate_limit_per_hour: int
+    rate_limit_per_day: int
+    total_requests: int
+    last_used_at: Optional[datetime]
+    created_at: datetime
+    expires_at: Optional[datetime]
+    notes: Optional[str]
+# ============================================================================
+# MOBILE ENDPOINTS - Simplified Schemas
+# ============================================================================
+
+class MobileLookupRequest(BaseModel):
+    """Simplified request schema for mobile /mobile/lookup endpoint."""
+    # Option 1: Address
+    address: Optional[str] = Field(None, min_length=5, max_length=500)
+
+    # Option 2: Coordinates (more common for mobile)
+    lat: Optional[float] = Field(None, ge=-90, le=90)
+    lon: Optional[float] = Field(None, ge=-180, le=180)
+
+    @model_validator(mode='after')
+    def validate_input(self):
+        """Ensure at least one valid input format is provided."""
+        has_address = bool(self.address and self.address.strip())
+        has_coords = self.lat is not None and self.lon is not None
+
+        if not has_address and not has_coords:
+            raise ValueError("Provide 'address' or both 'lat' and 'lon'")
+
+        return self
+
+
+class MobileLookupResponse(BaseModel):
+    """Simplified response schema for mobile /mobile/lookup endpoint.
+
+    Designed for mobile apps with focus on:
+    - Minimal data transfer
+    - Essential information only
+    - Abbreviations to save bandwidth
+    """
+    # Core data
+    address: str = Field(..., description="Matched address")
+    city: Optional[str] = Field(None, description="City name")
+
+    # Pickup days (abbreviated: MON, TUE, WED, etc.)
+    trash: Optional[str] = Field(None, description="Trash day (MON-SUN)")
+    recycling: Optional[str] = Field(None, description="Recycling day (MON-SUN)")
+    green: Optional[str] = Field(None, description="Green waste day (MON-SUN)")
+
+    # Data quality indicator
+    source: Literal["verified", "official", "unverified", "unknown"] = Field(
+        ..., description="Data source quality"
+    )
+
+    # Coordinates (optional, for map display)
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+
+
+class MobileReportRequest(BaseModel):
+    """Simplified request schema for mobile /mobile/report endpoint."""
+    address: str = Field(..., min_length=5, max_length=500)
+
+    # At least one required
+    trash: Optional[str] = Field(None, max_length=20, description="Trash day (MON-SUN)")
+    recycling: Optional[str] = Field(None, max_length=20, description="Recycling day (MON-SUN)")
+    green: Optional[str] = Field(None, max_length=20, description="Green waste day (MON-SUN)")
+
+    # Optional user identifier
+    user_id: Optional[str] = Field(None, max_length=64, description="User identifier")
+
+    @field_validator('address')
+    @classmethod
+    def validate_address(cls, v: str) -> str:
+        """Clean address."""
+        if not v or not v.strip():
+            raise ValueError("Address required")
+        return ' '.join(v.split())
+
+    @field_validator('trash', 'recycling', 'green')
+    @classmethod
+    def validate_day(cls, v: Optional[str]) -> Optional[str]:
+        """Validate and normalize day."""
+        if v is None:
+            return v
+        v = v.strip().upper()
+        if not v:
+            return None
+
+        # Abbreviations only for mobile
+        valid_days = {'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'}
+
+        # Also accept full names and convert
+        day_map = {
+            'MONDAY': 'MON', 'TUESDAY': 'TUE', 'WEDNESDAY': 'WED',
+            'THURSDAY': 'THU', 'FRIDAY': 'FRI', 'SATURDAY': 'SAT', 'SUNDAY': 'SUN'
+        }
+
+        if v in day_map:
+            return day_map[v]
+
+        if v not in valid_days:
+            raise ValueError(f"Invalid day '{v}'. Use MON-SUN")
+
+        return v
+
+    @model_validator(mode='after')
+    def validate_at_least_one_day(self):
+        """Ensure at least one pickup day provided."""
+        if not any([self.trash, self.recycling, self.green]):
+            raise ValueError("Provide at least one pickup day")
+        return self
+
+
+class MobileReportResponse(BaseModel):
+    """Simplified response schema for mobile /mobile/report endpoint."""
+    success: bool
+    message: str
+    address: str  # Normalized address
+
+    # Simplified consensus info (only if verified)
+    verified: bool = Field(False, description="True if consensus is verified (≥3 reports, ≥67% agreement)")
+    reports: Optional[int] = Field(None, description="Number of reports if verified")
+# AUTHENTICATION SCHEMAS
+# ============================================================================
+
+class UserRegisterRequest(BaseModel):
+    """Request schema for user registration."""
+    username: str = Field(..., min_length=3, max_length=50, description="Unique username")
+    email: EmailStr = Field(..., description="Valid email address")
+    password: str = Field(..., min_length=8, max_length=100, description="Password (min 8 characters)")
+    full_name: Optional[str] = Field(None, max_length=200, description="User's full name")
+
+    @field_validator('username')
+    @classmethod
+    def validate_username(cls, v: str) -> str:
+        """Validate username format."""
+        if not v.isalnum() and '_' not in v and '-' not in v:
+            raise ValueError("Username can only contain letters, numbers, underscores, and hyphens")
+        return v.lower()
+
+    @field_validator('password')
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        """Validate password strength."""
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        if not any(c.isupper() for c in v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not any(c.islower() for c in v):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not any(c.isdigit() for c in v):
+            raise ValueError("Password must contain at least one digit")
+        return v
+
+
+class UserLoginRequest(BaseModel):
+    """Request schema for user login."""
+    username: str = Field(..., description="Username or email")
+    password: str = Field(..., description="Password")
+
+
+class TokenResponse(BaseModel):
+    """Response schema for token endpoints."""
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int = Field(..., description="Access token expiration in seconds")
+
+
+class TokenRefreshRequest(BaseModel):
+    """Request schema for token refresh."""
+    refresh_token: str = Field(..., description="Valid refresh token")
+
+
+class UserResponse(BaseModel):
+    """Response schema for user information."""
+    id: int
+    username: str
+    email: str
+    role: str
+    full_name: Optional[str]
+    is_active: bool
+    is_verified: bool
+    created_at: datetime
+    last_login_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class CreateAPIKeyResponse(BaseModel):
+    """Response schema for newly created API key (includes full key)."""
+    success: bool
+    message: str
+    api_key: str = Field(..., description="Full API key - SAVE THIS! It won't be shown again.")
+    key_details: APIKeyResponse
+
+
+class UpdateAPIKeyRequest(BaseModel):
+    """Request schema for updating an API key."""
+    is_active: Optional[bool] = None
+    rate_limit_per_minute: Optional[int] = Field(None, ge=1, le=1000)
+    rate_limit_per_hour: Optional[int] = Field(None, ge=1, le=100000)
+    rate_limit_per_day: Optional[int] = Field(None, ge=1, le=1000000)
+    expires_at: Optional[datetime] = None
+    notes: Optional[str] = None
+
+
+class APIUsageStats(BaseModel):
+    """API usage statistics."""
+    total_requests: int
+    requests_by_endpoint: Dict[str, int]
+    requests_by_status: Dict[str, int]
+    avg_response_time_ms: float
+    error_rate: float
+
+
+class APIKeyUsageResponse(BaseModel):
+    """Response schema for API key usage details."""
+    api_key: APIKeyResponse
+    stats_today: APIUsageStats
+    stats_7days: APIUsageStats
+    stats_30days: APIUsageStats
+    recent_requests: List[Dict[str, Any]]
+
+
+class UsageDashboardResponse(BaseModel):
+    """Response schema for admin usage dashboard."""
+    total_api_keys: int
+    active_api_keys: int
+    total_requests_today: int
+    total_requests_7days: int
+    total_requests_30days: int
+    top_keys_by_usage: List[Dict[str, Any]]
+    requests_by_endpoint: Dict[str, int]
+    error_rate: float
+    avg_response_time_ms: float
+class UserUpdateRoleRequest(BaseModel):
+    """Request schema for updating user role (admin only)."""
+    role: Literal["user", "reporter", "admin", "city_partner"] = Field(..., description="New role for user")
+
+
+class ReportDetailResponse(BaseModel):
+    """Detailed report information for city partners and admins."""
+    id: int
+    address_id: int
+    normalized_address: str
+    trash_day: Optional[str]
+    recycling_day: Optional[str]
+    green_day: Optional[str]
+    user_id: Optional[int]
+    username: Optional[str]
+    is_verified: bool
+    verified_by_username: Optional[str]
+    verified_at: Optional[datetime]
+    created_at: datetime
+    ip_address: Optional[str]
+
+    class Config:
+        from_attributes = True
+
+
+class VerifyReportRequest(BaseModel):
+    """Request schema for verifying a report."""
+    is_verified: bool = Field(..., description="Whether to mark report as verified")
 class InterpretAddressRequest(BaseModel):
     """Request schema for POST /interpret-address endpoint."""
     text: str = Field(
@@ -148,9 +465,15 @@ class InterpretAddressRequest(BaseModel):
     @field_validator('text')
     @classmethod
     def validate_text_not_empty(cls, v: str) -> str:
-        """Ensure text is not just whitespace."""
+        """Ensure text is not just whitespace and check for malicious patterns."""
         if not v or not v.strip():
             raise ValueError("Text cannot be empty or whitespace only")
+
+        # Check for security threats (SQL injection, XSS, etc.)
+        security_issues = validate_input_security(v, "text")
+        if security_issues:
+            raise ValueError(f"Invalid text: contains potentially malicious content")
+
         return v.strip()
 
 
@@ -179,3 +502,138 @@ class InterpretAddressResponse(BaseModel):
 
     # Error information
     error: Optional[str] = Field(None, description="Error message if interpretation failed")
+
+
+class PredictRequest(BaseModel):
+    """Request schema for POST /predict endpoint."""
+    address_id: Optional[int] = Field(None, description="Address ID to predict for (for delay predictions)")
+    prediction_type: Literal["delay", "seasonal"] = Field(
+        ..., description="Type of prediction: 'delay' or 'seasonal'"
+    )
+    weeks_ahead: Optional[int] = Field(
+        4, ge=1, le=12, description="Number of weeks ahead for seasonal predictions"
+    )
+
+    @model_validator(mode='after')
+    def validate_prediction_type(self):
+        """Ensure address_id is provided for delay predictions."""
+        if self.prediction_type == 'delay' and self.address_id is None:
+            raise ValueError("address_id is required for delay predictions")
+        return self
+
+
+class DelayPrediction(BaseModel):
+    """Delay prediction results."""
+    success: bool
+    address_id: Optional[int] = None
+    delay_likely: Optional[bool] = None
+    delay_probability: Optional[float] = None
+    confidence: Optional[float] = None
+    message: Optional[str] = None
+
+
+class SeasonalPrediction(BaseModel):
+    """Single seasonal prediction data point."""
+    week: int
+    month: int
+    date: str
+    predicted_reports: int
+
+
+class SeasonalPredictionResponse(BaseModel):
+    """Seasonal prediction results."""
+    success: bool
+    predictions: Optional[list[SeasonalPrediction]] = None
+    message: Optional[str] = None
+
+
+class PredictResponse(BaseModel):
+    """Response schema for POST /predict endpoint."""
+    prediction_type: str
+    delay: Optional[DelayPrediction] = None
+    seasonal: Optional[SeasonalPredictionResponse] = None
+
+
+class TrainModelRequest(BaseModel):
+    """Request schema for POST /predict/train endpoint."""
+    model_type: Literal["delay", "seasonal", "both"] = Field(
+        ..., description="Which model to train"
+    )
+
+
+class TrainModelResponse(BaseModel):
+    """Response schema for POST /predict/train endpoint."""
+    success: bool
+    results: list[dict]
+    message: str
+class HeatmapPoint(BaseModel):
+    """A single point in the heatmap with location and intensity."""
+    lat: float = Field(..., description="Latitude")
+    lon: float = Field(..., description="Longitude")
+    intensity: float = Field(..., description="Intensity value (normalized 0-1)")
+    count: Optional[int] = Field(None, description="Raw count for this location")
+    details: Optional[dict] = Field(None, description="Additional context for this point")
+
+
+class HeatmapResponse(BaseModel):
+    """Response schema for GET /analytics/heatmap endpoint."""
+    metric: str = Field(..., description="Heatmap metric type (report_density, low_confidence, high_activity)")
+    city: Optional[str] = Field(None, description="City filter applied")
+    points: list[HeatmapPoint] = Field(..., description="Heatmap data points")
+    total_points: int = Field(..., description="Total number of points returned")
+    max_intensity: float = Field(..., description="Maximum intensity value in dataset")
+    min_intensity: float = Field(..., description="Minimum intensity value in dataset")
+    generated_at: str = Field(..., description="Timestamp when heatmap was generated")
+# Gamification Schemas
+
+class BadgeSchema(BaseModel):
+    """Badge information."""
+    id: int
+    slug: str
+    name: str
+    description: Optional[str]
+    icon: Optional[str]
+    color: Optional[str]
+    tier: int
+    requirement_type: str
+    requirement_value: Optional[int]
+
+
+class UserBadgeSchema(BaseModel):
+    """User badge with badge details."""
+    id: int
+    badge: BadgeSchema
+    earned_at: str
+
+
+class LeaderboardEntry(BaseModel):
+    """Single entry in the leaderboard."""
+    rank: int
+    user_id: int
+    username: str
+    total_points: int
+    total_reports: int
+    verified_reports: int
+    is_verified_reporter: bool
+    badges_count: int
+
+
+class LeaderboardResponse(BaseModel):
+    """Response schema for leaderboard endpoint."""
+    leaderboard: list[LeaderboardEntry]
+    total_users: int
+    current_user_rank: Optional[int] = None
+
+
+class UserStatsResponse(BaseModel):
+    """User statistics for gamification."""
+    user_id: int
+    username: str
+    email: str
+    total_points: int
+    total_reports: int
+    verified_reports: int
+    is_verified_reporter: bool
+    badges: list[UserBadgeSchema]
+    recent_points: list[dict]
+    rank: Optional[int] = None

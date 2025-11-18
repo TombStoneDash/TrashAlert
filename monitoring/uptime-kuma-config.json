@@ -1,0 +1,70 @@
+{
+  "monitors": [
+    {
+      "name": "TrashAlert API Health",
+      "type": "http",
+      "url": "https://your-api-url.railway.app/health",
+      "interval": 60,
+      "maxretries": 3,
+      "timeout": 30,
+      "method": "GET",
+      "expectedStatusCode": 200
+    },
+    {
+      "name": "TrashAlert API Lookup",
+      "type": "http",
+      "url": "https://your-api-url.railway.app/lookup?address=1122%20Palmview%20Ave,%20El%20Centro,%20CA",
+      "interval": 300,
+      "maxretries": 2,
+      "timeout": 30,
+      "method": "GET",
+      "expectedStatusCode": 200
+    },
+    {
+      "name": "TrashAlert Admin Dashboard",
+      "type": "http",
+      "url": "https://your-dashboard-url.vercel.app",
+      "interval": 60,
+      "maxretries": 3,
+      "timeout": 30,
+      "method": "GET",
+      "expectedStatusCode": 200
+    },
+    {
+      "name": "TrashAlert Database Connection",
+      "type": "http",
+      "url": "https://your-api-url.railway.app/metrics",
+      "interval": 300,
+      "maxretries": 2,
+      "timeout": 30,
+      "method": "GET",
+      "expectedStatusCode": 200,
+      "keyword": "database_queries_total"
+    }
+  ],
+  "notifications": [
+    {
+      "name": "Email Notification",
+      "type": "email",
+      "isDefault": true,
+      "smtpHost": "smtp.gmail.com",
+      "smtpPort": 587,
+      "smtpSecure": false,
+      "smtpUsername": "your-email@gmail.com",
+      "customSubject": "[TrashAlert] {status} - {monitor.name}",
+      "to": "alerts@yourdomain.com"
+    },
+    {
+      "name": "Slack Notification",
+      "type": "slack",
+      "isDefault": true,
+      "slackwebhookURL": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+    },
+    {
+      "name": "Discord Notification",
+      "type": "discord",
+      "isDefault": false,
+      "discordWebhookUrl": "https://discord.com/api/webhooks/YOUR/WEBHOOK"
+    }
+  ]
+}

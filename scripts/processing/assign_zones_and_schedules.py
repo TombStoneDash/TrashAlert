@@ -165,9 +165,35 @@ class ZoneScheduleAssigner:
         Returns:
             Zone dictionary if found, None otherwise
         """
+        # Try Redis cache first (if available)
+        try:
+            from app.redis_cache import redis_cache
+            point = address.get('point')
+            if point:
+                cache_key = f"zone:{point.x:.6f},{point.y:.6f}"
+                cached_zone_id = redis_cache.get(cache_key)
+                if cached_zone_id:
+                    # Find the zone by ID in the zones list
+                    for zone in zones:
+                        if zone.get('zone_id') == cached_zone_id:
+                            logger.debug(f"Redis cache hit for zone lookup at ({point.x:.6f}, {point.y:.6f})")
+                            return zone
+        except (ImportError, Exception):
+            pass  # Redis not available or error occurred
+
+        # Perform actual zone lookup
         for zone in zones:
             try:
                 if zone['prepared_geometry'].contains(address['point']):
+                    # Cache the result in Redis (if available)
+                    try:
+                        from app.redis_cache import redis_cache
+                        point = address.get('point')
+                        if point:
+                            cache_key = f"zone:{point.x:.6f},{point.y:.6f}"
+                            redis_cache.set(cache_key, zone.get('zone_id'), ttl=3600)  # 1 hour
+                    except (ImportError, Exception):
+                        pass
                     return zone
             except Exception as e:
                 logger.debug(f"Error checking zone {zone.get('zone_id')}: {e}")
