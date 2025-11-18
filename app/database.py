@@ -1,15 +1,25 @@
 """Database configuration and session management."""
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# SQLite database for simplicity - can be changed to PostgreSQL in production
-SQLALCHEMY_DATABASE_URL = "sqlite:///./trashalert.db"
+# Get database URL from environment variable, default to SQLite for local dev
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./trashalert.db")
 
+# SQLite-specific configuration
+connect_args = {}
+if DATABASE_URL.startswith("sqlite"):
+    connect_args = {"check_same_thread": False}
+
+# Create engine with appropriate settings
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     connect_args={"check_same_thread": False},  # Needed for SQLite
     echo=False  # Disable SQL logging
+    DATABASE_URL,
+    connect_args=connect_args,
+    pool_pre_ping=True,  # Verify connections before using them
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
