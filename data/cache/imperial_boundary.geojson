@@ -1,0 +1,18 @@
+{
+  "type": "Feature",
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [[
+      [-115.5800, 32.8400],
+      [-115.5800, 32.8700],
+      [-115.5500, 32.8700],
+      [-115.5500, 32.8400],
+      [-115.5800, 32.8400]
+    ]]
+  },
+  "properties": {
+    "name": "Imperial",
+    "admin_level": "8",
+    "note": "Approximate bounding box for Imperial city limits"
+  }
+}
