@@ -502,3 +502,58 @@ class InterpretAddressResponse(BaseModel):
 
     # Error information
     error: Optional[str] = Field(None, description="Error message if interpretation failed")
+
+
+# Gamification Schemas
+
+class BadgeSchema(BaseModel):
+    """Badge information."""
+    id: int
+    slug: str
+    name: str
+    description: Optional[str]
+    icon: Optional[str]
+    color: Optional[str]
+    tier: int
+    requirement_type: str
+    requirement_value: Optional[int]
+
+
+class UserBadgeSchema(BaseModel):
+    """User badge with badge details."""
+    id: int
+    badge: BadgeSchema
+    earned_at: str
+
+
+class LeaderboardEntry(BaseModel):
+    """Single entry in the leaderboard."""
+    rank: int
+    user_id: int
+    username: str
+    total_points: int
+    total_reports: int
+    verified_reports: int
+    is_verified_reporter: bool
+    badges_count: int
+
+
+class LeaderboardResponse(BaseModel):
+    """Response schema for leaderboard endpoint."""
+    leaderboard: list[LeaderboardEntry]
+    total_users: int
+    current_user_rank: Optional[int] = None
+
+
+class UserStatsResponse(BaseModel):
+    """User statistics for gamification."""
+    user_id: int
+    username: str
+    email: str
+    total_points: int
+    total_reports: int
+    verified_reports: int
+    is_verified_reporter: bool
+    badges: list[UserBadgeSchema]
+    recent_points: list[dict]
+    rank: Optional[int] = None

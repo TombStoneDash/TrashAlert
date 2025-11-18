@@ -135,6 +135,11 @@ class CrowdReport(Base):
     green_day = Column(String)
 
     # User tracking (optional, for preventing spam)
+    user_hash = Column(String, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)  # For gamification
+
+    # Verification status
+    is_verified = Column(Boolean, default=False, index=True)
     user_hash = Column(String, index=True)  # Keep for backward compatibility
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)  # New authenticated user reference
 
@@ -313,6 +318,51 @@ class RequestMetrics(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 
+class User(Base):
+    """User table for gamification and authentication."""
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, index=True, nullable=False)
+    username = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+
+    # Gamification stats
+    total_points = Column(Integer, default=0, index=True)
+    total_reports = Column(Integer, default=0)
+    verified_reports = Column(Integer, default=0)
+
+    # User status
+    is_active = Column(Boolean, default=True)
+    is_verified_reporter = Column(Boolean, default=False, index=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    last_login = Column(DateTime(timezone=True))
+
+    # Relationships
+    badges = relationship("UserBadge", back_populates="user")
+    point_history = relationship("PointHistory", back_populates="user")
+
+
+class Badge(Base):
+    """Badge definitions for gamification."""
+    __tablename__ = "badges"
+
+    id = Column(Integer, primary_key=True, index=True)
+    slug = Column(String, unique=True, index=True, nullable=False)
+    name = Column(String, nullable=False)
+    description = Column(Text)
+    icon = Column(String)  # Icon name or URL
+
+    # Badge criteria
+    requirement_type = Column(String, nullable=False)  # verified_reports, total_reports, power_user
+    requirement_value = Column(Integer)  # Threshold to earn badge
+
+    # Display
+    color = Column(String)  # Hex color for badge display
+    tier = Column(Integer, default=1)  # Badge tier (1=bronze, 2=silver, 3=gold)
 class PipelineRun(Base):
     """Track bulk pipeline execution runs."""
     __tablename__ = "pipeline_runs"
@@ -447,6 +497,44 @@ class ApiKey(Base):
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class UserBadge(Base):
+    """User badge awards - tracks which badges users have earned."""
+    __tablename__ = "user_badges"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    badge_id = Column(Integer, ForeignKey("badges.id"), nullable=False, index=True)
+
+    # Award metadata
+    earned_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    email_sent = Column(Boolean, default=False)
+    email_sent_at = Column(DateTime(timezone=True))
+
+    # Relationships
+    user = relationship("User", back_populates="badges")
+    badge = relationship("Badge")
+
+    __table_args__ = (
+        Index('idx_user_badge_unique', 'user_id', 'badge_id', unique=True),
+    )
+
+
+class PointHistory(Base):
+    """Track point awards and changes for transparency."""
+    __tablename__ = "point_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+
+    # Point details
+    points = Column(Integer, nullable=False)  # Can be positive or negative
+    action = Column(String, nullable=False)  # report_submitted, report_verified, bonus
+    description = Column(String)
+
+    # Reference to related entity
+    report_id = Column(Integer, ForeignKey("crowd_reports.id"), nullable=True, index=True)
     expires_at = Column(DateTime(timezone=True))  # Optional expiration
 
     # Relationships
@@ -508,6 +596,10 @@ class ApiKeyUsage(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
     # Relationships
+    user = relationship("User", back_populates="point_history")
+
+    __table_args__ = (
+        Index('idx_user_created', 'user_id', 'created_at'),
     api_key = relationship("APIKey", back_populates="usage_logs")
 
     __table_args__ = (

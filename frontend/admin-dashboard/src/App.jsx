@@ -10,6 +10,7 @@ import CrowdReports from './pages/CrowdReports';
 import Schedules from './pages/Schedules';
 import Consensus from './pages/Consensus';
 import Logs from './pages/Logs';
+import Leaderboard from './pages/Leaderboard';
 
 function App() {
   return (
@@ -32,6 +33,7 @@ function App() {
             <Route path="/schedules" element={<Schedules />} />
             <Route path="/consensus" element={<Consensus />} />
             <Route path="/logs" element={<Logs />} />
+            <Route path="/leaderboard" element={<Leaderboard />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
