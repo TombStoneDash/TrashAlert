@@ -1,0 +1,41 @@
+{
+  "type": "Feature",
+  "properties": {
+    "name": "Calexico",
+    "state": "California",
+    "note": "Mock boundary for testing - replace with actual OSM data when available"
+  },
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          -115.55,
+          32.65
+        ],
+        [
+          -115.45,
+          32.65
+        ],
+        [
+          -115.45,
+          32.71
+        ],
+        [
+          -115.55,
+          32.71
+        ],
+        [
+          -115.55,
+          32.65
+        ]
+      ]
+    ]
+  },
+  "bbox": [
+    -115.55,
+    32.65,
+    -115.45,
+    32.71
+  ]
+}

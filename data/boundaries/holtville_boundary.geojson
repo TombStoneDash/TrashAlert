@@ -1,0 +1,41 @@
+{
+  "type": "Feature",
+  "properties": {
+    "name": "Holtville",
+    "state": "California",
+    "note": "Mock boundary for testing - replace with actual OSM data when available"
+  },
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          -115.42,
+          32.78
+        ],
+        [
+          -115.34,
+          32.78
+        ],
+        [
+          -115.34,
+          32.84
+        ],
+        [
+          -115.42,
+          32.84
+        ],
+        [
+          -115.42,
+          32.78
+        ]
+      ]
+    ]
+  },
+  "bbox": [
+    -115.42,
+    32.78,
+    -115.34,
+    32.84
+  ]
+}

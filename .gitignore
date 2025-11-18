@@ -55,4 +55,5 @@ nginx-cache/
 
 # Logs
 *.log
+# Logs
 logs/
