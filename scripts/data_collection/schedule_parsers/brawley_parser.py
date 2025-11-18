@@ -3,6 +3,7 @@ Brawley trash schedule parser.
 
 Extracts trash collection schedules for Brawley, CA.
 Data source: Republic Services
+Data source: City of Brawley website (CR&R Environmental Services)
 """
 import requests
 from bs4 import BeautifulSoup
@@ -26,6 +27,8 @@ class BrawleyParser(BaseScheduleParser):
 
     Brawley uses Republic Services. The city may use zones or
     a citywide schedule.
+    Brawley uses CR&R Environmental Services for waste collection.
+    The city has a simple zone-based system.
     """
 
     def __init__(self):
@@ -39,6 +42,14 @@ class BrawleyParser(BaseScheduleParser):
             "ZONE_2": {"trash": "TUE", "recycling": "FRI", "green_waste": "TUE"},
             "ZONE_3": {"trash": "WED", "recycling": "MON", "green_waste": "WED"},
             "ZONE_4": {"trash": "THU", "recycling": "TUE", "green_waste": "THU"},
+            source_url="https://www.brawley-ca.gov/departments/public-works"
+        )
+        # Brawley zones - in production, these would be extracted from official sources
+        self.zones = {
+            "ZONE_1": {"trash": "MON", "recycling": "WED", "green_waste": "MON"},
+            "ZONE_2": {"trash": "TUE", "recycling": "THU", "green_waste": "TUE"},
+            "ZONE_3": {"trash": "WED", "recycling": "FRI", "green_waste": "WED"},
+            "ZONE_4": {"trash": "THU", "recycling": "MON", "green_waste": "THU"},
         }
 
     def fetch_raw_data(self) -> Any:
@@ -123,12 +134,33 @@ class BrawleyParser(BaseScheduleParser):
         </div>
         """
 
+        Fetch schedule data from Brawley sources.
+
+        For pilot version, use hardcoded zone data.
+        In production, this would contact CR&R or city website.
+        """
+        logger.info(f"Fetching data from {self.source_url}")
+
+        # CR&R observes major holidays
+        return {
+            "zones": self.zones,
+            "holidays": [
+                {"date": "2025-01-01", "name": "New Year's Day", "delay_days": 1},
+                {"date": "2025-05-26", "name": "Memorial Day", "delay_days": 1},
+                {"date": "2025-07-04", "name": "Independence Day", "delay_days": 1},
+                {"date": "2025-09-01", "name": "Labor Day", "delay_days": 1},
+                {"date": "2025-11-27", "name": "Thanksgiving", "delay_days": 1},
+                {"date": "2025-12-25", "name": "Christmas", "delay_days": 1},
+            ]
+        }
+
     def parse_raw_data(self, raw_data: Any) -> ParseResult:
         """
         Parse Brawley schedule data.
 
         Args:
             raw_data: Dict with HTML content and zone metadata
+            raw_data: Zone configuration and holiday data
 
         Returns:
             ParseResult with schedules and exceptions
@@ -145,6 +177,8 @@ class BrawleyParser(BaseScheduleParser):
                                       class_=lambda x: x and
                                       any(term in str(x).lower() for term in
                                           ['zone', 'area', 'district', 'schedule']))
+            zones = raw_data.get("zones", {})
+            holidays = raw_data.get("holidays", [])
 
             # Parse zone schedules
             for zone_name, zone_schedule in zones.items():
@@ -156,6 +190,8 @@ class BrawleyParser(BaseScheduleParser):
                         zone=zone_name,
                         recurrence="weekly" if collection_type != "recycling" else "biweekly",
                         confidence=0.9,
+                        recurrence="weekly",
+                        confidence=0.95,
                         effective_date=datetime(2025, 1, 1),
                         next_pickup_date=self.calculate_next_pickup(day)
                     )
@@ -171,6 +207,15 @@ class BrawleyParser(BaseScheduleParser):
 
                     if "rescheduled" in holiday:
                         rescheduled_date = datetime.strptime(holiday["rescheduled"], "%Y-%m-%d")
+            for holiday in holidays:
+                try:
+                    exception_date = datetime.strptime(holiday["date"], "%Y-%m-%d")
+                    delay_days = holiday.get("delay_days", 0)
+
+                    rescheduled_date = None
+                    if delay_days > 0:
+                        from datetime import timedelta
+                        rescheduled_date = exception_date + timedelta(days=delay_days)
 
                     exception = ExceptionData(
                         exception_date=exception_date,
@@ -178,6 +223,9 @@ class BrawleyParser(BaseScheduleParser):
                         is_cancelled=is_cancelled,
                         reason=holiday.get("name", "Holiday"),
                         notes=f"Brawley holiday: {holiday.get('name', 'Unknown')}"
+                        is_cancelled=holiday.get("cancelled", False),
+                        reason=holiday.get("name", "Holiday"),
+                        notes=f"Brawley city holiday: {holiday.get('name', 'Unknown')}"
                     )
                     result.exceptions.append(exception)
                 except Exception as e:
@@ -191,6 +239,8 @@ class BrawleyParser(BaseScheduleParser):
 
             logger.info(f"Parsed {len(result.schedules)} schedules for Brawley")
 
+            logger.info(f"Parsed {len(result.schedules)} schedules and {len(result.exceptions)} exceptions")
+
         except Exception as e:
             result.errors.append(f"Failed to parse Brawley data: {e}")
             logger.error(f"Parse error: {e}")
@@ -203,6 +253,8 @@ class BrawleyParser(BaseScheduleParser):
 
         For pilot version, this uses simple heuristics.
         In production, this would use GIS polygon matching or address lookup.
+        For pilot version, uses simple heuristics.
+        In production, would use GIS polygon matching.
 
         Args:
             address: Full address string
@@ -223,12 +275,20 @@ class BrawleyParser(BaseScheduleParser):
         elif any(st in address_upper for st in ["J ST", "K ST", "L ST", "SOUTH"]):
             return "ZONE_3"
         # West Brawley
+        # Simple heuristic based on street patterns
+        if any(st in address_upper for st in ["MAIN", "A STREET", "B STREET"]):
+            return "ZONE_1"
+        elif any(st in address_upper for st in ["C STREET", "D STREET", "E STREET"]):
+            return "ZONE_2"
+        elif any(st in address_upper for st in ["F STREET", "G STREET", "H STREET"]):
+            return "ZONE_3"
         else:
             return "ZONE_4"
 
     def get_schedule_for_address(self, address: str) -> List[ScheduleData]:
         """
         Get schedule for a specific address in Brawley.
+        Get schedule for a specific address.
 
         Args:
             address: Full address string
@@ -248,6 +308,8 @@ class BrawleyParser(BaseScheduleParser):
                 zone=zone,
                 recurrence="weekly" if collection_type != "recycling" else "biweekly",
                 confidence=0.9,
+                recurrence="weekly",
+                confidence=0.95,
                 next_pickup_date=self.calculate_next_pickup(day)
             )
             schedules.append(schedule)

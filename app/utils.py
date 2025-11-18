@@ -1,14 +1,19 @@
 """Utility functions for address processing and consensus calculation."""
 import re
 import yaml
+import logging
 from pathlib import Path
 from typing import Optional, Tuple, Dict, List
 from collections import Counter
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from geopy.distance import geodesic
+from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderTimedOut, GeocoderServiceError
 
 from app.models import Address, CrowdReport, CrowdConsensus
+
+logger = logging.getLogger(__name__)
 
 
 # Cache for cities config
@@ -35,20 +40,34 @@ def load_cities_config() -> Dict:
 
 def get_city_id_from_name(city_name: str) -> Optional[str]:
     """
-    Convert city name to city_id (normalized slug).
+    Convert city name to city_id by looking up in cities.yaml config.
 
     Args:
         city_name: City name (e.g., "San Diego", "El Centro")
 
     Returns:
-        City ID slug (e.g., "san_diego", "el_centro") or None if not found
+        City ID from config (e.g., "ca_san_diego", "ca_el_centro") or None if not found
     """
     if not city_name:
         return None
 
-    # Normalize: lowercase, replace spaces with underscores
-    city_id = city_name.strip().lower().replace(' ', '_')
-    return city_id
+    try:
+        config = load_cities_config()
+        cities = config.get('cities', [])
+
+        # Normalize input for comparison
+        normalized_input = city_name.strip().lower()
+
+        for city in cities:
+            # Compare normalized names
+            if city['name'].lower() == normalized_input:
+                return city.get('city_id')
+
+        # Not found in config
+        return None
+    except Exception as e:
+        logger.error(f"Failed to get city_id for {city_name}: {str(e)}")
+        return None
 
 
 def get_city_name_from_id(city_id: str) -> Optional[str]:
@@ -56,7 +75,7 @@ def get_city_name_from_id(city_id: str) -> Optional[str]:
     Get full city name from city_id.
 
     Args:
-        city_id: City ID slug (e.g., "san_diego")
+        city_id: City ID from config (e.g., "ca_san_diego")
 
     Returns:
         Full city name (e.g., "San Diego") or None if not found
@@ -66,11 +85,12 @@ def get_city_name_from_id(city_id: str) -> Optional[str]:
         cities = config.get('cities', [])
 
         for city in cities:
-            if get_city_id_from_name(city['name']) == city_id:
+            if city.get('city_id') == city_id:
                 return city['name']
 
         return None
-    except Exception:
+    except Exception as e:
+        logger.error(f"Failed to get city name for {city_id}: {str(e)}")
         return None
 
 
@@ -393,3 +413,91 @@ def day_abbrev_to_full(day: Optional[str]) -> Optional[str]:
     }
 
     return day_map.get(day.upper())
+
+
+def geocode_address(address: str, timeout: int = 10) -> Optional[Dict]:
+    """
+    Geocode an address using Nominatim (OpenStreetMap).
+
+    Args:
+        address: Address string to geocode
+        timeout: Request timeout in seconds
+
+    Returns:
+        Dictionary with geocoding results or None if failed:
+        {
+            'lat': float,
+            'lon': float,
+            'display_name': str,
+            'address_components': dict,
+            'quality': str  # 'high', 'medium', 'low'
+        }
+    """
+    try:
+        # Initialize Nominatim geocoder with a user agent
+        geolocator = Nominatim(
+            user_agent="trashalert-api/1.0",
+            timeout=timeout
+        )
+
+        # Perform geocoding
+        logger.info(f"Geocoding address: {address}")
+        location = geolocator.geocode(address, addressdetails=True)
+
+        if not location:
+            logger.warning(f"No geocoding results for: {address}")
+            return None
+
+        # Extract address components
+        raw_address = location.raw.get('address', {})
+
+        # Determine quality based on available components
+        quality = 'low'
+        if raw_address.get('house_number') and raw_address.get('road'):
+            quality = 'high'
+        elif raw_address.get('road'):
+            quality = 'medium'
+
+        result = {
+            'lat': location.latitude,
+            'lon': location.longitude,
+            'display_name': location.address,
+            'address_components': {
+                'house_number': raw_address.get('house_number'),
+                'road': raw_address.get('road'),
+                'city': raw_address.get('city') or raw_address.get('town') or raw_address.get('village'),
+                'state': raw_address.get('state'),
+                'postcode': raw_address.get('postcode'),
+                'country': raw_address.get('country')
+            },
+            'quality': quality
+        }
+
+        logger.info(f"Geocoding successful: {result['display_name']} (quality: {quality})")
+        return result
+
+    except GeocoderTimedOut:
+        logger.error(f"Geocoding timeout for: {address}")
+        return None
+    except GeocoderServiceError as e:
+        logger.error(f"Geocoding service error: {str(e)}")
+        return None
+    except Exception as e:
+        logger.error(f"Geocoding failed: {str(e)}")
+        return None
+
+
+def get_supported_cities() -> List[str]:
+    """
+    Get list of supported city names from cities.yaml.
+
+    Returns:
+        List of city names
+    """
+    try:
+        config = load_cities_config()
+        cities = config.get('cities', [])
+        return [city['name'] for city in cities]
+    except Exception as e:
+        logger.error(f"Failed to load cities: {str(e)}")
+        return []
