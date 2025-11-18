@@ -7,7 +7,7 @@
     "generated": "fallback_circular_approximation",
     "center_lat": 32.9786,
     "center_lon": -115.5303,
-    "approx_radius_km": 3
+    "approx_radius_km": 3,
     "state": "California",
     "note": "Mock boundary for testing - replace with actual OSM data when available"
   },
