@@ -48,6 +48,12 @@ wheels/
 .DS_Store
 Thumbs.db
 
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
+.tox/
+.coverage.*
 # Docker and deployment
 .env.production
 certbot/
