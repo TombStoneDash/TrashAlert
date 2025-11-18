@@ -8,13 +8,16 @@ import logging
 import time
 
 from app.database import get_db, engine, Base
+from app.models import Address, CrowdReport, CrowdConsensus
+from app.schemas import ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ConsensusDetails
 from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics
 from app.schemas import ReportRequest, ReportResponse, LookupResponse, ConsensusInfo
 from app.utils import (
     normalize_address,
     find_or_create_address,
     update_crowd_consensus,
-    validate_day
+    validate_day,
+    day_abbrev_to_full
 )
 from app.rate_limiter import rate_limiter
 from app.cache import lookup_cache
@@ -555,16 +558,13 @@ async def lookup_address(
     if not addr_record:
         # Address not found - return UNKNOWN
         return LookupResponse(
-            address=address,
-            normalized_address=normalized,
-            trash_day=None,
-            recycling_day=None,
-            green_day=None,
-            source="UNKNOWN",
-            consensus_reports_count=None,
-            consensus_agreement_ratio=None,
-            lat=None,
-            lon=None
+            matched_address=normalized,
+            city_name=parts.get('city'),
+            trash_day_of_week=None,
+            recycling_day_of_week=None,
+            green_waste_day_of_week=None,
+            data_source="UNKNOWN",
+            consensus_details=None
         )
 
     # Get consensus data if available (single query)
@@ -573,20 +573,18 @@ async def lookup_address(
     ).first()
 
     # Determine source and data to return
-    source = "UNKNOWN"
+    data_source = "UNKNOWN"
     trash_day = None
     recycling_day = None
     green_day = None
-    reports_count = None
-    agreement_ratio = None
+    consensus_details = None
 
     # Priority 1: Verified crowdsourced consensus
     if consensus and consensus.is_verified:
-        source = "CROWD_VERIFIED"
+        data_source = "CROWD_VERIFIED"
         trash_day = consensus.consensus_trash_day
         recycling_day = consensus.consensus_recycling_day
         green_day = consensus.consensus_green_day
-        reports_count = consensus.total_reports
 
         # Calculate overall agreement ratio
         ratios = [
@@ -598,22 +596,26 @@ async def lookup_address(
         ]
         agreement_ratio = sum(ratios) / len(ratios) if ratios else 0.0
 
+        consensus_details = ConsensusDetails(
+            reports_count=consensus.total_reports,
+            agreement_ratio=round(agreement_ratio, 2)
+        )
+
     # Priority 2: Official data
     elif any([addr_record.official_trash_day,
               addr_record.official_recycling_day,
               addr_record.official_green_day]):
-        source = "OFFICIAL"
+        data_source = "OFFICIAL"
         trash_day = addr_record.official_trash_day
         recycling_day = addr_record.official_recycling_day
         green_day = addr_record.official_green_day
 
     # Priority 3: Unverified crowdsourced (if exists)
     elif consensus:
-        source = "CROWD_UNVERIFIED"  # Fixed: was incorrectly labeled as VERIFIED
+        data_source = "CROWD_UNVERIFIED"
         trash_day = consensus.consensus_trash_day
         recycling_day = consensus.consensus_recycling_day
         green_day = consensus.consensus_green_day
-        reports_count = consensus.total_reports
 
         ratios = [
             r for r in [
@@ -624,6 +626,25 @@ async def lookup_address(
         ]
         agreement_ratio = sum(ratios) / len(ratios) if ratios else 0.0
 
+        consensus_details = ConsensusDetails(
+            reports_count=consensus.total_reports,
+            agreement_ratio=round(agreement_ratio, 2)
+        )
+
+    # Convert day abbreviations to full names
+    trash_day_full = day_abbrev_to_full(trash_day)
+    recycling_day_full = day_abbrev_to_full(recycling_day)
+    green_day_full = day_abbrev_to_full(green_day)
+
+    return LookupResponse(
+        matched_address=addr_record.normalized_address,
+        city_name=addr_record.city,
+        trash_day_of_week=trash_day_full,
+        recycling_day_of_week=recycling_day_full,
+        green_waste_day_of_week=green_day_full,
+        data_source=data_source,
+        consensus_details=consensus_details
+    )
     # Build response
     response_data = {
         "address": address,
