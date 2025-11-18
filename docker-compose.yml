@@ -44,11 +44,16 @@ services:
       - ./logs:/app/logs:rw
     networks:
       - trashalert-network
-    # Override CMD to run worker instead of API
-    # Worker sleeps and can be used for cron jobs or manual pipeline runs
-    command: ["tail", "-f", "/dev/null"]
+    # Run background job scheduler
+    command: ["python", "worker.py"]
     depends_on:
       - api
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os; os.path.exists('/app/logs/cron.log') or exit(1)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   # Nginx Reverse Proxy
   nginx:
