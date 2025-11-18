@@ -89,11 +89,18 @@ def find_or_create_address(db: Session, address_str: str,
         return existing
 
     # If coordinates provided, try to find nearby address (within 50 meters)
+    # Use bounding box query to limit database results (approximately 100m box)
     if lat and lon:
+        # Calculate rough bounding box (0.001 degrees ≈ 111 meters)
+        lat_delta = 0.001
+        lon_delta = 0.001
+
         nearby = db.query(Address).filter(
             Address.lat.isnot(None),
-            Address.lon.isnot(None)
-        ).all()
+            Address.lon.isnot(None),
+            Address.lat.between(lat - lat_delta, lat + lat_delta),
+            Address.lon.between(lon - lon_delta, lon + lon_delta)
+        ).limit(50).all()  # Limit to 50 nearby candidates
 
         for addr in nearby:
             distance = geodesic((lat, lon), (addr.lat, addr.lon)).meters
@@ -237,3 +244,29 @@ def validate_day(day: Optional[str]) -> Optional[str]:
         return day_mapping[day]
     else:
         return None
+
+
+def day_abbrev_to_full(day: Optional[str]) -> Optional[str]:
+    """
+    Convert day abbreviation to full day name.
+
+    Args:
+        day: Day abbreviation (MON, TUE, etc.) or None
+
+    Returns:
+        Full day name (Monday, Tuesday, etc.) or None
+    """
+    if not day:
+        return None
+
+    day_map = {
+        'MON': 'Monday',
+        'TUE': 'Tuesday',
+        'WED': 'Wednesday',
+        'THU': 'Thursday',
+        'FRI': 'Friday',
+        'SAT': 'Saturday',
+        'SUN': 'Sunday'
+    }
+
+    return day_map.get(day.upper())
