@@ -1,11 +1,77 @@
 """Utility functions for address processing and consensus calculation."""
 import re
-from typing import Optional, Tuple, Dict
+import yaml
+from pathlib import Path
+from typing import Optional, Tuple, Dict, List
 from collections import Counter
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from geopy.distance import geodesic
 
 from app.models import Address, CrowdReport, CrowdConsensus
+
+
+# Cache for cities config
+_cities_config = None
+
+
+def load_cities_config() -> Dict:
+    """
+    Load cities configuration from cities.yaml.
+
+    Returns:
+        Dictionary with cities configuration
+    """
+    global _cities_config
+    if _cities_config is not None:
+        return _cities_config
+
+    config_path = Path(__file__).parent.parent / "config" / "cities.yaml"
+    with open(config_path, 'r') as f:
+        _cities_config = yaml.safe_load(f)
+
+    return _cities_config
+
+
+def get_city_id_from_name(city_name: str) -> Optional[str]:
+    """
+    Convert city name to city_id (normalized slug).
+
+    Args:
+        city_name: City name (e.g., "San Diego", "El Centro")
+
+    Returns:
+        City ID slug (e.g., "san_diego", "el_centro") or None if not found
+    """
+    if not city_name:
+        return None
+
+    # Normalize: lowercase, replace spaces with underscores
+    city_id = city_name.strip().lower().replace(' ', '_')
+    return city_id
+
+
+def get_city_name_from_id(city_id: str) -> Optional[str]:
+    """
+    Get full city name from city_id.
+
+    Args:
+        city_id: City ID slug (e.g., "san_diego")
+
+    Returns:
+        Full city name (e.g., "San Diego") or None if not found
+    """
+    try:
+        config = load_cities_config()
+        cities = config.get('cities', [])
+
+        for city in cities:
+            if get_city_id_from_name(city['name']) == city_id:
+                return city['name']
+
+        return None
+    except Exception:
+        return None
 
 
 def normalize_address(address: str) -> Dict[str, Optional[str]]:
@@ -123,6 +189,63 @@ def find_or_create_address(db: Session, address_str: str,
     db.refresh(new_address)
 
     return new_address
+
+
+def find_address_by_coordinates(
+    db: Session,
+    lat: float,
+    lon: float,
+    max_distance_meters: float = 50,
+    city_id: Optional[str] = None
+) -> Optional[Address]:
+    """
+    Find the nearest address to given coordinates within max distance.
+
+    Uses bounding box query for efficiency, then calculates actual distance.
+
+    Args:
+        db: Database session
+        lat: Latitude
+        lon: Longitude
+        max_distance_meters: Maximum distance in meters (default 50m)
+        city_id: Optional city_id to filter results
+
+    Returns:
+        Nearest Address object or None if none found within max distance
+    """
+    # Calculate bounding box (0.001 degrees ≈ 111 meters)
+    # Use slightly larger box to ensure we catch addresses at the boundary
+    lat_delta = max_distance_meters / 111000.0 * 1.5  # degrees
+    lon_delta = max_distance_meters / (111000.0 * abs(float(lat))) * 1.5 if lat != 0 else lat_delta
+
+    # Build query with bounding box
+    query = db.query(Address).filter(
+        Address.lat.isnot(None),
+        Address.lon.isnot(None),
+        Address.lat.between(lat - lat_delta, lat + lat_delta),
+        Address.lon.between(lon - lon_delta, lon + lon_delta)
+    )
+
+    # Filter by city_id if provided
+    if city_id:
+        query = query.filter(Address.city_id == city_id)
+
+    candidates = query.limit(100).all()
+
+    if not candidates:
+        return None
+
+    # Calculate actual distances and find nearest
+    nearest = None
+    min_distance = float('inf')
+
+    for addr in candidates:
+        distance = geodesic((lat, lon), (addr.lat, addr.lon)).meters
+        if distance < min_distance and distance <= max_distance_meters:
+            min_distance = distance
+            nearest = addr
+
+    return nearest
 
 
 def update_crowd_consensus(db: Session, address_id: int) -> CrowdConsensus:

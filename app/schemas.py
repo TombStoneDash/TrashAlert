@@ -78,10 +78,39 @@ class ConsensusDetails(BaseModel):
     agreement_ratio: float
 
 
+class LookupRequest(BaseModel):
+    """Request schema for GET /lookup endpoint - supports multiple input formats."""
+    # Option 1: Full address string
+    address: Optional[str] = Field(None, min_length=5, max_length=500, description="Full address string")
+
+    # Option 2: Coordinates
+    lat: Optional[float] = Field(None, ge=-90, le=90, description="Latitude")
+    lon: Optional[float] = Field(None, ge=-180, le=180, description="Longitude")
+
+    # Option 3: Address + city_id (for more precise matching)
+    city_id: Optional[str] = Field(None, description="City identifier from cities.yaml")
+
+    @model_validator(mode='after')
+    def validate_input_format(self):
+        """Ensure at least one valid input format is provided."""
+        has_address = bool(self.address and self.address.strip())
+        has_coords = self.lat is not None and self.lon is not None
+
+        if not has_address and not has_coords:
+            raise ValueError("Must provide either 'address' or both 'lat' and 'lon'")
+
+        return self
+
+
 class LookupResponse(BaseModel):
     """Response schema for GET /lookup endpoint."""
     matched_address: str = Field(..., description="The matched address from database")
+    city_id: Optional[str] = Field(None, description="City identifier")
     city_name: Optional[str] = Field(None, description="City name")
+
+    # Coordinates
+    lat: Optional[float] = Field(None, description="Latitude of matched address")
+    lon: Optional[float] = Field(None, description="Longitude of matched address")
 
     # Pickup schedule (using full day names: Monday, Tuesday, etc.)
     trash_day_of_week: Optional[str] = Field(None, description="Trash pickup day")
@@ -93,7 +122,11 @@ class LookupResponse(BaseModel):
         ..., description="Data source: CROWD_VERIFIED > OFFICIAL > CROWD_UNVERIFIED > UNKNOWN"
     )
 
-    # Consensus metrics (if crowdsourced)
+    # Consensus metrics (exposed at top level for convenience)
+    consensus_reports_count: Optional[int] = Field(None, description="Number of crowdsourced reports")
+    consensus_agreement_ratio: Optional[float] = Field(None, description="Overall consensus agreement ratio (0-1)")
+
+    # Detailed consensus info (backward compatibility)
     consensus_details: Optional[ConsensusDetails] = Field(
-        None, description="Consensus details if data is crowdsourced"
+        None, description="Detailed consensus metrics if data is crowdsourced"
     )

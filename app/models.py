@@ -61,6 +61,8 @@ class Address(Base):
     normalized_address = Column(String, index=True, nullable=False)
     house_number = Column(String)
     street = Column(String, index=True)
+    city = Column(String, index=True)
+    city_id = Column(String, index=True)  # Links to cities.yaml (e.g., 'san_diego', 'fresno')
     city_name = Column(String, index=True)  # Denormalized for backward compatibility
     state = Column(String, index=True)  # Added index for filtering by state
     zip_code = Column(String, index=True)  # Added index for filtering by zip
