@@ -1,0 +1,41 @@
+{
+  "type": "Feature",
+  "properties": {
+    "name": "Brawley",
+    "state": "California",
+    "note": "Mock boundary for testing - replace with actual OSM data when available"
+  },
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          -115.58,
+          32.95
+        ],
+        [
+          -115.48,
+          32.95
+        ],
+        [
+          -115.48,
+          33.01
+        ],
+        [
+          -115.58,
+          33.01
+        ],
+        [
+          -115.58,
+          32.95
+        ]
+      ]
+    ]
+  },
+  "bbox": [
+    -115.58,
+    32.95,
+    -115.48,
+    33.01
+  ]
+}
