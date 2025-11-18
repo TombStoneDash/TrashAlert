@@ -37,6 +37,9 @@ from app.models import Base, Schedule, ScheduleException, SourceMetadata, Addres
 from scripts.data_collection.schedule_parsers.el_centro_parser import ElCentroParser
 from scripts.data_collection.schedule_parsers.imperial_parser import ImperialParser
 from scripts.data_collection.schedule_parsers.san_diego_parser import SanDiegoParser
+from scripts.data_collection.schedule_parsers.holtville_parser import HoltvilleParser
+from scripts.data_collection.schedule_parsers.brawley_parser import BrawleyParser
+from scripts.data_collection.schedule_parsers.calexico_parser import CalexicoParser
 from scripts.data_collection.schedule_parsers.base_parser import ParseResult
 
 # Configure logging
@@ -66,6 +69,9 @@ class ScheduleRunner:
             "El Centro": ElCentroParser,
             "Imperial": ImperialParser,
             "San Diego": SanDiegoParser,
+            "Holtville": HoltvilleParser,
+            "Brawley": BrawleyParser,
+            "Calexico": CalexicoParser,
         }
 
     def run_parser(self, city: str) -> ParseResult:
