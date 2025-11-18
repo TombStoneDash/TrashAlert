@@ -1,8 +1,45 @@
 """Database models for TrashAlert."""
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Text, JSON, Index
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Text, JSON, Index, Enum
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
+import enum
+
+
+class UserRole(str, enum.Enum):
+    """User role enum."""
+    USER = "user"
+    REPORTER = "reporter"
+    ADMIN = "admin"
+    CITY_PARTNER = "city_partner"
+
+
+class User(Base):
+    """User table - stores user accounts for authentication."""
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True, nullable=False)
+    email = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    role = Column(Enum(UserRole), default=UserRole.USER, nullable=False, index=True)
+
+    # User status
+    is_active = Column(Boolean, default=True, index=True)
+    is_verified = Column(Boolean, default=False)
+
+    # Metadata
+    full_name = Column(String)
+    city_id = Column(Integer, ForeignKey("cities.id"), nullable=True)  # For city_partner role
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    last_login_at = Column(DateTime(timezone=True))
+
+    # Relationships
+    city = relationship("City")
+    crowd_reports = relationship("CrowdReport", back_populates="user")
 
 
 class City(Base):
@@ -23,7 +60,6 @@ class City(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
-    addresses = relationship("Address", back_populates="city")
     pickup_zones = relationship("PickupZone", back_populates="city")
 
 
@@ -54,15 +90,12 @@ class Address(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    # City relationship
-    city_id = Column(Integer, ForeignKey("cities.id"), nullable=True, index=True)
-
     # Address fields
     normalized_address = Column(String, index=True, nullable=False)
     house_number = Column(String)
     street = Column(String, index=True)
     city = Column(String, index=True)
-    city_id = Column(String, index=True)  # Links to cities.yaml (e.g., 'san_diego', 'fresno')
+    city_slug = Column(String, index=True)  # Links to cities.yaml (e.g., 'san_diego', 'fresno')
     city_name = Column(String, index=True)  # Denormalized for backward compatibility
     state = Column(String, index=True)  # Added index for filtering by state
     zip_code = Column(String, index=True)  # Added index for filtering by zip
@@ -79,9 +112,6 @@ class Address(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationships
-    city = relationship("City", back_populates="addresses")
-
 
 class CrowdReport(Base):
     """Individual crowdsourced reports from users."""
@@ -96,15 +126,26 @@ class CrowdReport(Base):
     green_day = Column(String)
 
     # User tracking (optional, for preventing spam)
-    user_hash = Column(String, index=True)
+    user_hash = Column(String, index=True)  # Keep for backward compatibility
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)  # New authenticated user reference
+
+    # Verification
+    is_verified = Column(Boolean, default=False, index=True)
+    verified_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    verified_at = Column(DateTime(timezone=True))
 
     # Metadata
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     ip_address = Column(String, index=True)  # Index for spam prevention queries
 
+    # Relationships
+    user = relationship("User", foreign_keys=[user_id], back_populates="crowd_reports")
+    verified_by = relationship("User", foreign_keys=[verified_by_user_id])
+
     # Composite indexes for common query patterns
     __table_args__ = (
         Index('idx_address_created', 'address_id', 'created_at'),
+        Index('idx_user_created', 'user_id', 'created_at'),
     )
 
 

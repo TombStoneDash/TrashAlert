@@ -3,17 +3,21 @@ from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, Dict, List, Tuple, Any
 from datetime import datetime, timedelta
 from collections import defaultdict
 import logging
 import time
 
 from app.database import get_db, engine, Base
-from app.models import Address, CrowdReport, CrowdConsensus
+from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics, User
 from app.schemas import ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ConsensusDetails
+from app.models import Address, CrowdReport, CrowdConsensus
+from app.schemas import (
+    ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ConsensusDetails,
+    InterpretAddressRequest, InterpretAddressResponse
+)
 from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics
-from app.schemas import ReportRequest, ReportResponse, LookupResponse, ConsensusInfo
 from app.utils import (
     normalize_address,
     find_or_create_address,
@@ -22,8 +26,11 @@ from app.utils import (
     validate_day,
     day_abbrev_to_full,
     get_city_id_from_name,
-    get_city_name_from_id
+    get_city_name_from_id,
+    geocode_address,
+    get_supported_cities
 )
+from app.ai_service import create_ai_interpreter
 from app.rate_limiter import rate_limiter
 from app.cache import lookup_cache
 
@@ -36,6 +43,8 @@ logger = logging.getLogger(__name__)
 from app.middleware import RequestLoggingMiddleware
 from app.metrics import MetricsManager
 from app.logging_config import app_logger, error_logger
+from app.auth import get_optional_current_user, require_authenticated
+from app.routers import auth, admin
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -43,9 +52,13 @@ Base.metadata.create_all(bind=engine)
 # Initialize FastAPI
 app = FastAPI(
     title="TrashAlert API",
-    description="API for trash pickup schedules with crowdsourced data",
-    version="1.0.0"
+    description="API for trash pickup schedules with crowdsourced data and RBAC",
+    version="2.0.0"
 )
+
+# Include routers
+app.include_router(auth.router)
+app.include_router(admin.router)
 
 # Simple in-memory rate limiter
 # In production, use Redis or similar distributed cache
@@ -236,29 +249,33 @@ async def rate_limit_and_logging_middleware(request: Request, call_next):
 
 
 @app.get("/")
-async def root():
+async def root() -> Dict[str, Any]:
     """Health check endpoint."""
     return {
         "status": "healthy",
         "service": "TrashAlert API",
         "version": "1.0.0",
-        "endpoints": ["/lookup", "/report", "/stats"]
+        "endpoints": ["/lookup", "/report", "/interpret-address", "/stats"]
     }
 
 
-@app.post("/report", response_model=ReportResponse)
+@app.post("/report", response_model=ReportResponse, dependencies=[Depends(require_authenticated)])
 async def submit_report(
     report: ReportRequest,
     request: Request,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_optional_current_user)
 ):
     """
     Submit a crowdsourced report for trash pickup schedule.
 
+    **Authentication Required:** This endpoint requires authentication with any role
+    (user, reporter, city_partner, admin).
+
     This endpoint:
     1. Normalizes the provided address
     2. Finds or creates an address record
-    3. Stores the report in crowd_reports table
+    3. Stores the report in crowd_reports table (linked to authenticated user)
     4. Updates consensus calculations
     5. Returns the updated consensus
 
@@ -266,6 +283,7 @@ async def submit_report(
         report: Report data including address and pickup days
         request: FastAPI request (for IP tracking and metrics)
         db: Database session
+        current_user: Current authenticated user (optional for backward compatibility)
 
     Returns:
         Report response with consensus information
@@ -296,13 +314,14 @@ async def submit_report(
             f"City: {city} - Trash: {trash_day}, Recycling: {recycling_day}, Green: {green_day}"
         )
 
-        # Create crowd report
+        # Create crowd report (link to authenticated user if available)
         new_report = CrowdReport(
             address_id=address.id,
             trash_day=trash_day,
             recycling_day=recycling_day,
             green_day=green_day,
-            user_hash=report.user_hash,
+            user_hash=report.user_hash,  # Keep for backward compatibility
+            user_id=current_user.id if current_user else None,  # Link to authenticated user
             ip_address=request.client.host if request.client else None
         )
         db.add(new_report)
@@ -614,12 +633,227 @@ async def lookup_address(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@app.get("/stats")
-async def get_stats(db: Session = Depends(get_db)):
-    """Get statistics about the database."""
-    from sqlalchemy import func, distinct
+@app.post("/interpret-address", response_model=InterpretAddressResponse)
+async def interpret_address(
+    request_data: InterpretAddressRequest,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Interpret and normalize a freeform address using AI with geocoding fallback.
 
+    This endpoint:
+    1. Uses AI (OpenAI or Anthropic) to parse and normalize freeform text
+    2. Extracts address components and infers likely city from config
+    3. Optionally uses Nominatim geocoding as fallback for low-confidence results
+    4. Returns normalized address, coordinates, and confidence score
+
+    Args:
+        request_data: Request with freeform text to interpret
+        request: FastAPI request object
+        db: Database session
+
+    Returns:
+        InterpretAddressResponse with normalized address and metadata
+    """
+    start_time = time.time()
+    city_name = None
+    status_code = 200
+    error_msg = None
+
+    try:
+        text = request_data.text
+        use_geocoding = request_data.use_geocoding
+
+        app_logger.info(f"Interpreting address from text: {text[:100]}")
+
+        # Step 1: Get supported cities for better AI matching
+        supported_cities = get_supported_cities()
+
+        # Step 2: Try AI interpretation first
+        ai_interpreter = create_ai_interpreter(cities_list=supported_cities)
+        ai_result = await ai_interpreter.interpret(text)
+
+        interpretation_method = "ai"
+        normalized_address = ""
+        confidence = 0.0
+        city = None
+        city_id = None
+        state = None
+        zip_code = None
+        lat = None
+        lon = None
+        ai_reasoning = None
+        geocoding_quality = None
+
+        if ai_result and ai_result.confidence > 0.0:
+            # AI interpretation succeeded
+            normalized_address = ai_result.normalized_address
+            confidence = ai_result.confidence
+            city = ai_result.city
+            state = ai_result.state
+            zip_code = ai_result.zip_code
+            ai_reasoning = ai_result.reasoning
+
+            # Match city to city_id from config
+            if city:
+                city_id = get_city_id_from_name(city)
+
+            app_logger.info(
+                f"AI interpretation: {normalized_address} "
+                f"(confidence={confidence}, city={city})"
+            )
+
+            # Step 3: If confidence is low and geocoding is enabled, try geocoding fallback
+            if use_geocoding and confidence < 0.7:
+                app_logger.info("Low confidence, attempting geocoding fallback")
+                geocode_result = geocode_address(normalized_address)
+
+                if geocode_result:
+                    interpretation_method = "hybrid"
+                    lat = geocode_result['lat']
+                    lon = geocode_result['lon']
+                    geocoding_quality = geocode_result['quality']
+
+                    # Update address components from geocoding if better
+                    components = geocode_result['address_components']
+                    if not city and components.get('city'):
+                        city = components['city']
+                        city_id = get_city_id_from_name(city)
+                    if not state and components.get('state'):
+                        state = components['state']
+                    if not zip_code and components.get('postcode'):
+                        zip_code = components['postcode']
+
+                    # Boost confidence if geocoding quality is high
+                    if geocoding_quality == 'high':
+                        confidence = max(confidence, 0.8)
+                    elif geocoding_quality == 'medium':
+                        confidence = max(confidence, 0.6)
+
+                    app_logger.info(
+                        f"Geocoding enhanced result: quality={geocoding_quality}, "
+                        f"new confidence={confidence}"
+                    )
+
+        elif use_geocoding:
+            # AI failed, try geocoding directly on the input text
+            app_logger.info("AI interpretation failed, trying geocoding directly")
+            geocode_result = geocode_address(text)
+
+            if geocode_result:
+                interpretation_method = "geocoding"
+                normalized_address = geocode_result['display_name']
+                lat = geocode_result['lat']
+                lon = geocode_result['lon']
+                geocoding_quality = geocode_result['quality']
+
+                # Extract components
+                components = geocode_result['address_components']
+                city = components.get('city')
+                state = components.get('state')
+                zip_code = components.get('postcode')
+
+                if city:
+                    city_id = get_city_id_from_name(city)
+
+                # Set confidence based on geocoding quality
+                if geocoding_quality == 'high':
+                    confidence = 0.85
+                elif geocoding_quality == 'medium':
+                    confidence = 0.65
+                else:
+                    confidence = 0.4
+
+                app_logger.info(
+                    f"Geocoding result: {normalized_address} "
+                    f"(quality={geocoding_quality}, confidence={confidence})"
+                )
+
+        # Step 4: Build response
+        if not normalized_address:
+            # Complete failure
+            status_code = 400
+            error_msg = "Failed to interpret address with both AI and geocoding"
+            app_logger.warning(f"Failed to interpret: {text}")
+
+            response_time_ms = (time.time() - start_time) * 1000
+            MetricsManager.record_request(
+                db=db,
+                endpoint='/interpret-address',
+                method='POST',
+                status_code=status_code,
+                response_time_ms=response_time_ms,
+                city=city_name,
+                error_message=error_msg,
+                user_agent=request.headers.get('user-agent'),
+                ip_address=request.client.host if request.client else None
+            )
+
+            return InterpretAddressResponse(
+                success=False,
+                normalized_address="",
+                confidence=0.0,
+                interpretation_method=interpretation_method,
+                error=error_msg
+            )
+
+        # Success
+        app_logger.info(
+            f"Successfully interpreted address: {normalized_address} "
+            f"(method={interpretation_method}, confidence={confidence})"
+        )
+
+        response_time_ms = (time.time() - start_time) * 1000
+        MetricsManager.record_request(
+            db=db,
+            endpoint='/interpret-address',
+            method='POST',
+            status_code=status_code,
+            response_time_ms=response_time_ms,
+            city=city,
+            user_agent=request.headers.get('user-agent'),
+            ip_address=request.client.host if request.client else None
+        )
+
+        return InterpretAddressResponse(
+            success=True,
+            normalized_address=normalized_address,
+            confidence=confidence,
+            city=city,
+            city_id=city_id,
+            state=state,
+            zip_code=zip_code,
+            lat=lat,
+            lon=lon,
+            interpretation_method=interpretation_method,
+            ai_reasoning=ai_reasoning,
+            geocoding_quality=geocoding_quality
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_logger.error(f"Address interpretation error: {str(e)}", exc_info=True)
+        response_time_ms = (time.time() - start_time) * 1000
+        MetricsManager.record_request(
+            db=db,
+            endpoint='/interpret-address',
+            method='POST',
+            status_code=500,
+            response_time_ms=response_time_ms,
+            city=city_name,
+            error_message=str(e),
+            user_agent=request.headers.get('user-agent'),
+            ip_address=request.client.host if request.client else None
+        )
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get("/stats")
+async def get_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Get statistics about the database and cache performance."""
+    from sqlalchemy import func, distinct
     total_addresses = db.query(Address).count()
     total_reports = db.query(CrowdReport).count()
     total_consensus = db.query(CrowdConsensus).count()
