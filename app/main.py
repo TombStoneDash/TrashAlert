@@ -49,6 +49,7 @@ from app.utils import (
 from app.ai_service import create_ai_interpreter
 from app.rate_limiter import rate_limiter
 from app.cache import lookup_cache
+from app.gps_ingestor import router as gps_router
 from app.gamification import GamificationService
 from app.graphql_schema import schema
 from app.redis_cache import redis_cache
@@ -200,6 +201,9 @@ app.add_middleware(APIKeyAuthMiddleware, rate_limiter=api_key_rate_limiter)
 
 # Include admin routes
 app.include_router(admin_router)
+
+# Include GPS tracking router
+app.include_router(gps_router)
 
 app_logger.info("TrashAlert API started")
 

@@ -1,4 +1,5 @@
 """Database models for TrashAlert."""
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Text, JSON, Index, Date
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Text, JSON, Index, Enum
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -318,6 +319,90 @@ class RequestMetrics(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 
+class Truck(Base):
+    """Truck fleet information for GPS tracking."""
+    __tablename__ = "trucks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    truck_number = Column(String, unique=True, index=True, nullable=False)
+    license_plate = Column(String)
+    city_id = Column(Integer, ForeignKey("cities.id"), nullable=True, index=True)
+    status = Column(String, default="active", index=True)  # active, inactive, maintenance
+    vehicle_type = Column(String)  # trash, recycling, green
+    capacity_cubic_yards = Column(Float)
+    extra_metadata = Column(JSON)  # Flexible JSON for additional truck data
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    city = relationship("City")
+    locations = relationship("TruckLocation", back_populates="truck")
+    routes = relationship("TruckRoute", back_populates="truck")
+
+
+class TruckLocation(Base):
+    """GPS location trail for trucks - stores historical positions."""
+    __tablename__ = "truck_locations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    truck_id = Column(Integer, ForeignKey("trucks.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # GPS coordinates
+    lat = Column(Float, nullable=False)
+    lon = Column(Float, nullable=False)
+
+    # Additional GPS data
+    speed_mph = Column(Float)
+    heading_degrees = Column(Float)  # 0-360, where 0/360 is North
+    altitude_meters = Column(Float)
+    accuracy_meters = Column(Float)
+
+    # Timestamp from GPS device
+    timestamp = Column(DateTime(timezone=True), nullable=False, index=True)
+
+    # Record creation time
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    truck = relationship("Truck", back_populates="locations")
+
+    __table_args__ = (
+        Index('idx_truck_locations_truck_timestamp', 'truck_id', 'timestamp'),
+    )
+
+
+class TruckRoute(Base):
+    """Daily route planning and tracking for trucks."""
+    __tablename__ = "truck_routes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    truck_id = Column(Integer, ForeignKey("trucks.id"), nullable=False, index=True)
+    pickup_zone_id = Column(Integer, ForeignKey("pickup_zones.id"), nullable=True)
+
+    # Route details
+    route_date = Column(Date, nullable=False, index=True)
+    route_type = Column(String)  # trash, recycling, green
+    start_time = Column(DateTime(timezone=True))
+    end_time = Column(DateTime(timezone=True))
+    status = Column(String, default="planned")  # planned, in_progress, completed, cancelled
+
+    # Progress tracking
+    total_stops = Column(Integer)
+    completed_stops = Column(Integer, default=0)
+
+    # Additional route data
+    extra_metadata = Column(JSON)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    truck = relationship("Truck", back_populates="routes")
+    pickup_zone = relationship("PickupZone")
+
+    __table_args__ = (
+        Index('idx_truck_routes_truck_date', 'truck_id', 'route_date'),
 class PredictionModel(Base):
     """Store trained prediction models and their metadata."""
     __tablename__ = "prediction_models"
