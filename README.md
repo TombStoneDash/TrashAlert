@@ -367,6 +367,33 @@ The pipeline consists of several modular scripts that work together:
 3. **fetch_addresses_osm.py** - Fetches address data from OpenStreetMap
 4. **sample_addresses_per_city.py** - Samples addresses per city (up to configurable limit)
 5. **run_full_pipeline.py** - Orchestrates the entire pipeline
+6. **bulk_import_pipeline.py** - Multi-city bulk importer with checkpoints and monitoring (NEW!)
+
+### Bulk Import Pipeline (Recommended)
+
+The bulk import pipeline is a production-ready system for importing OSM data across multiple cities automatically:
+
+**Features:**
+- ✅ Automatic multi-city processing from cities.yaml
+- ✅ Rate limiting and retry logic for Overpass API
+- ✅ Resumable checkpoints for error recovery
+- ✅ Database-backed progress tracking
+- ✅ Real-time dashboard for monitoring
+- ✅ Comprehensive error handling
+
+**Quick Start:**
+```bash
+# 1. Run database migration (one time only)
+python scripts/migrate_pipeline_tables.py
+
+# 2. Import all cities
+python scripts/bulk_import_pipeline.py --all
+
+# 3. Monitor progress at:
+# http://localhost:8000/pipeline-status.html
+```
+
+**For detailed documentation, see:** [docs/BULK_IMPORT_PIPELINE.md](docs/BULK_IMPORT_PIPELINE.md)
 
 ## Configuration
 
