@@ -18,12 +18,16 @@ This file tracks the prioritized development tasks for TrashAlert. Tasks are ord
 - Remaining errors are syntax issues in code (Task 1.2)
 
 ### Task 1.2: Fix Failing Tests
-[ ] **Resolve test collection errors**
-- Run `make test` and document failures
-- Fix import errors in test files
-- Ensure all 29 tests can be collected
-- Fix any database connection issues in tests
-- Target: All tests collected successfully
+[~] **Resolve test collection errors** (IN PROGRESS)
+- Fixed syntax error in app/database.py (duplicate/malformed create_engine call)
+- Fixed syntax error in app/main.py (malformed import statements at lines 14-41)
+- Fixed syntax error in app/main.py (duplicate endpoints dict at lines 374-390)
+- Fixed 3 unclosed `__table_args__` tuples in app/models.py (lines 414, 615, 713)
+- Fixed malformed `__table_args__` at line 818 with duplicate relationship definitions
+- Remaining issue: Duplicate User class definitions in app/models.py (lines 18, 322, 441)
+- Progress: Reduced from 23 to 17 test collection errors
+- Note: Use `python -m pytest --collect-only` to verify test collection
+- Next: Merge duplicate User classes and resolve remaining import errors
 
 ### Task 1.3: Database Initialization
 [ ] **Verify database setup**

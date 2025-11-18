@@ -12,31 +12,19 @@ import time
 from strawberry.fastapi import GraphQLRouter
 
 from app.database import get_db, engine, Base
-from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics, User, Badge
-from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics, PipelineRun, PipelineCityStatus
-from app.schemas import ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ConsensusDetails
-from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics
-from app.schemas import ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ZoneResponse
-from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics, ApiKey
-from app.schemas import (
-    ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ConsensusDetails,
-    MobileLookupRequest, MobileLookupResponse, MobileReportRequest, MobileReportResponse
+from app.models import (
+    Address, CrowdReport, CrowdConsensus, RequestMetrics,
+    User, Badge, ApiKey, AddressSubscription, NotificationLog,
+    PipelineRun, PipelineCityStatus
 )
-from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics, User
-from app.schemas import ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ConsensusDetails
-from app.models import Address, CrowdReport, CrowdConsensus
 from app.schemas import (
-    ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ConsensusDetails,
-    InterpretAddressRequest, InterpretAddressResponse,
-    UserCreate, UserResponse, SubscriptionCreate, SubscriptionUpdate, SubscriptionResponse,
-    TestNotificationRequest, TestNotificationResponse
-)
-from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics, User, AddressSubscription, NotificationLog
+    ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ConsensusDetails, ZoneResponse,
+    MobileLookupRequest, MobileLookupResponse, MobileReportRequest, MobileReportResponse,
     InterpretAddressRequest, InterpretAddressResponse, PredictRequest, PredictResponse,
     DelayPrediction, SeasonalPredictionResponse, SeasonalPrediction,
-    TrainModelRequest, TrainModelResponse
-    InterpretAddressRequest, InterpretAddressResponse, HeatmapResponse, HeatmapPoint
-    InterpretAddressRequest, InterpretAddressResponse,
+    TrainModelRequest, TrainModelResponse, HeatmapResponse, HeatmapPoint,
+    UserCreate, UserResponse, SubscriptionCreate, SubscriptionUpdate, SubscriptionResponse,
+    TestNotificationRequest, TestNotificationResponse,
     LeaderboardResponse, UserStatsResponse
 )
 from app.utils import (
@@ -387,27 +375,18 @@ async def root() -> Dict[str, Any]:
         "status": "healthy",
         "service": "TrashAlert API",
         "version": "1.0.0",
-        "endpoints": ["/lookup", "/report", "/interpret-address", "/stats", "/predict", "/predict/train"]
-        "endpoints": ["/lookup", "/report", "/interpret-address", "/stats", "/analytics/heatmap"]
-        "endpoints": [
-            "/lookup",
-            "/report",
-            "/interpret-address",
-            "/stats",
-            "/leaderboard",
-            "/badges",
-            "/users/{user_id}/stats"
-        ]
-        "endpoints": ["/lookup", "/report", "/stats"],
-        "mobile_endpoints": ["/mobile/lookup", "/mobile/daily-schedule", "/mobile/report"]
         "endpoints": {
-            "rest": ["/lookup", "/report", "/stats"],
+            "rest": [
+                "/lookup", "/report", "/interpret-address", "/stats",
+                "/predict", "/predict/train", "/analytics/heatmap",
+                "/leaderboard", "/badges", "/users/{user_id}/stats"
+            ],
+            "mobile": ["/mobile/lookup", "/mobile/daily-schedule", "/mobile/report"],
             "graphql": "/graphql",
-            "graphiql": "/graphql (interactive GraphQL console)"
+            "graphiql": "/graphql (interactive GraphQL console)",
+            "optimization": ["/optimize-route"],
+            "zones": ["/zone"]
         }
-        "endpoints": ["/lookup", "/report", "/stats", "/optimize-route"]
-        "endpoints": ["/lookup", "/report", "/stats", "/zone"]
-        "endpoints": ["/lookup", "/report", "/interpret-address", "/stats"]
     }
 
 

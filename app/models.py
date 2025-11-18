@@ -413,6 +413,9 @@ class TruckRoute(Base):
 
     __table_args__ = (
         Index('idx_truck_routes_truck_date', 'truck_id', 'route_date'),
+    )
+
+
 class PredictionModel(Base):
     """Store trained prediction models and their metadata."""
     __tablename__ = "prediction_models"
@@ -612,8 +615,9 @@ class PipelineCityStatus(Base):
     __table_args__ = (
         Index('idx_city_status_run_city', 'pipeline_run_id', 'city_id'),
         Index('idx_city_status_status', 'status'),
-class APIKey(Base):
-    """B2B API keys for authenticated access."""
+    )
+
+
 class ApiKey(Base):
     """API keys for mobile and third-party access."""
     __tablename__ = "api_keys"
@@ -709,6 +713,8 @@ class NotificationLog(Base):
     __table_args__ = (
         Index('idx_notification_status_scheduled', 'status', 'scheduled_for'),
         Index('idx_user_created', 'user_id', 'created_at'),
+    )
+
 
 class UserBadge(Base):
     """User badge awards - tracks which badges users have earned."""
@@ -811,13 +817,4 @@ class ApiKeyUsage(Base):
 
     __table_args__ = (
         Index('idx_user_created', 'user_id', 'created_at'),
-    api_key = relationship("APIKey", back_populates="usage_logs")
-
-    __table_args__ = (
-        Index('idx_apiusage_key_created', 'api_key_id', 'created_at'),
-        Index('idx_apiusage_key_endpoint', 'api_key_id', 'endpoint'),
-    api_key = relationship("ApiKey", back_populates="usage_logs")
-
-    __table_args__ = (
-        Index('idx_api_key_usage_lookup', 'api_key_id', 'created_at'),
     )
