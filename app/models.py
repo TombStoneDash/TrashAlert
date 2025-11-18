@@ -156,10 +156,7 @@ class SourceMetadata(Base):
     last_parsed_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    # Composite indexes for common query patterns
-    __table_args__ = (
-        Index('idx_address_verified', 'address_id', 'is_verified'),
-    )
+
 
 class RequestMetrics(Base):
     """Track API request metrics for observability."""
