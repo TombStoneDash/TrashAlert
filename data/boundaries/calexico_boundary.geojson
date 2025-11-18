@@ -8,6 +8,8 @@
     "center_lat": 32.6789,
     "center_lon": -115.4989,
     "approx_radius_km": 3
+    "state": "California",
+    "note": "Mock boundary for testing - replace with actual OSM data when available"
   },
   "geometry": {
     "type": "Polygon",
@@ -148,4 +150,32 @@
       ]
     ]
   }
+          -115.55,
+          32.65
+        ],
+        [
+          -115.45,
+          32.65
+        ],
+        [
+          -115.45,
+          32.71
+        ],
+        [
+          -115.55,
+          32.71
+        ],
+        [
+          -115.55,
+          32.65
+        ]
+      ]
+    ]
+  },
+  "bbox": [
+    -115.55,
+    32.65,
+    -115.45,
+    32.71
+  ]
 }

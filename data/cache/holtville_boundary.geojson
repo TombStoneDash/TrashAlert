@@ -1,0 +1,18 @@
+{
+  "type": "Feature",
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [[
+      [-115.3900, 32.8000],
+      [-115.3900, 32.8300],
+      [-115.3600, 32.8300],
+      [-115.3600, 32.8000],
+      [-115.3900, 32.8000]
+    ]]
+  },
+  "properties": {
+    "name": "Holtville",
+    "admin_level": "8",
+    "note": "Approximate bounding box for Holtville city limits"
+  }
+}
