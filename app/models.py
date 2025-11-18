@@ -100,6 +100,7 @@ class Address(Base):
     street = Column(String, index=True)
     city = Column(String, index=True)  # City name (denormalized)
     city_id = Column(String, index=True)  # Links to cities.yaml (e.g., 'san_diego', 'fresno')
+    city = Column(String, index=True)
     city_slug = Column(String, index=True)  # Links to cities.yaml (e.g., 'san_diego', 'fresno')
     city_name = Column(String, index=True)  # Denormalized for backward compatibility
     state = Column(String, index=True)  # Added index for filtering by state
