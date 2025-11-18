@@ -45,20 +45,34 @@ class ElCentroParser(BaseScheduleParser):
         """
         Fetch schedule data from El Centro website.
 
-        For pilot version, we'll use hardcoded zone data.
-        In production, this would scrape the actual website or use an API.
+        Attempts to fetch real data from CR&R website, falls back to zone data if unavailable.
         """
-        # Simulate fetching data
         logger.info(f"Fetching data from {self.source_url}")
 
-        # For pilot: return zone configuration
-        # In production: requests.get(self.source_url)
+        # Try to fetch real data
+        html_content = None
+        try:
+            response = requests.get(
+                "https://crrwasteservices.com/cities/california/imperial-county/city-of-el-centro/residents/",
+                timeout=10,
+                headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+            )
+            if response.status_code == 200:
+                html_content = response.text
+                logger.info("Successfully fetched live data from El Centro source")
+            else:
+                logger.warning(f"Failed to fetch live data (status {response.status_code}), using fallback")
+        except Exception as e:
+            logger.warning(f"Error fetching live data: {e}, using fallback")
+
         return {
+            "html": html_content,
             "zones": self.zones,
             "holidays": [
                 {"date": "2025-12-25", "name": "Christmas", "rescheduled": "2025-12-26"},
-                {"date": "2025-01-01", "name": "New Year's Day", "rescheduled": "2025-01-02"},
-                {"date": "2025-07-04", "name": "Independence Day", "cancelled": True},
+                {"date": "2026-01-01", "name": "New Year's Day", "rescheduled": "2026-01-02"},
+                {"date": "2025-07-04", "name": "Independence Day", "rescheduled": "2025-07-05"},
+                {"date": "2025-11-27", "name": "Thanksgiving", "rescheduled": "2025-11-28"},
             ]
         }
 
