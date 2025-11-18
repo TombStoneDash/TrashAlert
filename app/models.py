@@ -23,7 +23,6 @@ class City(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
-    addresses = relationship("Address", back_populates="city")
     pickup_zones = relationship("PickupZone", back_populates="city")
 
 
@@ -54,9 +53,6 @@ class Address(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    # City relationship
-    city_id = Column(Integer, ForeignKey("cities.id"), nullable=True, index=True)
-
     # Address fields
     normalized_address = Column(String, index=True, nullable=False)
     house_number = Column(String)
@@ -78,9 +74,6 @@ class Address(Base):
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-    # Relationships
-    city = relationship("City", back_populates="addresses")
 
 
 class CrowdReport(Base):
@@ -261,3 +254,80 @@ class RequestMetrics(Base):
 
     # Timestamp
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+class APIKey(Base):
+    """B2B API keys for authenticated access."""
+    __tablename__ = "api_keys"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Key information
+    key_hash = Column(String, unique=True, nullable=False, index=True)  # Hashed version of the API key
+    key_prefix = Column(String, nullable=False, index=True)  # First 8 chars for identification (e.g., "ta_live_")
+
+    # Owner information
+    company_name = Column(String, nullable=False)
+    contact_email = Column(String)
+
+    # Status and limits
+    is_active = Column(Boolean, default=True, index=True)
+    rate_limit_per_minute = Column(Integer, default=60)
+    rate_limit_per_hour = Column(Integer, default=1000)
+    rate_limit_per_day = Column(Integer, default=10000)
+
+    # Usage metadata
+    last_used_at = Column(DateTime(timezone=True))
+    total_requests = Column(Integer, default=0)
+
+    # Notes and metadata
+    notes = Column(Text)  # Admin notes about this key
+    extra_metadata = Column(JSON)  # Flexible JSON for additional data
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    expires_at = Column(DateTime(timezone=True))  # Optional expiration
+
+    # Relationships
+    usage_logs = relationship("APIUsage", back_populates="api_key")
+
+    __table_args__ = (
+        Index('idx_apikey_active_hash', 'is_active', 'key_hash'),
+    )
+
+
+class APIUsage(Base):
+    """Track per-key API usage for analytics and billing."""
+    __tablename__ = "api_usage"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # API key reference
+    api_key_id = Column(Integer, ForeignKey("api_keys.id"), nullable=False, index=True)
+
+    # Request details
+    endpoint = Column(String, index=True, nullable=False)
+    method = Column(String)
+    status_code = Column(Integer, index=True)
+
+    # Performance metrics
+    response_time_ms = Column(Float)
+
+    # Request metadata
+    ip_address = Column(String)
+    user_agent = Column(String)
+
+    # Error tracking
+    error_message = Column(String)
+
+    # Timestamp
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Relationships
+    api_key = relationship("APIKey", back_populates="usage_logs")
+
+    __table_args__ = (
+        Index('idx_apiusage_key_created', 'api_key_id', 'created_at'),
+        Index('idx_apiusage_key_endpoint', 'api_key_id', 'endpoint'),
+    )

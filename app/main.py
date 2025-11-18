@@ -33,9 +33,15 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-from app.middleware import RequestLoggingMiddleware
+from app.middleware import (
+    RequestLoggingMiddleware,
+    APIKeyAuthMiddleware,
+    APIKeyRateLimiter,
+    APIUsageTrackingMiddleware
+)
 from app.metrics import MetricsManager
 from app.logging_config import app_logger, error_logger
+from app.admin_routes import router as admin_router
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -93,8 +99,18 @@ def check_rate_limit(ip_address: str, normalized_address: str) -> bool:
 def record_report(ip_address: str, normalized_address: str):
     """Record a report for rate limiting."""
     rate_limit_store[ip_address].append((datetime.now(), normalized_address))
-# Add request logging middleware
+
+# Initialize API key rate limiter
+api_key_rate_limiter = APIKeyRateLimiter()
+
+# Add middleware in reverse order (last added = first executed)
+# Order: Request logging -> Usage tracking -> API key auth -> Application
 app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(APIUsageTrackingMiddleware)
+app.add_middleware(APIKeyAuthMiddleware, rate_limiter=api_key_rate_limiter)
+
+# Include admin routes
+app.include_router(admin_router)
 
 app_logger.info("TrashAlert API started")
 
