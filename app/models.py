@@ -4,6 +4,9 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
 
+# Import AI cache model to ensure it's registered with Base metadata
+from app.ai_cache import AIClassificationCache  # noqa: F401
+
 
 class City(Base):
     """City table - stores cities supported by TrashAlert."""
