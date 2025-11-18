@@ -31,6 +31,7 @@ from app.utils import (
 from app.ai_service import create_ai_interpreter
 from app.rate_limiter import rate_limiter
 from app.cache import lookup_cache
+from app.gps_ingestor import router as gps_router
 
 # Configure structured logging
 logging.basicConfig(
@@ -100,6 +101,9 @@ def record_report(ip_address: str, normalized_address: str):
     rate_limit_store[ip_address].append((datetime.now(), normalized_address))
 # Add request logging middleware
 app.add_middleware(RequestLoggingMiddleware)
+
+# Include GPS tracking router
+app.include_router(gps_router)
 
 app_logger.info("TrashAlert API started")
 
