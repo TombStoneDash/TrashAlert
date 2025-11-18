@@ -1,4 +1,7 @@
 """Pydantic schemas for API request/response validation."""
+from typing import Optional, Literal, List, Dict, Any
+from datetime import datetime
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional, Literal
 from pydantic import BaseModel, Field, field_validator, model_validator, EmailStr
 from datetime import datetime
@@ -133,6 +136,34 @@ class LookupResponse(BaseModel):
     )
 
 
+# Admin API Key Schemas
+
+class CreateAPIKeyRequest(BaseModel):
+    """Request schema for creating a new API key."""
+    company_name: str = Field(..., min_length=1, max_length=200, description="Company name")
+    contact_email: Optional[str] = Field(None, description="Contact email")
+    rate_limit_per_minute: Optional[int] = Field(60, ge=1, le=1000, description="Requests per minute")
+    rate_limit_per_hour: Optional[int] = Field(1000, ge=1, le=100000, description="Requests per hour")
+    rate_limit_per_day: Optional[int] = Field(10000, ge=1, le=1000000, description="Requests per day")
+    expires_at: Optional[datetime] = Field(None, description="Expiration date (optional)")
+    notes: Optional[str] = Field(None, description="Admin notes")
+
+
+class APIKeyResponse(BaseModel):
+    """Response schema for API key details."""
+    id: int
+    key_prefix: str
+    company_name: str
+    contact_email: Optional[str]
+    is_active: bool
+    rate_limit_per_minute: int
+    rate_limit_per_hour: int
+    rate_limit_per_day: int
+    total_requests: int
+    last_used_at: Optional[datetime]
+    created_at: datetime
+    expires_at: Optional[datetime]
+    notes: Optional[str]
 # ============================================================================
 # MOBILE ENDPOINTS - Simplified Schemas
 # ============================================================================
@@ -317,6 +348,53 @@ class UserResponse(BaseModel):
         from_attributes = True
 
 
+class CreateAPIKeyResponse(BaseModel):
+    """Response schema for newly created API key (includes full key)."""
+    success: bool
+    message: str
+    api_key: str = Field(..., description="Full API key - SAVE THIS! It won't be shown again.")
+    key_details: APIKeyResponse
+
+
+class UpdateAPIKeyRequest(BaseModel):
+    """Request schema for updating an API key."""
+    is_active: Optional[bool] = None
+    rate_limit_per_minute: Optional[int] = Field(None, ge=1, le=1000)
+    rate_limit_per_hour: Optional[int] = Field(None, ge=1, le=100000)
+    rate_limit_per_day: Optional[int] = Field(None, ge=1, le=1000000)
+    expires_at: Optional[datetime] = None
+    notes: Optional[str] = None
+
+
+class APIUsageStats(BaseModel):
+    """API usage statistics."""
+    total_requests: int
+    requests_by_endpoint: Dict[str, int]
+    requests_by_status: Dict[str, int]
+    avg_response_time_ms: float
+    error_rate: float
+
+
+class APIKeyUsageResponse(BaseModel):
+    """Response schema for API key usage details."""
+    api_key: APIKeyResponse
+    stats_today: APIUsageStats
+    stats_7days: APIUsageStats
+    stats_30days: APIUsageStats
+    recent_requests: List[Dict[str, Any]]
+
+
+class UsageDashboardResponse(BaseModel):
+    """Response schema for admin usage dashboard."""
+    total_api_keys: int
+    active_api_keys: int
+    total_requests_today: int
+    total_requests_7days: int
+    total_requests_30days: int
+    top_keys_by_usage: List[Dict[str, Any]]
+    requests_by_endpoint: Dict[str, int]
+    error_rate: float
+    avg_response_time_ms: float
 class UserUpdateRoleRequest(BaseModel):
     """Request schema for updating user role (admin only)."""
     role: Literal["user", "reporter", "admin", "city_partner"] = Field(..., description="New role for user")
