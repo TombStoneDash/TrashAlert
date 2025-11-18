@@ -1,0 +1,244 @@
+version: '3.8'
+
+# ============================================================================
+# TrashAlert - Full Dockerized Environment
+# ============================================================================
+# Services: API, Worker, Redis, PostgreSQL, Nginx, Certbot
+# Features: Health checks, multi-stage builds, local dev vs production modes
+# ============================================================================
+
+services:
+  # ==========================================================================
+  # PostgreSQL Database
+  # ==========================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: trashalert-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-trashalert}
+      - POSTGRES_USER=${POSTGRES_USER:-trashalert}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-trashalert_dev_password}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # Optional: Initialize database with custom scripts
+      # - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - trashalert-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-trashalert} -d ${POSTGRES_DB:-trashalert}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    # Only expose port in development mode (comment out for production)
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+
+  # ==========================================================================
+  # Redis Cache & Queue
+  # ==========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: trashalert-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory ${REDIS_MAXMEMORY:-256mb}
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD:-trashalert_redis_dev_password}
+    volumes:
+      - redis-data:/data
+    networks:
+      - trashalert-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    # Only expose port in development mode (comment out for production)
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+
+  # ==========================================================================
+  # FastAPI Application
+  # ==========================================================================
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    image: trashalert-api:${IMAGE_TAG:-latest}
+    container_name: trashalert-api
+    restart: unless-stopped
+    environment:
+      # Application config
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+
+      # Database config
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-trashalert}:${POSTGRES_PASSWORD:-trashalert_dev_password}@postgres:5432/${POSTGRES_DB:-trashalert}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-trashalert}
+      - POSTGRES_USER=${POSTGRES_USER:-trashalert}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-trashalert_dev_password}
+
+      # Redis config
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-trashalert_redis_dev_password}@redis:6379/0
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-trashalert_redis_dev_password}
+
+      # Uvicorn config
+      - UVICORN_WORKERS=${UVICORN_WORKERS:-4}
+      - UVICORN_HOST=0.0.0.0
+      - UVICORN_PORT=8000
+    volumes:
+      # Mount SQLite database directory (for backwards compatibility)
+      - ./data:/app/data:rw
+      # Mount logs directory
+      - ./logs:/app/logs:rw
+      # Development mode: mount code for hot reload
+      - ${DEV_CODE_MOUNT:-./empty}:/app/app:ro
+    networks:
+      - trashalert-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    # Don't expose port directly - only through nginx
+    expose:
+      - "8000"
+
+  # ==========================================================================
+  # Worker Service for Background Tasks
+  # ==========================================================================
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    image: trashalert-worker:${IMAGE_TAG:-latest}
+    container_name: trashalert-worker
+    restart: unless-stopped
+    environment:
+      # Application config
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - WORKER_MODE=true
+
+      # Database config
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-trashalert}:${POSTGRES_PASSWORD:-trashalert_dev_password}@postgres:5432/${POSTGRES_DB:-trashalert}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-trashalert}
+      - POSTGRES_USER=${POSTGRES_USER:-trashalert}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-trashalert_dev_password}
+
+      # Redis config (for task queues)
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-trashalert_redis_dev_password}@redis:6379/0
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-trashalert_redis_dev_password}
+    volumes:
+      # Share same database and logs with API
+      - ./data:/app/data:rw
+      - ./logs:/app/logs:rw
+      # Development mode: mount code for hot reload
+      - ${DEV_CODE_MOUNT:-./empty}:/app/app:ro
+    networks:
+      - trashalert-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    # Override with your worker command (e.g., celery, rq, or custom script)
+    # command: ["python", "-m", "app.worker"]
+    command: ["tail", "-f", "/dev/null"]
+
+  # ==========================================================================
+  # Nginx Reverse Proxy
+  # ==========================================================================
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: trashalert-nginx
+    restart: unless-stopped
+    environment:
+      - NGINX_WORKER_PROCESSES=${NGINX_WORKER_PROCESSES:-auto}
+      - NGINX_WORKER_CONNECTIONS=${NGINX_WORKER_CONNECTIONS:-1024}
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      # Nginx configuration
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      # SSL certificates (Let's Encrypt)
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+      # Nginx cache
+      - nginx-cache:/var/cache/nginx
+    networks:
+      - trashalert-network
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ==========================================================================
+  # Certbot for SSL Certificates (Let's Encrypt)
+  # ==========================================================================
+  certbot:
+    image: certbot/certbot:latest
+    container_name: trashalert-certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt:rw
+      - ./certbot/www:/var/www/certbot:rw
+    # Auto-renew certificates every 12 hours
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot --webroot-path=/var/www/certbot; sleep 12h & wait $${!}; done;'"
+    networks:
+      - trashalert-network
+    depends_on:
+      - nginx
+
+# ============================================================================
+# Networks
+# ============================================================================
+networks:
+  trashalert-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# ============================================================================
+# Volumes
+# ============================================================================
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+  nginx-cache:
+    driver: local
