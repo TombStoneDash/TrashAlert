@@ -9,6 +9,8 @@ from collections import defaultdict
 import logging
 import time
 
+from strawberry.fastapi import GraphQLRouter
+
 from app.database import get_db, engine, Base
 from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics, PipelineRun, PipelineCityStatus
 from app.schemas import ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ConsensusDetails
@@ -42,6 +44,7 @@ from app.utils import (
 from app.ai_service import create_ai_interpreter
 from app.rate_limiter import rate_limiter
 from app.cache import lookup_cache
+from app.graphql_schema import schema
 from app.redis_cache import redis_cache
 from app.routing_optimizer import RouteOptimizer
 from app.routing_optimizer.schemas import (
@@ -95,6 +98,30 @@ app = FastAPI(
     version="2.0.0"
 )
 
+
+# ============================================================================
+# GraphQL Setup
+# ============================================================================
+
+async def get_context(request: Request):
+    """Context dependency for GraphQL - provides database session."""
+    db = next(get_db())
+    try:
+        return {"db": db, "request": request}
+    finally:
+        # Don't close here, will be handled by GraphQL router
+        pass
+
+
+# Create GraphQL router with GraphiQL console enabled
+graphql_app = GraphQLRouter(
+    schema,
+    context_getter=get_context,
+    graphiql=True  # Enable GraphiQL console
+)
+
+# Mount GraphQL endpoint
+app.include_router(graphql_app, prefix="/graphql")
 # Include routers
 app.include_router(auth.router)
 app.include_router(admin.router)
@@ -304,6 +331,11 @@ async def root() -> Dict[str, Any]:
         "status": "healthy",
         "service": "TrashAlert API",
         "version": "1.0.0",
+        "endpoints": {
+            "rest": ["/lookup", "/report", "/stats"],
+            "graphql": "/graphql",
+            "graphiql": "/graphql (interactive GraphQL console)"
+        }
         "endpoints": ["/lookup", "/report", "/stats", "/optimize-route"]
         "endpoints": ["/lookup", "/report", "/stats", "/zone"]
         "endpoints": ["/lookup", "/report", "/interpret-address", "/stats"]

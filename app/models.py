@@ -80,9 +80,6 @@ class PickupZone(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationships
-    city = relationship("City", back_populates="pickup_zones")
-
     __table_args__ = (
         Index('idx_pickup_zone_city_ref', 'city_id', 'external_ref'),
     )
