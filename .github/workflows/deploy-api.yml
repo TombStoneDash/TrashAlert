@@ -1,0 +1,53 @@
+name: Deploy API to Railway
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'app/**'
+      - 'alembic/**'
+      - 'requirements.txt'
+      - 'Dockerfile'
+      - 'railway.toml'
+      - 'Procfile'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Railway
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Railway CLI
+      run: npm install -g @railway/cli
+
+    - name: Deploy to Railway
+      env:
+        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      run: railway up --service api
+
+    - name: Run Database Migrations
+      env:
+        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      run: railway run alembic upgrade head
+
+    - name: Health Check
+      run: |
+        sleep 30
+        curl -f ${{ secrets.API_URL }}/health || exit 1
+
+    - name: Notify Deployment
+      if: success()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          github.rest.repos.createCommitStatus({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            sha: context.sha,
+            state: 'success',
+            description: 'API deployed successfully',
+            context: 'Railway Deployment'
+          })

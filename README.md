@@ -2,6 +2,19 @@
 
 A FastAPI-based service for managing trash pickup schedules with crowdsourced data.
 
+## 🚀 Production Deployment
+
+**Ready to deploy to production?** TrashAlert supports modern cloud deployment:
+
+- **API**: Deploy to Railway with managed PostgreSQL
+- **Admin Dashboard**: Deploy to Vercel
+- **CI/CD**: Automated testing and deployment with GitHub Actions
+- **Monitoring**: Built-in uptime monitoring and health checks
+
+**Quick Deploy**: Run `./scripts/deploy-production.sh`
+
+📚 **Full Guide**: See [PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md) for detailed instructions.
+
 ## Features
 
 - **POST /report**: Submit crowdsourced trash pickup reports
