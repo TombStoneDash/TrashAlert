@@ -40,6 +40,13 @@ from app.utils import (
 from app.ai_service import create_ai_interpreter
 from app.rate_limiter import rate_limiter
 from app.cache import lookup_cache
+from app.ai_classifier import (
+    AIClassifierRequest,
+    AIClassifierResponse,
+    classify_schedule_text,
+    get_classifier
+)
+from app.ai_cache import get_cache_manager
 from app.zone_locator import (
     find_zone,
     find_city,
@@ -1011,6 +1018,10 @@ async def get_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
         if city  # Filter out None values
     ]
 
+    # Get cache statistics
+    cache_manager = get_cache_manager()
+    cache_stats = cache_manager.get_stats()
+
     return {
         "total_addresses": total_addresses,
         "total_reports": total_reports,
@@ -1024,10 +1035,225 @@ async def get_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
             "Holtville",
             "Calexico",
             "San Diego"
-        ]
+        ],
+        "ai_cache_stats": cache_stats
     }
 
 
+@app.post("/ai-classify", response_model=AIClassifierResponse)
+async def ai_classify(
+    request_data: AIClassifierRequest,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    AI-powered natural language schedule classifier.
+
+    Converts messy natural language text describing trash pickup schedules
+    into structured schedule objects with normalized data.
+
+    Features:
+    - Extracts pickup_day (MON, TUE, WED, etc.)
+    - Extracts frequency (weekly, biweekly, monthly)
+    - Extracts exceptions (holidays, special dates)
+    - Integrates with existing normalization
+    - Caches results for common phrases
+
+    Example input texts:
+    - "Trash pickup is every Monday"
+    - "Recycling on Wednesdays every other week"
+    - "Garbage collection Thursday mornings, no pickup on Christmas"
+    - "I think it's Tuesday or maybe Wednesday for trash"
+
+    Returns:
+        AIClassifierResponse with structured schedule data
+    """
+    start_time = time.time()
+
+    try:
+        # Check rate limit
+        client_ip = request.client.host if request.client else "unknown"
+        if not rate_limiter.check_rate_limit(client_ip, "ai-classify"):
+            app_logger.warning(f"Rate limit exceeded for IP: {client_ip}")
+            raise HTTPException(
+                status_code=429,
+                detail="Too many requests. Please try again later."
+            )
+
+        # Get cache manager
+        cache_manager = get_cache_manager()
+
+        # Check cache first
+        cached_result = cache_manager.get(request_data.text, db)
+        if cached_result:
+            response_time_ms = (time.time() - start_time) * 1000
+            app_logger.info(
+                f"AI classify cache hit: '{request_data.text[:50]}...' "
+                f"({response_time_ms:.2f}ms)"
+            )
+
+            # Record metrics
+            MetricsManager.record_request(
+                db=db,
+                endpoint='/ai-classify',
+                method='POST',
+                status_code=200,
+                response_time_ms=response_time_ms,
+                user_agent=request.headers.get('user-agent') if request else None,
+                ip_address=client_ip
+            )
+
+            return AIClassifierResponse(
+                schedules=cached_result,
+                success=True,
+                cached=True
+            )
+
+        # Classify using AI
+        app_logger.info(f"AI classify request: '{request_data.text[:100]}...'")
+
+        classified_schedules = classify_schedule_text(
+            text=request_data.text,
+            context=request_data.context
+        )
+
+        # Convert to dict format
+        schedules_dict = [schedule.to_dict() for schedule in classified_schedules]
+
+        # Store in cache
+        cache_manager.set(request_data.text, schedules_dict, db)
+
+        response_time_ms = (time.time() - start_time) * 1000
+        app_logger.info(
+            f"AI classify success: '{request_data.text[:50]}...' "
+            f"-> {len(schedules_dict)} schedule(s) ({response_time_ms:.2f}ms)"
+        )
+
+        # Record metrics
+        MetricsManager.record_request(
+            db=db,
+            endpoint='/ai-classify',
+            method='POST',
+            status_code=200,
+            response_time_ms=response_time_ms,
+            user_agent=request.headers.get('user-agent') if request else None,
+            ip_address=client_ip
+        )
+
+        return AIClassifierResponse(
+            schedules=schedules_dict,
+            success=True,
+            cached=False
+        )
+
+    except ValueError as e:
+        # API key not configured
+        error_msg = str(e)
+        error_logger.error(f"AI classify configuration error: {error_msg}")
+        response_time_ms = (time.time() - start_time) * 1000
+
+        MetricsManager.record_request(
+            db=db,
+            endpoint='/ai-classify',
+            method='POST',
+            status_code=503,
+            response_time_ms=response_time_ms,
+            error_message=error_msg,
+            user_agent=request.headers.get('user-agent') if request else None,
+            ip_address=request.client.host if request and request.client else None
+        )
+
+        raise HTTPException(
+            status_code=503,
+            detail="AI classification service not configured. Please set OPENAI_API_KEY."
+        )
+
+    except Exception as e:
+        # Other errors
+        error_msg = str(e)
+        error_logger.error(f"AI classify error: {error_msg}", exc_info=True)
+        response_time_ms = (time.time() - start_time) * 1000
+
+        MetricsManager.record_request(
+            db=db,
+            endpoint='/ai-classify',
+            method='POST',
+            status_code=500,
+            response_time_ms=response_time_ms,
+            error_message=error_msg,
+            user_agent=request.headers.get('user-agent') if request else None,
+            ip_address=request.client.host if request and request.client else None
+        )
+
+        return AIClassifierResponse(
+            schedules=[],
+            success=False,
+            error=f"Classification failed: {error_msg}",
+            cached=False
+        )
+
+
+@app.get("/ai-classify/popular")
+async def get_popular_phrases(
+    limit: int = 10,
+    db: Session = Depends(get_db)
+):
+    """
+    Get most popular cached phrases.
+
+    Returns the most frequently classified schedule phrases,
+    useful for understanding common user inputs.
+
+    Args:
+        limit: Maximum number of phrases to return (default: 10)
+
+    Returns:
+        List of popular phrases with statistics
+    """
+    try:
+        cache_manager = get_cache_manager()
+        popular = cache_manager.get_popular_phrases(db, limit=limit)
+
+        return {
+            "popular_phrases": popular,
+            "total_returned": len(popular)
+        }
+    except Exception as e:
+        error_logger.error(f"Error getting popular phrases: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.post("/ai-classify/cache/clear")
+async def clear_ai_cache(
+    cache_type: str = "memory",  # "memory", "db", or "all"
+    db: Session = Depends(get_db)
+):
+    """
+    Clear AI classification cache.
+
+    Args:
+        cache_type: Type of cache to clear ("memory", "db", or "all")
+
+    Returns:
+        Success message
+    """
+    try:
+        cache_manager = get_cache_manager()
+
+        if cache_type in ("memory", "all"):
+            cache_manager.clear_memory_cache()
+
+        if cache_type in ("db", "all"):
+            cache_manager.clear_db_cache(db)
+
+        app_logger.info(f"AI cache cleared: {cache_type}")
+
+        return {
+            "success": True,
+            "message": f"Cache cleared: {cache_type}"
+        }
+    except Exception as e:
+        error_logger.error(f"Error clearing cache: {e}")
 # ============================================================================
 # MOBILE ENDPOINTS - Simplified & Optimized for Mobile Apps
 # ============================================================================

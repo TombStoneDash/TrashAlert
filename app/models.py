@@ -41,6 +41,9 @@ class User(Base):
     city = relationship("City")
     crowd_reports = relationship("CrowdReport", back_populates="user")
 
+# Import AI cache model to ensure it's registered with Base metadata
+from app.ai_cache import AIClassificationCache  # noqa: F401
+
 
 class City(Base):
     """City table - stores cities supported by TrashAlert."""
