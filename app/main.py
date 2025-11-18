@@ -27,6 +27,11 @@ from app.schemas import ReportRequest, ReportResponse, LookupResponse, Consensus
 from app.models import Address, CrowdReport, CrowdConsensus
 from app.schemas import (
     ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ConsensusDetails,
+    InterpretAddressRequest, InterpretAddressResponse,
+    UserCreate, UserResponse, SubscriptionCreate, SubscriptionUpdate, SubscriptionResponse,
+    TestNotificationRequest, TestNotificationResponse
+)
+from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics, User, AddressSubscription, NotificationLog
     InterpretAddressRequest, InterpretAddressResponse, PredictRequest, PredictResponse,
     DelayPrediction, SeasonalPredictionResponse, SeasonalPrediction,
     TrainModelRequest, TrainModelResponse
@@ -132,6 +137,36 @@ graphql_app = GraphQLRouter(
     graphiql=True  # Enable GraphiQL console
 )
 
+# Initialize notification scheduler
+scheduler = None
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize services on application startup."""
+    global scheduler
+    from app.scheduler_service import get_scheduler
+
+    # Start the notification scheduler
+    try:
+        scheduler = get_scheduler()
+        scheduler.start()
+        logger.info("Notification scheduler started successfully")
+    except Exception as e:
+        logger.error(f"Failed to start notification scheduler: {e}")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on application shutdown."""
+    global scheduler
+
+    # Stop the notification scheduler
+    if scheduler:
+        try:
+            scheduler.stop()
+            logger.info("Notification scheduler stopped successfully")
+        except Exception as e:
+            logger.error(f"Error stopping notification scheduler: {e}")
 # Mount GraphQL endpoint
 app.include_router(graphql_app, prefix="/graphql")
 # Include routers
@@ -1162,6 +1197,364 @@ async def get_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
     }
 
 
+# ============================================================================
+# NOTIFICATION SYSTEM ENDPOINTS
+# ============================================================================
+
+@app.post("/api/users", response_model=UserResponse, status_code=201)
+async def create_user(user_data: UserCreate, db: Session = Depends(get_db)):
+    """
+    Create a new user for notifications.
+
+    - **email**: User's email address (required, unique)
+    - **phone**: Optional phone number for SMS notifications
+    - **display_name**: Optional display name
+    - **timezone**: User's timezone (default: America/Los_Angeles)
+    """
+    # Check if user with email already exists
+    existing_user = db.query(User).filter(User.email == user_data.email).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="User with this email already exists")
+
+    # Create new user
+    new_user = User(
+        email=user_data.email,
+        phone=user_data.phone,
+        display_name=user_data.display_name,
+        timezone=user_data.timezone
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    logger.info(f"Created new user: {new_user.email}")
+    return new_user
+
+
+@app.get("/api/users/{user_id}", response_model=UserResponse)
+async def get_user(user_id: int, db: Session = Depends(get_db)):
+    """Get user by ID."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
+@app.get("/api/users", response_model=List[UserResponse])
+async def list_users(
+    email: Optional[str] = None,
+    is_active: Optional[bool] = None,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """List all users with optional filtering."""
+    query = db.query(User)
+
+    if email:
+        query = query.filter(User.email == email)
+    if is_active is not None:
+        query = query.filter(User.is_active == is_active)
+
+    users = query.offset(skip).limit(limit).all()
+    return users
+
+
+@app.post("/api/subscriptions", response_model=SubscriptionResponse, status_code=201)
+async def create_subscription(
+    user_id: int,
+    subscription_data: SubscriptionCreate,
+    db: Session = Depends(get_db)
+):
+    """
+    Create a new subscription for a user.
+
+    - **user_id**: ID of the user (query parameter)
+    - **address**: Full address to subscribe to
+    - **notify_trash/recycling/green**: What to notify about
+    - **notify_email/sms**: Notification channels
+    - **days_before**: How many days before pickup to notify (0-7)
+    - **notification_time**: Time to send notifications (HH:MM)
+    """
+    # Verify user exists
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Find or create address
+    normalized = normalize_address(subscription_data.address)
+    address = db.query(Address).filter(Address.normalized_address == normalized).first()
+
+    if not address:
+        # Try to create address (simplified - you may want to geocode here)
+        address = Address(normalized_address=normalized)
+        db.add(address)
+        db.flush()
+
+    # Check if subscription already exists
+    existing = db.query(AddressSubscription).filter(
+        AddressSubscription.user_id == user_id,
+        AddressSubscription.address_id == address.id
+    ).first()
+
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail="Subscription for this address already exists. Use PUT to update."
+        )
+
+    # Create subscription
+    new_subscription = AddressSubscription(
+        user_id=user_id,
+        address_id=address.id,
+        notify_trash=subscription_data.notify_trash,
+        notify_recycling=subscription_data.notify_recycling,
+        notify_green=subscription_data.notify_green,
+        notify_email=subscription_data.notify_email,
+        notify_sms=subscription_data.notify_sms,
+        days_before=subscription_data.days_before,
+        notification_time=subscription_data.notification_time
+    )
+
+    db.add(new_subscription)
+    db.commit()
+    db.refresh(new_subscription)
+
+    logger.info(f"Created subscription for user {user_id} at address {address.normalized_address}")
+
+    # Return with address details
+    response = SubscriptionResponse(
+        id=new_subscription.id,
+        user_id=new_subscription.user_id,
+        address_id=new_subscription.address_id,
+        address=address.normalized_address,
+        notify_trash=new_subscription.notify_trash,
+        notify_recycling=new_subscription.notify_recycling,
+        notify_green=new_subscription.notify_green,
+        notify_email=new_subscription.notify_email,
+        notify_sms=new_subscription.notify_sms,
+        days_before=new_subscription.days_before,
+        notification_time=new_subscription.notification_time,
+        is_active=new_subscription.is_active,
+        created_at=new_subscription.created_at
+    )
+    return response
+
+
+@app.get("/api/subscriptions", response_model=List[SubscriptionResponse])
+async def list_subscriptions(
+    user_id: Optional[int] = None,
+    is_active: Optional[bool] = None,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """List subscriptions with optional filtering."""
+    query = db.query(AddressSubscription)
+
+    if user_id is not None:
+        query = query.filter(AddressSubscription.user_id == user_id)
+    if is_active is not None:
+        query = query.filter(AddressSubscription.is_active == is_active)
+
+    subscriptions = query.offset(skip).limit(limit).all()
+
+    # Build response with address details
+    results = []
+    for sub in subscriptions:
+        address = db.query(Address).filter(Address.id == sub.address_id).first()
+        results.append(SubscriptionResponse(
+            id=sub.id,
+            user_id=sub.user_id,
+            address_id=sub.address_id,
+            address=address.normalized_address if address else "Unknown",
+            notify_trash=sub.notify_trash,
+            notify_recycling=sub.notify_recycling,
+            notify_green=sub.notify_green,
+            notify_email=sub.notify_email,
+            notify_sms=sub.notify_sms,
+            days_before=sub.days_before,
+            notification_time=sub.notification_time,
+            is_active=sub.is_active,
+            created_at=sub.created_at
+        ))
+
+    return results
+
+
+@app.get("/api/subscriptions/{subscription_id}", response_model=SubscriptionResponse)
+async def get_subscription(subscription_id: int, db: Session = Depends(get_db)):
+    """Get subscription by ID."""
+    subscription = db.query(AddressSubscription).filter(
+        AddressSubscription.id == subscription_id
+    ).first()
+
+    if not subscription:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+
+    address = db.query(Address).filter(Address.id == subscription.address_id).first()
+
+    return SubscriptionResponse(
+        id=subscription.id,
+        user_id=subscription.user_id,
+        address_id=subscription.address_id,
+        address=address.normalized_address if address else "Unknown",
+        notify_trash=subscription.notify_trash,
+        notify_recycling=subscription.notify_recycling,
+        notify_green=subscription.notify_green,
+        notify_email=subscription.notify_email,
+        notify_sms=subscription.notify_sms,
+        days_before=subscription.days_before,
+        notification_time=subscription.notification_time,
+        is_active=subscription.is_active,
+        created_at=subscription.created_at
+    )
+
+
+@app.put("/api/subscriptions/{subscription_id}", response_model=SubscriptionResponse)
+async def update_subscription(
+    subscription_id: int,
+    update_data: SubscriptionUpdate,
+    db: Session = Depends(get_db)
+):
+    """Update an existing subscription."""
+    subscription = db.query(AddressSubscription).filter(
+        AddressSubscription.id == subscription_id
+    ).first()
+
+    if not subscription:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+
+    # Update fields if provided
+    if update_data.notify_trash is not None:
+        subscription.notify_trash = update_data.notify_trash
+    if update_data.notify_recycling is not None:
+        subscription.notify_recycling = update_data.notify_recycling
+    if update_data.notify_green is not None:
+        subscription.notify_green = update_data.notify_green
+    if update_data.notify_email is not None:
+        subscription.notify_email = update_data.notify_email
+    if update_data.notify_sms is not None:
+        subscription.notify_sms = update_data.notify_sms
+    if update_data.days_before is not None:
+        subscription.days_before = update_data.days_before
+    if update_data.notification_time is not None:
+        subscription.notification_time = update_data.notification_time
+    if update_data.is_active is not None:
+        subscription.is_active = update_data.is_active
+
+    db.commit()
+    db.refresh(subscription)
+
+    address = db.query(Address).filter(Address.id == subscription.address_id).first()
+
+    logger.info(f"Updated subscription {subscription_id}")
+
+    return SubscriptionResponse(
+        id=subscription.id,
+        user_id=subscription.user_id,
+        address_id=subscription.address_id,
+        address=address.normalized_address if address else "Unknown",
+        notify_trash=subscription.notify_trash,
+        notify_recycling=subscription.notify_recycling,
+        notify_green=subscription.notify_green,
+        notify_email=subscription.notify_email,
+        notify_sms=subscription.notify_sms,
+        days_before=subscription.days_before,
+        notification_time=subscription.notification_time,
+        is_active=subscription.is_active,
+        created_at=subscription.created_at
+    )
+
+
+@app.delete("/api/subscriptions/{subscription_id}", status_code=204)
+async def delete_subscription(subscription_id: int, db: Session = Depends(get_db)):
+    """Delete a subscription."""
+    subscription = db.query(AddressSubscription).filter(
+        AddressSubscription.id == subscription_id
+    ).first()
+
+    if not subscription:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+
+    db.delete(subscription)
+    db.commit()
+
+    logger.info(f"Deleted subscription {subscription_id}")
+    return None
+
+
+@app.post("/api/notifications/test", response_model=TestNotificationResponse)
+async def test_notification(
+    user_id: int,
+    test_data: TestNotificationRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Send a test notification to verify SMS/Email delivery.
+
+    - **user_id**: ID of the user to send test to (query parameter)
+    - **notification_type**: Type of notification (trash/recycling/green)
+    - **channel**: Channel to test (email/sms/both)
+    - **address**: Address to use in test message
+    """
+    from app.notification_service import get_notification_service
+
+    # Verify user exists
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    notification_service = get_notification_service()
+
+    email_result = None
+    sms_result = None
+    success = True
+    messages = []
+
+    # Send email test
+    if test_data.channel in ["email", "both"]:
+        if not user.email:
+            messages.append("User has no email address configured")
+            success = False
+        else:
+            email_result = notification_service.send_trash_reminder_email(
+                email=user.email,
+                address=test_data.address,
+                pickup_type=test_data.notification_type,
+                pickup_day="tomorrow (TEST)",
+                additional_info="This is a test notification from TrashAlert."
+            )
+            if email_result.get("status") == "sent":
+                messages.append(f"Test email sent to {user.email}")
+            else:
+                messages.append(f"Failed to send email: {email_result.get('error')}")
+                success = False
+
+    # Send SMS test
+    if test_data.channel in ["sms", "both"]:
+        if not user.phone:
+            messages.append("User has no phone number configured")
+            success = False
+        else:
+            sms_result = notification_service.send_trash_reminder_sms(
+                phone=user.phone,
+                address=test_data.address,
+                pickup_type=test_data.notification_type,
+                pickup_day="tomorrow (TEST)"
+            )
+            if sms_result.get("status") == "sent":
+                messages.append(f"Test SMS sent to {user.phone}")
+            else:
+                messages.append(f"Failed to send SMS: {sms_result.get('error')}")
+                success = False
+
+    return TestNotificationResponse(
+        success=success,
+        message="; ".join(messages),
+        email_result=email_result,
+        sms_result=sms_result
+    )
 @app.get("/analytics/heatmap", response_model=HeatmapResponse)
 async def get_heatmap_data(
     metric: str = "report_density",

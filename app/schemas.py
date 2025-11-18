@@ -1,4 +1,7 @@
 """Pydantic schemas for API request/response validation."""
+from typing import Optional, Literal
+from datetime import datetime
+from pydantic import BaseModel, Field, field_validator, model_validator, EmailStr
 from typing import Optional, Literal, List, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -504,6 +507,113 @@ class InterpretAddressResponse(BaseModel):
     error: Optional[str] = Field(None, description="Error message if interpretation failed")
 
 
+# Notification system schemas
+
+class UserCreate(BaseModel):
+    """Request schema for creating a new user."""
+    email: EmailStr = Field(..., description="User's email address")
+    phone: Optional[str] = Field(None, description="User's phone number for SMS (E.164 format recommended)")
+    display_name: Optional[str] = Field(None, max_length=100, description="User's display name")
+    timezone: str = Field(default="America/Los_Angeles", description="User's timezone")
+
+
+class UserResponse(BaseModel):
+    """Response schema for user data."""
+    id: int
+    email: str
+    phone: Optional[str]
+    display_name: Optional[str]
+    timezone: str
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class SubscriptionCreate(BaseModel):
+    """Request schema for creating a subscription."""
+    address: str = Field(..., min_length=5, description="Full address to subscribe to")
+    notify_trash: bool = Field(default=True, description="Send trash pickup reminders")
+    notify_recycling: bool = Field(default=True, description="Send recycling pickup reminders")
+    notify_green: bool = Field(default=False, description="Send green waste pickup reminders")
+    notify_email: bool = Field(default=True, description="Send notifications via email")
+    notify_sms: bool = Field(default=False, description="Send notifications via SMS")
+    days_before: int = Field(default=1, ge=0, le=7, description="How many days before pickup to notify (0-7)")
+    notification_time: str = Field(default="18:00", description="Time to send notifications (HH:MM format)")
+
+    @field_validator('notification_time')
+    @classmethod
+    def validate_time_format(cls, v: str) -> str:
+        """Validate time is in HH:MM format."""
+        try:
+            hour, minute = map(int, v.split(':'))
+            if not (0 <= hour < 24 and 0 <= minute < 60):
+                raise ValueError
+            return f"{hour:02d}:{minute:02d}"
+        except (ValueError, AttributeError):
+            raise ValueError("notification_time must be in HH:MM format (e.g., 18:00)")
+
+
+class SubscriptionUpdate(BaseModel):
+    """Request schema for updating a subscription."""
+    notify_trash: Optional[bool] = None
+    notify_recycling: Optional[bool] = None
+    notify_green: Optional[bool] = None
+    notify_email: Optional[bool] = None
+    notify_sms: Optional[bool] = None
+    days_before: Optional[int] = Field(None, ge=0, le=7)
+    notification_time: Optional[str] = None
+    is_active: Optional[bool] = None
+
+    @field_validator('notification_time')
+    @classmethod
+    def validate_time_format(cls, v: Optional[str]) -> Optional[str]:
+        """Validate time is in HH:MM format."""
+        if v is None:
+            return v
+        try:
+            hour, minute = map(int, v.split(':'))
+            if not (0 <= hour < 24 and 0 <= minute < 60):
+                raise ValueError
+            return f"{hour:02d}:{minute:02d}"
+        except (ValueError, AttributeError):
+            raise ValueError("notification_time must be in HH:MM format (e.g., 18:00)")
+
+
+class SubscriptionResponse(BaseModel):
+    """Response schema for subscription data."""
+    id: int
+    user_id: int
+    address_id: int
+    address: str  # Normalized address from Address table
+    notify_trash: bool
+    notify_recycling: bool
+    notify_green: bool
+    notify_email: bool
+    notify_sms: bool
+    days_before: int
+    notification_time: str
+    is_active: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class TestNotificationRequest(BaseModel):
+    """Request schema for testing notification delivery."""
+    notification_type: Literal["trash", "recycling", "green"] = Field(default="trash", description="Type of notification to test")
+    channel: Literal["email", "sms", "both"] = Field(default="email", description="Channel to test")
+    address: str = Field(..., description="Address to use in test notification")
+
+
+class TestNotificationResponse(BaseModel):
+    """Response schema for test notification."""
+    success: bool
+    message: str
+    email_result: Optional[dict] = None
+    sms_result: Optional[dict] = None
 class PredictRequest(BaseModel):
     """Request schema for POST /predict endpoint."""
     address_id: Optional[int] = Field(None, description="Address ID to predict for (for delay predictions)")

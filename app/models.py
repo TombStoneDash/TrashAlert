@@ -319,6 +319,16 @@ class RequestMetrics(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 
+class User(Base):
+    """User table - stores registered users for notification system."""
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, unique=True, nullable=False, index=True)
+    phone = Column(String)  # Optional phone number for SMS notifications
+    display_name = Column(String)
+    timezone = Column(String, default="America/Los_Angeles")
+    is_active = Column(Boolean, default=True, index=True)
 class Truck(Base):
     """Truck fleet information for GPS tracking."""
     __tablename__ = "trucks"
@@ -446,6 +456,34 @@ class User(Base):
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    subscriptions = relationship("AddressSubscription", back_populates="user")
+
+
+class AddressSubscription(Base):
+    """User subscriptions to address-specific trash reminders."""
+    __tablename__ = "address_subscriptions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    address_id = Column(Integer, ForeignKey("addresses.id"), nullable=False, index=True)
+
+    # Notification preferences - what to notify about
+    notify_trash = Column(Boolean, default=True)
+    notify_recycling = Column(Boolean, default=True)
+    notify_green = Column(Boolean, default=False)
+
+    # Notification channels
+    notify_email = Column(Boolean, default=True)
+    notify_sms = Column(Boolean, default=False)
+
+    # Notification timing
+    days_before = Column(Integer, default=1)  # How many days before pickup to notify
+    notification_time = Column(String, default="18:00")  # Time to send notification (HH:MM format)
+
+    # Status
+    is_active = Column(Boolean, default=True, index=True)
     last_login = Column(DateTime(timezone=True))
 
     # Relationships
@@ -632,6 +670,45 @@ class ApiKey(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
+    # Relationships
+    user = relationship("User", back_populates="subscriptions")
+
+    __table_args__ = (
+        Index('idx_user_address', 'user_id', 'address_id'),
+        Index('idx_active_subscriptions', 'is_active', 'user_id'),
+    )
+
+
+class NotificationLog(Base):
+    """Log of all notifications sent to users."""
+    __tablename__ = "notification_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    subscription_id = Column(Integer, ForeignKey("address_subscriptions.id"), nullable=True, index=True)
+
+    # Notification details
+    notification_type = Column(String, nullable=False, index=True)  # trash, recycling, green
+    channel = Column(String, nullable=False, index=True)  # email, sms
+    recipient = Column(String, nullable=False)  # email address or phone number
+
+    # Message content
+    subject = Column(String)
+    message_body = Column(Text)
+
+    # Delivery status
+    status = Column(String, nullable=False, index=True)  # pending, sent, failed, delivered
+    external_id = Column(String)  # ID from Twilio/SendGrid
+    error_message = Column(Text)
+
+    # Timestamps
+    scheduled_for = Column(DateTime(timezone=True), index=True)
+    sent_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    __table_args__ = (
+        Index('idx_notification_status_scheduled', 'status', 'scheduled_for'),
+        Index('idx_user_created', 'user_id', 'created_at'),
 
 class UserBadge(Base):
     """User badge awards - tracks which badges users have earned."""

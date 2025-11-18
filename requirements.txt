@@ -68,5 +68,12 @@ pytest-asyncio>=0.21.0
 pytest-cov>=4.1.0
 httpx==0.25.0  # Locked for starlette TestClient compatibility
 
+# Notification services
+twilio>=9.0.0
+sendgrid>=6.11.0
+
+# Task scheduling
+APScheduler>=3.10.0
+pytz>=2024.1
 # Security testing
 colorama>=0.4.6  # For colored output in pentest scripts
