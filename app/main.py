@@ -10,6 +10,11 @@ import logging
 import time
 
 from app.database import get_db, engine, Base
+from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics, ApiKey
+from app.schemas import (
+    ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ConsensusDetails,
+    MobileLookupRequest, MobileLookupResponse, MobileReportRequest, MobileReportResponse
+)
 from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics, User
 from app.schemas import ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ConsensusDetails
 from app.models import Address, CrowdReport, CrowdConsensus
@@ -33,6 +38,8 @@ from app.utils import (
 from app.ai_service import create_ai_interpreter
 from app.rate_limiter import rate_limiter
 from app.cache import lookup_cache
+from app.api_key_auth import require_api_key, record_api_key_usage
+from app.mobile_rate_limiter import mobile_rate_limiter
 
 # Configure structured logging
 logging.basicConfig(
@@ -889,4 +896,316 @@ async def get_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
         ]
     }
 
-    return stats
+
+# ============================================================================
+# MOBILE ENDPOINTS - Simplified & Optimized for Mobile Apps
+# ============================================================================
+
+@app.get(
+    "/mobile/lookup",
+    response_model=MobileLookupResponse,
+    tags=["Mobile"],
+    summary="Mobile-optimized lookup endpoint",
+    description="Simplified lookup endpoint for mobile apps. Requires API key authentication. "
+                "Returns minimal payload to reduce bandwidth usage."
+)
+async def mobile_lookup(
+    request: Request,
+    address: Optional[str] = None,
+    lat: Optional[float] = None,
+    lon: Optional[float] = None,
+    api_key: ApiKey = Depends(require_api_key),
+    db: Session = Depends(get_db)
+):
+    """Mobile-optimized address lookup endpoint.
+
+    Features:
+    - API key authentication required
+    - Per-API-key rate limiting (30/min, 500/hour by default)
+    - Simplified response payload (minimal JSON)
+    - Abbreviated day names (MON-SUN vs MONDAY-SUNDAY)
+    - Essential fields only
+
+    Query Parameters:
+        - address: Full address string OR
+        - lat + lon: Coordinates
+
+    Returns:
+        MobileLookupResponse with simplified data structure
+    """
+    start_time = time.time()
+    client_ip = request.client.host if request.client else "unknown"
+    user_agent = request.headers.get("user-agent", "")
+
+    # Validate input
+    lookup_req = MobileLookupRequest(address=address, lat=lat, lon=lon)
+
+    # Check mobile rate limiter (API key-based)
+    allowed, error_msg, rate_stats = mobile_rate_limiter.is_allowed(
+        api_key=api_key,
+        ip_address=client_ip
+    )
+
+    if not allowed:
+        # Record blocked request
+        response_time = (time.time() - start_time) * 1000
+        record_api_key_usage(
+            db=db,
+            api_key_id=api_key.id,
+            endpoint="/mobile/lookup",
+            method="GET",
+            status_code=429,
+            response_time_ms=response_time,
+            ip_address=client_ip,
+            user_agent=user_agent
+        )
+
+        raise HTTPException(
+            status_code=429,
+            detail=error_msg,
+            headers={
+                "X-RateLimit-Limit-Minute": str(rate_stats["limit_per_minute"]),
+                "X-RateLimit-Limit-Hour": str(rate_stats["limit_per_hour"]),
+                "X-RateLimit-Remaining-Minute": str(rate_stats["remaining_minute"]),
+                "X-RateLimit-Remaining-Hour": str(rate_stats["remaining_hour"])
+            }
+        )
+
+    try:
+        # Determine lookup method
+        if lookup_req.lat is not None and lookup_req.lon is not None:
+            # Coordinate-based lookup
+            address_record = find_address_by_coordinates(db, lookup_req.lat, lookup_req.lon)
+            if not address_record:
+                raise HTTPException(
+                    status_code=404,
+                    detail="No address found near coordinates"
+                )
+        else:
+            # Address-based lookup
+            normalized = normalize_address(lookup_req.address)
+            address_record = db.query(Address).filter(
+                Address.normalized_address == normalized
+            ).first()
+
+            if not address_record:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Address not found"
+                )
+
+        # Determine data source priority
+        consensus = db.query(CrowdConsensus).filter(
+            CrowdConsensus.address_id == address_record.id
+        ).first()
+
+        # Determine source and days
+        if consensus and consensus.is_verified:
+            source = "verified"
+            trash_day = consensus.consensus_trash_day
+            recycling_day = consensus.consensus_recycling_day
+            green_day = consensus.consensus_green_day
+        elif address_record.official_trash_day:
+            source = "official"
+            trash_day = address_record.official_trash_day
+            recycling_day = address_record.official_recycling_day
+            green_day = address_record.official_green_day
+        elif consensus:
+            source = "unverified"
+            trash_day = consensus.consensus_trash_day
+            recycling_day = consensus.consensus_recycling_day
+            green_day = consensus.consensus_green_day
+        else:
+            source = "unknown"
+            trash_day = None
+            recycling_day = None
+            green_day = None
+
+        # Helper to convert to abbreviation
+        def to_abbrev(day: Optional[str]) -> Optional[str]:
+            if not day:
+                return None
+            day_map = {
+                'MONDAY': 'MON', 'TUESDAY': 'TUE', 'WEDNESDAY': 'WED',
+                'THURSDAY': 'THU', 'FRIDAY': 'FRI', 'SATURDAY': 'SAT', 'SUNDAY': 'SUN'
+            }
+            return day_map.get(day.upper(), day[:3].upper())
+
+        # Build response
+        response = MobileLookupResponse(
+            address=address_record.normalized_address,
+            city=address_record.city,
+            trash=to_abbrev(trash_day),
+            recycling=to_abbrev(recycling_day),
+            green=to_abbrev(green_day),
+            source=source,
+            lat=address_record.lat,
+            lon=address_record.lon
+        )
+
+        # Record successful usage
+        response_time = (time.time() - start_time) * 1000
+        record_api_key_usage(
+            db=db,
+            api_key_id=api_key.id,
+            endpoint="/mobile/lookup",
+            method="GET",
+            status_code=200,
+            response_time_ms=response_time,
+            ip_address=client_ip,
+            user_agent=user_agent
+        )
+
+        app_logger.info(
+            f"Mobile lookup success: {address_record.normalized_address} "
+            f"(API key: {api_key.key_prefix})"
+        )
+
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_logger.error(f"Mobile lookup error: {str(e)}", exc_info=True)
+        response_time = (time.time() - start_time) * 1000
+        record_api_key_usage(
+            db=db,
+            api_key_id=api_key.id,
+            endpoint="/mobile/lookup",
+            method="GET",
+            status_code=500,
+            response_time_ms=response_time,
+            ip_address=client_ip,
+            user_agent=user_agent
+        )
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.post(
+    "/mobile/report",
+    response_model=MobileReportResponse,
+    tags=["Mobile"],
+    summary="Mobile-optimized report endpoint",
+    description="Simplified report submission for mobile apps. Requires API key authentication."
+)
+async def mobile_report(
+    request: Request,
+    report_data: MobileReportRequest,
+    api_key: ApiKey = Depends(require_api_key),
+    db: Session = Depends(get_db)
+):
+    """Mobile-optimized report submission endpoint.
+
+    Features:
+    - API key authentication required
+    - Per-API-key rate limiting
+    - Simplified request/response payloads
+    - Abbreviated day names
+
+    Request Body:
+        MobileReportRequest with address and at least one pickup day
+
+    Returns:
+        MobileReportResponse with success status and simplified consensus info
+    """
+    start_time = time.time()
+    client_ip = request.client.host if request.client else "unknown"
+    user_agent = request.headers.get("user-agent", "")
+
+    # Check mobile rate limiter
+    allowed, error_msg, rate_stats = mobile_rate_limiter.is_allowed(
+        api_key=api_key,
+        ip_address=client_ip
+    )
+
+    if not allowed:
+        response_time = (time.time() - start_time) * 1000
+        record_api_key_usage(
+            db=db,
+            api_key_id=api_key.id,
+            endpoint="/mobile/report",
+            method="POST",
+            status_code=429,
+            response_time_ms=response_time,
+            ip_address=client_ip,
+            user_agent=user_agent
+        )
+
+        raise HTTPException(
+            status_code=429,
+            detail=error_msg,
+            headers={
+                "X-RateLimit-Limit-Minute": str(rate_stats["limit_per_minute"]),
+                "X-RateLimit-Limit-Hour": str(rate_stats["limit_per_hour"]),
+                "X-RateLimit-Remaining-Minute": str(rate_stats["remaining_minute"]),
+                "X-RateLimit-Remaining-Hour": str(rate_stats["remaining_hour"])
+            }
+        )
+
+    try:
+        # Normalize address
+        normalized_address = normalize_address(report_data.address)
+
+        # Find or create address
+        address_record = find_or_create_address(db, normalized_address)
+
+        # Create crowd report
+        crowd_report = CrowdReport(
+            address_id=address_record.id,
+            trash_day=report_data.trash,
+            recycling_day=report_data.recycling,
+            green_day=report_data.green,
+            user_hash=report_data.user_id,
+            ip_address=client_ip,
+            user_agent=user_agent
+        )
+
+        db.add(crowd_report)
+        db.commit()
+
+        # Update consensus
+        consensus = update_crowd_consensus(db, address_record.id)
+
+        # Build response
+        response = MobileReportResponse(
+            success=True,
+            message="Report submitted successfully",
+            address=normalized_address,
+            verified=consensus.is_verified if consensus else False,
+            reports=consensus.reports_count if (consensus and consensus.is_verified) else None
+        )
+
+        # Record successful usage
+        response_time = (time.time() - start_time) * 1000
+        record_api_key_usage(
+            db=db,
+            api_key_id=api_key.id,
+            endpoint="/mobile/report",
+            method="POST",
+            status_code=200,
+            response_time_ms=response_time,
+            ip_address=client_ip,
+            user_agent=user_agent
+        )
+
+        app_logger.info(
+            f"Mobile report success: {normalized_address} "
+            f"(API key: {api_key.key_prefix})"
+        )
+
+        return response
+
+    except Exception as e:
+        error_logger.error(f"Mobile report error: {str(e)}", exc_info=True)
+        response_time = (time.time() - start_time) * 1000
+        record_api_key_usage(
+            db=db,
+            api_key_id=api_key.id,
+            endpoint="/mobile/report",
+            method="POST",
+            status_code=500,
+            response_time_ms=response_time,
+            ip_address=client_ip,
+            user_agent=user_agent
+        )
+        raise HTTPException(status_code=500, detail="Internal server error")

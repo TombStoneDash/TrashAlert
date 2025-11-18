@@ -134,6 +134,121 @@ class LookupResponse(BaseModel):
 
 
 # ============================================================================
+# MOBILE ENDPOINTS - Simplified Schemas
+# ============================================================================
+
+class MobileLookupRequest(BaseModel):
+    """Simplified request schema for mobile /mobile/lookup endpoint."""
+    # Option 1: Address
+    address: Optional[str] = Field(None, min_length=5, max_length=500)
+
+    # Option 2: Coordinates (more common for mobile)
+    lat: Optional[float] = Field(None, ge=-90, le=90)
+    lon: Optional[float] = Field(None, ge=-180, le=180)
+
+    @model_validator(mode='after')
+    def validate_input(self):
+        """Ensure at least one valid input format is provided."""
+        has_address = bool(self.address and self.address.strip())
+        has_coords = self.lat is not None and self.lon is not None
+
+        if not has_address and not has_coords:
+            raise ValueError("Provide 'address' or both 'lat' and 'lon'")
+
+        return self
+
+
+class MobileLookupResponse(BaseModel):
+    """Simplified response schema for mobile /mobile/lookup endpoint.
+
+    Designed for mobile apps with focus on:
+    - Minimal data transfer
+    - Essential information only
+    - Abbreviations to save bandwidth
+    """
+    # Core data
+    address: str = Field(..., description="Matched address")
+    city: Optional[str] = Field(None, description="City name")
+
+    # Pickup days (abbreviated: MON, TUE, WED, etc.)
+    trash: Optional[str] = Field(None, description="Trash day (MON-SUN)")
+    recycling: Optional[str] = Field(None, description="Recycling day (MON-SUN)")
+    green: Optional[str] = Field(None, description="Green waste day (MON-SUN)")
+
+    # Data quality indicator
+    source: Literal["verified", "official", "unverified", "unknown"] = Field(
+        ..., description="Data source quality"
+    )
+
+    # Coordinates (optional, for map display)
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+
+
+class MobileReportRequest(BaseModel):
+    """Simplified request schema for mobile /mobile/report endpoint."""
+    address: str = Field(..., min_length=5, max_length=500)
+
+    # At least one required
+    trash: Optional[str] = Field(None, max_length=20, description="Trash day (MON-SUN)")
+    recycling: Optional[str] = Field(None, max_length=20, description="Recycling day (MON-SUN)")
+    green: Optional[str] = Field(None, max_length=20, description="Green waste day (MON-SUN)")
+
+    # Optional user identifier
+    user_id: Optional[str] = Field(None, max_length=64, description="User identifier")
+
+    @field_validator('address')
+    @classmethod
+    def validate_address(cls, v: str) -> str:
+        """Clean address."""
+        if not v or not v.strip():
+            raise ValueError("Address required")
+        return ' '.join(v.split())
+
+    @field_validator('trash', 'recycling', 'green')
+    @classmethod
+    def validate_day(cls, v: Optional[str]) -> Optional[str]:
+        """Validate and normalize day."""
+        if v is None:
+            return v
+        v = v.strip().upper()
+        if not v:
+            return None
+
+        # Abbreviations only for mobile
+        valid_days = {'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'}
+
+        # Also accept full names and convert
+        day_map = {
+            'MONDAY': 'MON', 'TUESDAY': 'TUE', 'WEDNESDAY': 'WED',
+            'THURSDAY': 'THU', 'FRIDAY': 'FRI', 'SATURDAY': 'SAT', 'SUNDAY': 'SUN'
+        }
+
+        if v in day_map:
+            return day_map[v]
+
+        if v not in valid_days:
+            raise ValueError(f"Invalid day '{v}'. Use MON-SUN")
+
+        return v
+
+    @model_validator(mode='after')
+    def validate_at_least_one_day(self):
+        """Ensure at least one pickup day provided."""
+        if not any([self.trash, self.recycling, self.green]):
+            raise ValueError("Provide at least one pickup day")
+        return self
+
+
+class MobileReportResponse(BaseModel):
+    """Simplified response schema for mobile /mobile/report endpoint."""
+    success: bool
+    message: str
+    address: str  # Normalized address
+
+    # Simplified consensus info (only if verified)
+    verified: bool = Field(False, description="True if consensus is verified (≥3 reports, ≥67% agreement)")
+    reports: Optional[int] = Field(None, description="Number of reports if verified")
 # AUTHENTICATION SCHEMAS
 # ============================================================================
 
