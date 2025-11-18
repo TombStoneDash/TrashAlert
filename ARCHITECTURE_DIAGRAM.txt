@@ -1,0 +1,575 @@
+TrashAlert System Architecture Diagram
+=====================================
+
+NOTE: This is a text-based diagram. To convert to PNG, use one of these methods:
+1. Copy to https://asciiflow.com and export
+2. Use graphviz/dot to render
+3. Use draw.io with the text below as reference
+4. Screenshot this in a terminal with a nice font
+
+=====================================
+SYSTEM ARCHITECTURE OVERVIEW
+=====================================
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                                 CLIENT LAYER                                  ┃
+┃                                                                                ┃
+┃  ┌─────────────┐   ┌─────────────┐   ┌─────────────┐   ┌──────────────┐     ┃
+┃  │  Web App    │   │  iOS App    │   │ Android App │   │ Third-Party  │     ┃
+┃  │  (React)    │   │  (Swift)    │   │  (Kotlin)   │   │  Integrations│     ┃
+┃  │             │   │             │   │             │   │  (Zapier,    │     ┃
+┃  │  Browser    │   │  iPhone     │   │  Android    │   │   APIs)      │     ┃
+┃  └──────┬──────┘   └──────┬──────┘   └──────┬──────┘   └──────┬───────┘     ┃
+┃         │                 │                  │                 │             ┃
+┃         └─────────────────┴──────────────────┴─────────────────┘             ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+                                 │
+                                 │ HTTPS/REST API
+                                 │
+                                 ▼
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                          INFRASTRUCTURE LAYER                                 ┃
+┃                                                                                ┃
+┃  ┌──────────────────────────────────────────────────────────────────────┐    ┃
+┃  │                    NGINX REVERSE PROXY                                │    ┃
+┃  │                                                                        │    ┃
+┃  │  • SSL Termination (Let's Encrypt)                                    │    ┃
+┃  │  • Rate Limiting (30 req/min lookup, 10 req/min report)              │    ┃
+┃  │  • HTTP Caching (5 min TTL)                                           │    ┃
+┃  │  • Load Balancing (Round-robin to API workers)                        │    ┃
+┃  │  • Static Asset Serving                                               │    ┃
+┃  │  • DDoS Protection                                                     │    ┃
+┃  └────────────────────────────────┬───────────────────────────────────────┘  ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+                                     │
+                                     ▼
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                           APPLICATION LAYER                                   ┃
+┃                             (FastAPI Service)                                 ┃
+┃                                                                                ┃
+┃  ┌─────────────────────────────────────────────────────────────────────┐     ┃
+┃  │                         API ENDPOINTS                                │     ┃
+┃  │                                                                       │     ┃
+┃  │  GET  /lookup      - Schedule lookup (address/GPS)                   │     ┃
+┃  │  POST /report      - Submit crowdsourced observation                 │     ┃
+┃  │  GET  /stats       - System statistics                               │     ┃
+┃  │  GET  /health      - Health check                                    │     ┃
+┃  │  GET  /cities      - List configured cities                          │     ┃
+┃  └───────────────────────────────┬───────────────────────────────────────┘   ┃
+┃                                  │                                            ┃
+┃  ┌───────────────────────────────▼───────────────────────────────────────┐   ┃
+┃  │                      BUSINESS LOGIC LAYER                              │   ┃
+┃  │                                                                         │   ┃
+┃  │  ┌─────────────────────┐  ┌────────────────────┐  ┌─────────────────┐│   ┃
+┃  │  │ Address             │  │ Lookup Engine      │  │ Crowdsourcing   ││   ┃
+┃  │  │ Normalization       │  │                    │  │ Engine          ││   ┃
+┃  │  │                     │  │ • Multi-source     │  │                 ││   ┃
+┃  │  │ • Parse input       │  │   priority         │  │ • Consensus     ││   ┃
+┃  │  │ • Standardize       │  │ • Data ranking     │  │   algorithm     ││   ┃
+┃  │  │ • Geocode           │  │ • Cache lookup     │  │ • Verification  ││   ┃
+┃  │  │ • Validate          │  │ • Exception        │  │ • Spam filter   ││   ┃
+┃  │  │                     │  │   handling         │  │ • Aggregation   ││   ┃
+┃  │  └─────────────────────┘  └────────────────────┘  └─────────────────┘│   ┃
+┃  │                                                                         │   ┃
+┃  │  ┌─────────────────────┐  ┌────────────────────┐  ┌─────────────────┐│   ┃
+┃  │  │ Rate Limiter        │  │ Validation         │  │ Authentication  ││   ┃
+┃  │  │                     │  │                     │  │                 ││   ┃
+┃  │  │ • Sliding window    │  │ • Input sanitize   │  │ • API keys      ││   ┃
+┃  │  │ • IP tracking       │  │ • Schema validate  │  │ • JWT tokens    ││   ┃
+┃  │  │ • Abuse detection   │  │ • Business rules   │  │ • OAuth 2.0     ││   ┃
+┃  │  └─────────────────────┘  └────────────────────┘  └─────────────────┘│   ┃
+┃  └─────────────────────────────────────────────────────────────────────────┘ ┃
+┃                                                                                ┃
+┃  ┌─────────────────────────────────────────────────────────────────────┐     ┃
+┃  │                         CACHING LAYER                                │     ┃
+┃  │                                                                       │     ┃
+┃  │  LRU Cache (functools.lru_cache)                                     │     ┃
+┃  │  • 10,000 address capacity                                           │     ┃
+┃  │  • 5 minute TTL                                                      │     ┃
+┃  │  • 60-70% hit rate                                                   │     ┃
+┃  │  • <5ms response time (cache hit)                                    │     ┃
+┃  │                                                                       │     ┃
+┃  │  [Future: Redis distributed cache]                                   │     ┃
+┃  └─────────────────────────────────────────────────────────────────────┘     ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+                                     │
+                                     ▼
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                              DATA LAYER                                       ┃
+┃                                                                                ┃
+┃  ┌────────────────────────────────────────────────────────────────────┐      ┃
+┃  │                    PostgreSQL Database                              │      ┃
+┃  │                    (SQLite for development)                         │      ┃
+┃  │                                                                      │      ┃
+┃  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐             │      ┃
+┃  │  │  addresses   │  │crowd_reports │  │  schedules   │             │      ┃
+┃  │  │              │  │              │  │              │             │      ┃
+┃  │  │ • Normalized │  │ • Individual │  │ • Official   │             │      ┃
+┃  │  │   address    │  │   user       │  │   schedules  │             │      ┃
+┃  │  │ • GPS coords │  │   reports    │  │ • Zone-based │             │      ┃
+┃  │  │ • City/state │  │ • Timestamp  │  │ • Provider   │             │      ┃
+┃  │  │ • OSM data   │  │ • IP address │  │   info       │             │      ┃
+┃  │  └──────────────┘  └──────────────┘  └──────────────┘             │      ┃
+┃  │                                                                      │      ┃
+┃  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐             │      ┃
+┃  │  │crowd_        │  │schedule_     │  │source_       │             │      ┃
+┃  │  │consensus     │  │exceptions    │  │metadata      │             │      ┃
+┃  │  │              │  │              │  │              │             │      ┃
+┃  │  │ • Aggregated │  │ • Holidays   │  │ • Data       │             │      ┃
+┃  │  │   reports    │  │ • Route      │  │   sources    │             │      ┃
+┃  │  │ • Agreement  │  │   changes    │  │ • Parser     │             │      ┃
+┃  │  │   ratios     │  │ • Weather    │  │   versions   │             │      ┃
+┃  │  │ • Verified   │  │   delays     │  │ • Update log │             │      ┃
+┃  │  │   status     │  │              │  │              │             │      ┃
+┃  │  └──────────────┘  └──────────────┘  └──────────────┘             │      ┃
+┃  │                                                                      │      ┃
+┃  │  ┌──────────────┐  ┌──────────────┐                                │      ┃
+┃  │  │request_      │  │pickup_zones  │                                │      ┃
+┃  │  │metrics       │  │              │                                │      ┃
+┃  │  │              │  │ • Geographic │                                │      ┃
+┃  │  │ • API usage  │  │   boundaries │                                │      ┃
+┃  │  │ • Performance│  │ • Zone-level │                                │      ┃
+┃  │  │ • Errors     │  │   schedules  │                                │      ┃
+┃  │  └──────────────┘  └──────────────┘                                │      ┃
+┃  └────────────────────────────────────────────────────────────────────┘      ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                          EXTERNAL DATA SOURCES                                ┃
+┃                                                                                ┃
+┃  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐                 ┃
+┃  │ OpenStreetMap  │  │ Municipal      │  │ Waste Hauler   │                 ┃
+┃  │ (OSM)          │  │ Websites       │  │ APIs           │                 ┃
+┃  │                │  │                │  │                │                 ┃
+┃  │ • Overpass API │  │ • Web scraping │  │ • CR&R         │                 ┃
+┃  │ • Address data │  │ • PDF parsing  │  │ • Waste Mgmt   │                 ┃
+┃  │ • Coordinates  │  │ • Schedule     │  │ • Republic     │                 ┃
+┃  │ • Boundaries   │  │   extraction   │  │   Services     │                 ┃
+┃  └────────────────┘  └────────────────┘  └────────────────┘                 ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+=====================================
+DATA FLOW DIAGRAMS
+=====================================
+
+LOOKUP FLOW (Read Path)
+========================
+
+User Request                 Nginx Cache              API Server              Database
+     │                           │                        │                       │
+     │ GET /lookup?address=...   │                        │                       │
+     ├──────────────────────────►│                        │                       │
+     │                           │                        │                       │
+     │                           │ Cache MISS             │                       │
+     │                           ├───────────────────────►│                       │
+     │                           │                        │                       │
+     │                           │                        │ 1. Normalize address  │
+     │                           │                        ├──────────────────────►│
+     │                           │                        │                       │
+     │                           │                        │ 2. Check verified     │
+     │                           │                        │    crowd consensus    │
+     │                           │                        ├──────────────────────►│
+     │                           │                        │◄──────────────────────┤
+     │                           │                        │                       │
+     │                           │                        │ 3. Check official     │
+     │                           │                        │    schedule (if no    │
+     │                           │                        │    verified crowd)    │
+     │                           │                        ├──────────────────────►│
+     │                           │                        │◄──────────────────────┤
+     │                           │                        │                       │
+     │                           │                        │ 4. Check unverified   │
+     │                           │                        │    crowd (if no       │
+     │                           │                        │    official)          │
+     │                           │                        ├──────────────────────►│
+     │                           │                        │◄──────────────────────┤
+     │                           │                        │                       │
+     │                           │  Response (JSON)       │                       │
+     │                           │◄───────────────────────┤                       │
+     │                           │                        │                       │
+     │                           │ Cache result (5 min)   │                       │
+     │                           │                        │                       │
+     │  Response (JSON)          │                        │                       │
+     │◄──────────────────────────┤                        │                       │
+     │                           │                        │                       │
+     │  { "trash_days":          │                        │                       │
+     │    ["MONDAY",             │                        │                       │
+     │     "THURSDAY"],          │                        │                       │
+     │    "data_source":         │                        │                       │
+     │    "CROWD_VERIFIED",      │                        │                       │
+     │    "confidence": "HIGH"}  │                        │                       │
+     │                           │                        │                       │
+
+
+REPORT FLOW (Write Path)
+=========================
+
+User Report              Rate Limiter        API Server              Database
+     │                        │                   │                       │
+     │ POST /report           │                   │                       │
+     ├───────────────────────►│                   │                       │
+     │                        │                   │                       │
+     │                        │ Check IP limit    │                       │
+     │                        │ (10 req/15min)    │                       │
+     │                        │                   │                       │
+     │                        │ PASS              │                       │
+     │                        ├──────────────────►│                       │
+     │                        │                   │                       │
+     │                        │                   │ 1. Validate input     │
+     │                        │                   │    (days format,      │
+     │                        │                   │     address exists)   │
+     │                        │                   │                       │
+     │                        │                   │ 2. Check spam         │
+     │                        │                   │    patterns           │
+     │                        │                   │                       │
+     │                        │                   │ 3. Store report       │
+     │                        │                   ├──────────────────────►│
+     │                        │                   │                       │
+     │                        │                   │ 4. Recalculate        │
+     │                        │                   │    consensus          │
+     │                        │                   ├──────────────────────►│
+     │                        │                   │◄──────────────────────┤
+     │                        │                   │                       │
+     │                        │                   │ 5. Check if now       │
+     │                        │                   │    verified (≥3       │
+     │                        │                   │    reports, ≥67%      │
+     │                        │                   │    agreement)         │
+     │                        │                   │                       │
+     │                        │                   │ 6. Update consensus   │
+     │                        │                   │    status             │
+     │                        │                   ├──────────────────────►│
+     │                        │                   │◄──────────────────────┤
+     │                        │                   │                       │
+     │                        │                   │ 7. Invalidate cache   │
+     │                        │                   │    for this address   │
+     │                        │                   │                       │
+     │                        │  Response         │                       │
+     │◄───────────────────────┴───────────────────┤                       │
+     │                                            │                       │
+     │  { "success": true,                        │                       │
+     │    "message": "Your report is the 3rd!",  │                       │
+     │    "new_consensus": {                      │                       │
+     │      "is_verified": true,                  │                       │
+     │      "agreement": "100%" }}                │                       │
+     │                                            │                       │
+
+
+CONSENSUS ALGORITHM FLOW
+=========================
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                     CONSENSUS CALCULATION                            │
+│                                                                       │
+│  Input: All crowd_reports for address_id                             │
+│                                                                       │
+│  For each service (trash, recycling, green_waste):                   │
+│                                                                       │
+│    1. Extract all reported schedules                                 │
+│       ["MON,THU", "MON,THU", "MON,FRI", "MON,THU"]                  │
+│                                                                       │
+│    2. Count frequency of each unique schedule                        │
+│       "MON,THU": 3 occurrences                                       │
+│       "MON,FRI": 1 occurrence                                        │
+│                                                                       │
+│    3. Select most common schedule as consensus                       │
+│       consensus_days = ["MONDAY", "THURSDAY"]                        │
+│                                                                       │
+│    4. Calculate agreement ratio                                      │
+│       agreement_ratio = 3/4 = 0.75 (75%)                            │
+│                                                                       │
+│    5. Store metadata                                                 │
+│       total_reports = 4                                              │
+│       agreement_count = 3                                            │
+│                                                                       │
+│  Verification Check:                                                 │
+│    IF total_reports >= 3 AND agreement_ratio >= 0.67:               │
+│       is_verified = TRUE                                             │
+│    ELSE:                                                             │
+│       is_verified = FALSE                                            │
+│                                                                       │
+│  Output: Updated crowd_consensus record                              │
+└─────────────────────────────────────────────────────────────────────┘
+
+
+MULTI-SOURCE PRIORITY ENGINE
+=============================
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                        LOOKUP PRIORITY LOGIC                         │
+│                                                                       │
+│  1. Check for VERIFIED CROWD DATA                                    │
+│     Query: crowd_consensus WHERE is_verified = TRUE                  │
+│     ├─ FOUND ─→ Return (Source: CROWD_VERIFIED, Confidence: HIGH)   │
+│     └─ NOT FOUND ─→ Continue to step 2                              │
+│                                                                       │
+│  2. Check for OFFICIAL SCHEDULE                                      │
+│     Query: schedules WHERE effective_date <= today                   │
+│               AND (end_date IS NULL OR end_date > today)            │
+│     ├─ FOUND ─→ Return (Source: OFFICIAL, Confidence: MEDIUM)       │
+│     └─ NOT FOUND ─→ Continue to step 3                              │
+│                                                                       │
+│  3. Check for UNVERIFIED CROWD DATA                                  │
+│     Query: crowd_consensus (any record)                              │
+│     ├─ FOUND ─→ Return (Source: CROWD_UNVERIFIED,                   │
+│     │           Confidence: LOW, Warning: "Not yet verified")        │
+│     └─ NOT FOUND ─→ Continue to step 4                              │
+│                                                                       │
+│  4. NO DATA AVAILABLE                                                │
+│     Return: (Source: UNKNOWN, Confidence: NONE,                      │
+│              Message: "Be the first to report!")                     │
+└─────────────────────────────────────────────────────────────────────┘
+
+
+ADDRESS NORMALIZATION PIPELINE
+===============================
+
+Input: "123 main st, san diego, ca"
+                │
+                ▼
+    ┌───────────────────────┐
+    │  1. Uppercase & Trim  │
+    │  "123 MAIN ST, SAN    │
+    │   DIEGO, CA"          │
+    └───────┬───────────────┘
+            │
+            ▼
+    ┌───────────────────────┐
+    │  2. Standardize       │
+    │     Street Suffix     │
+    │  "123 MAIN STREET,    │
+    │   SAN DIEGO, CA"      │
+    └───────┬───────────────┘
+            │
+            ▼
+    ┌───────────────────────┐
+    │  3. Remove Extra      │
+    │     Punctuation       │
+    │  "123 MAIN STREET     │
+    │   SAN DIEGO CA"       │
+    └───────┬───────────────┘
+            │
+            ▼
+    ┌───────────────────────┐
+    │  4. Parse Components  │
+    │  {                    │
+    │    street_number: 123 │
+    │    street_name:       │
+    │      "MAIN STREET"    │
+    │    city: "SAN DIEGO"  │
+    │    state: "CA"        │
+    │  }                    │
+    └───────┬───────────────┘
+            │
+            ▼
+    ┌───────────────────────┐
+    │  5. Format Standard   │
+    │  "123 MAIN STREET,    │
+    │   SAN DIEGO, CA"      │
+    └───────┬───────────────┘
+            │
+            ▼
+    ┌───────────────────────┐
+    │  6. Database Lookup   │
+    │  Match to addresses   │
+    │  table (normalized_   │
+    │  address column)      │
+    └───────────────────────┘
+
+
+=====================================
+DEPLOYMENT ARCHITECTURE
+=====================================
+
+Production Infrastructure
+=========================
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                          HOST MACHINE                                │
+│                       (Ubuntu 20.04 LTS)                             │
+│                                                                       │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │                    Docker Compose Stack                        │  │
+│  │                                                                 │  │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐           │  │
+│  │  │   Nginx     │  │   API       │  │   Worker    │           │  │
+│  │  │   Container │  │   Container │  │   Container │           │  │
+│  │  │             │  │             │  │             │           │  │
+│  │  │ • Port 80   │  │ • Uvicorn   │  │ • Data      │           │  │
+│  │  │ • Port 443  │  │ • 4 workers │  │   pipelines │           │  │
+│  │  │ • Reverse   │  │ • FastAPI   │  │ • OSM sync  │           │  │
+│  │  │   proxy     │  │ • Port 8000 │  │ • Scheduled │           │  │
+│  │  │             │  │             │  │   jobs      │           │  │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘           │  │
+│  │          │                │                 │                  │  │
+│  │          └────────────────┼─────────────────┘                  │  │
+│  │                           │                                     │  │
+│  │                           ▼                                     │  │
+│  │                  ┌─────────────┐                               │  │
+│  │                  │ PostgreSQL  │                               │  │
+│  │                  │ Container   │                               │  │
+│  │                  │             │                               │  │
+│  │                  │ • Port 5432 │                               │  │
+│  │                  │ • Persistent│                               │  │
+│  │                  │   volume    │                               │  │
+│  │                  └─────────────┘                               │  │
+│  │                                                                 │  │
+│  │  ┌─────────────┐                                               │  │
+│  │  │  Certbot    │  (Auto SSL renewal)                           │  │
+│  │  │  Container  │                                               │  │
+│  │  └─────────────┘                                               │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+│                                                                       │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │                    Systemd Service                             │  │
+│  │                                                                 │  │
+│  │  • Auto-start on boot                                          │  │
+│  │  • Restart on failure                                          │  │
+│  │  • Log management                                              │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────┘
+
+
+Scaling Architecture (Future)
+==============================
+
+                          ┌─────────────────┐
+                          │  Load Balancer  │
+                          │  (AWS ALB /     │
+                          │   CloudFlare)   │
+                          └────────┬────────┘
+                                   │
+                   ┌───────────────┼───────────────┐
+                   │               │               │
+           ┌───────▼──────┐ ┌─────▼──────┐ ┌─────▼──────┐
+           │  API Node 1  │ │ API Node 2 │ │ API Node 3 │
+           │              │ │            │ │            │
+           │  4 workers   │ │ 4 workers  │ │ 4 workers  │
+           └───────┬──────┘ └─────┬──────┘ └─────┬──────┘
+                   │              │              │
+                   └──────────────┼──────────────┘
+                                  │
+                   ┌──────────────▼───────────────┐
+                   │      Redis Cache Cluster     │
+                   │                              │
+                   │  • Shared LRU cache          │
+                   │  • Pub/Sub for invalidation  │
+                   └──────────────┬───────────────┘
+                                  │
+                   ┌──────────────▼───────────────┐
+                   │   PostgreSQL Cluster         │
+                   │                              │
+                   │  ┌──────────┐  ┌──────────┐ │
+                   │  │ Primary  │  │ Replica  │ │
+                   │  │ (Write)  │  │ (Read)   │ │
+                   │  └──────────┘  └──────────┘ │
+                   │                              │
+                   │  ┌──────────┐  ┌──────────┐ │
+                   │  │ Replica  │  │ Replica  │ │
+                   │  │ (Read)   │  │ (Read)   │ │
+                   │  └──────────┘  └──────────┘ │
+                   └──────────────────────────────┘
+
+
+=====================================
+SECURITY ARCHITECTURE
+=====================================
+
+Defense in Depth
+================
+
+┌─────────────────────────────────────────────────────────────────────┐
+│  LAYER 1: Network Security                                           │
+│  • Cloudflare DDoS protection                                        │
+│  • WAF rules (SQL injection, XSS)                                    │
+│  • SSL/TLS encryption (Let's Encrypt)                                │
+│  • Rate limiting at edge                                             │
+└─────────────────────────────────────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  LAYER 2: Application Security                                       │
+│  • Input validation (Pydantic schemas)                               │
+│  • SQL injection prevention (ORM)                                    │
+│  • Rate limiting (per IP, per endpoint)                              │
+│  • Authentication (API keys, JWT)                                    │
+│  • CORS policy enforcement                                           │
+└─────────────────────────────────────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  LAYER 3: Data Security                                              │
+│  • Encrypted connections (TLS)                                       │
+│  • Database access control                                           │
+│  • PII handling (IP address hashing)                                 │
+│  • Audit logs (request tracking)                                     │
+└─────────────────────────────────────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  LAYER 4: Monitoring & Response                                      │
+│  • Error tracking (Sentry)                                           │
+│  • Performance monitoring (APM)                                      │
+│  • Anomaly detection                                                 │
+│  • Automated alerts                                                  │
+└─────────────────────────────────────────────────────────────────────┘
+
+
+=====================================
+MONITORING & OBSERVABILITY
+=====================================
+
+Metrics Collection
+==================
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                         Application Metrics                          │
+│                                                                       │
+│  API Performance:                     Database Performance:          │
+│  • Request rate (req/sec)            • Query time (ms)              │
+│  • Response time (p50, p95, p99)     • Connection pool usage       │
+│  • Error rate (%)                    • Slow query log              │
+│  • Cache hit rate (%)                • Disk I/O                    │
+│                                                                       │
+│  Business Metrics:                    Infrastructure:                │
+│  • Lookups per day                   • CPU usage (%)               │
+│  • Reports per day                   • Memory usage (GB)           │
+│  • Verified addresses                • Disk space (GB)             │
+│  • Active users                      • Network bandwidth           │
+│                                                                       │
+│  All metrics stored in request_metrics table                         │
+│  Future: Export to Prometheus → Visualize in Grafana                │
+└─────────────────────────────────────────────────────────────────────┘
+
+
+=====================================
+KEY DESIGN PRINCIPLES
+=====================================
+
+1. HYBRID INTELLIGENCE
+   ├─ Crowdsourced data for coverage
+   ├─ Official data for accuracy
+   └─ Automated verification for trust
+
+2. PERFORMANCE FIRST
+   ├─ Multi-layer caching (<5ms response)
+   ├─ Database indexing (<50ms queries)
+   └─ Horizontal scaling ready
+
+3. DATA QUALITY
+   ├─ Consensus algorithm (≥3 reports, ≥67% agreement)
+   ├─ Spam prevention (rate limiting, validation)
+   └─ Source attribution (transparency)
+
+4. DEVELOPER FRIENDLY
+   ├─ RESTful API design
+   ├─ Comprehensive documentation
+   └─ Self-service integration
+
+5. PRODUCTION READY
+   ├─ Docker containerization
+   ├─ Automated deployments
+   ├─ Health monitoring
+   └─ 99.9% uptime target
+
+=====================================

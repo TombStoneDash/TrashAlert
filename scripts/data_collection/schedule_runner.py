@@ -33,10 +33,18 @@ from sqlalchemy.orm import Session
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from app.database import SessionLocal, engine
-from app.models import Base, Schedule, ScheduleException, SourceMetadata, Address
+from app.models import Base, Schedule, ScheduleException, SourceMetadata, Address, City, PickupZone
 from scripts.data_collection.schedule_parsers.el_centro_parser import ElCentroParser
 from scripts.data_collection.schedule_parsers.imperial_parser import ImperialParser
 from scripts.data_collection.schedule_parsers.san_diego_parser import SanDiegoParser
+from scripts.data_collection.schedule_parsers.holtville_parser import HoltvilleParser
+from scripts.data_collection.schedule_parsers.brawley_parser import BrawleyParser
+from scripts.data_collection.schedule_parsers.calexico_parser import CalexicoParser
+from scripts.data_collection.schedule_parsers.brawley_parser import BrawleyParser
+from scripts.data_collection.schedule_parsers.calexico_parser import CalexicoParser
+from scripts.data_collection.schedule_parsers.holtville_parser import HoltvilleParser
+from scripts.data_collection.schedule_parsers.chula_vista_parser import ChulaVistaParser
+from scripts.data_collection.schedule_parsers.oceanside_parser import OceansideParser
 from scripts.data_collection.schedule_parsers.base_parser import ParseResult
 
 # Configure logging
@@ -66,6 +74,14 @@ class ScheduleRunner:
             "El Centro": ElCentroParser,
             "Imperial": ImperialParser,
             "San Diego": SanDiegoParser,
+            "Holtville": HoltvilleParser,
+            "Brawley": BrawleyParser,
+            "Calexico": CalexicoParser,
+            "Brawley": BrawleyParser,
+            "Calexico": CalexicoParser,
+            "Holtville": HoltvilleParser,
+            "Chula Vista": ChulaVistaParser,
+            "Oceanside": OceansideParser,
         }
 
     def run_parser(self, city: str) -> ParseResult:
@@ -93,7 +109,7 @@ class ScheduleRunner:
 
     def store_results(self, city: str, result: ParseResult) -> Dict[str, int]:
         """
-        Store parse results in database.
+        Store parse results in database and update Address.official_*_day fields.
 
         Args:
             city: City name
@@ -106,6 +122,8 @@ class ScheduleRunner:
             "source_metadata": 0,
             "schedules": 0,
             "exceptions": 0,
+            "pickup_zones": 0,
+            "addresses_updated": 0,
             "errors": len(result.errors)
         }
 
@@ -116,6 +134,16 @@ class ScheduleRunner:
             return stats
 
         try:
+            # Get city record
+            city_record = self.db.query(City).filter(City.name == city).first()
+            if not city_record:
+                logger.warning(f"City '{city}' not found in database. Creating it...")
+                # Generate slug from city name (lowercase, replace spaces with underscores)
+                slug = city.lower().replace(" ", "_")
+                city_record = City(name=city, slug=slug, state="CA")
+                self.db.add(city_record)
+                self.db.flush()
+
             # Create source metadata record
             source = SourceMetadata(
                 city=city,
@@ -135,28 +163,71 @@ class ScheduleRunner:
             self.db.flush()  # Get source.id
             stats["source_metadata"] = 1
 
-            # Store schedules
-            # Note: For pilot, we're not linking to specific addresses yet
-            # In production, we'd match schedules to addresses from the addresses table
+            # Group schedules by zone to create pickup_zones and schedules
+            zone_schedule_map = {}  # zone -> {trash_day, recycling_day, green_day}
+
             for schedule_data in result.schedules:
+                zone_key = schedule_data.zone or "citywide"
+
+                if zone_key not in zone_schedule_map:
+                    zone_schedule_map[zone_key] = {
+                        "trash_day_of_week": None,
+                        "recycling_day_of_week": None,
+                        "green_day_of_week": None,
+                    }
+
+                # Map collection_type to field name
+                if schedule_data.collection_type == "trash":
+                    zone_schedule_map[zone_key]["trash_day_of_week"] = schedule_data.day_of_week
+                elif schedule_data.collection_type == "recycling":
+                    zone_schedule_map[zone_key]["recycling_day_of_week"] = schedule_data.day_of_week
+                elif schedule_data.collection_type == "green_waste":
+                    zone_schedule_map[zone_key]["green_day_of_week"] = schedule_data.day_of_week
+
+            # Create or update pickup zones and schedules
+            zone_id_map = {}  # zone_key -> pickup_zone.id
+
+            for zone_key, schedule_info in zone_schedule_map.items():
+                # Create or get pickup zone
+                pickup_zone = self.db.query(PickupZone).filter(
+                    PickupZone.city_id == city_record.id,
+                    PickupZone.name == zone_key
+                ).first()
+
+                if not pickup_zone:
+                    pickup_zone = PickupZone(
+                        city_id=city_record.id,
+                        name=zone_key,
+                        external_ref=zone_key,
+                        extra_metadata={"type": "ADMINISTRATIVE"}  # or "GIS" if using GIS boundaries
+                    )
+                    self.db.add(pickup_zone)
+                    self.db.flush()
+                    stats["pickup_zones"] += 1
+
+                zone_id_map[zone_key] = pickup_zone.id
+
+                # Create schedule record for this zone
                 schedule = Schedule(
-                    address_id=None,  # TODO: Link to actual address
-                    day_of_week=schedule_data.day_of_week,
-                    collection_type=schedule_data.collection_type,
-                    zone=schedule_data.zone,
-                    recurrence=schedule_data.recurrence,
-                    source_id=source.id,
-                    confidence=schedule_data.confidence,
-                    effective_date=schedule_data.effective_date
+                    city_id=city_record.id,
+                    pickup_zone_id=pickup_zone.id,
+                    trash_day_of_week=schedule_info["trash_day_of_week"],
+                    recycling_day_of_week=schedule_info["recycling_day_of_week"],
+                    green_day_of_week=schedule_info["green_day_of_week"],
+                    source="OFFICIAL",
+                    extra_metadata={
+                        "source_id": source.id,
+                        "parser_name": result.metadata.get("parser_name", "unknown"),
+                        "effective_date": result.metadata.get("effective_date", "2025-01-01")
+                    }
                 )
                 self.db.add(schedule)
                 stats["schedules"] += 1
 
-            # Store exceptions
-            # Note: Exceptions are linked to schedules, but for pilot we'll store them separately
+            # Store exceptions (linked to city, not specific schedules for now)
             for exception_data in result.exceptions:
                 exception = ScheduleException(
-                    schedule_id=None,  # TODO: Link to specific schedule
+                    schedule_id=None,  # Could link to specific schedule if needed
                     exception_date=exception_data.exception_date,
                     rescheduled_date=exception_data.rescheduled_date,
                     is_cancelled=exception_data.is_cancelled,
@@ -166,12 +237,56 @@ class ScheduleRunner:
                 self.db.add(exception)
                 stats["exceptions"] += 1
 
+            self.db.flush()
+
+            # NOW THE CRITICAL PART: Update Address.official_*_day fields
+            # This makes the schedules visible to the /lookup endpoint
+            logger.info(f"Updating addresses with official schedules for {city}...")
+
+            # Get the parser instance to use its zone matching logic
+            parser_class = self.parsers.get(city)
+            if parser_class:
+                parser = parser_class()
+
+                # Get all addresses for this city
+                addresses = self.db.query(Address).filter(
+                    Address.city_name == city
+                ).all()
+
+                logger.info(f"Found {len(addresses)} addresses in {city}")
+
+                for addr in addresses:
+                    # Use parser's zone matching logic
+                    zone = None
+                    if hasattr(parser, 'match_address_to_zone'):
+                        zone = parser.match_address_to_zone(addr.normalized_address)
+                    elif hasattr(parser, 'match_address_to_neighborhood'):
+                        zone = parser.match_address_to_neighborhood(addr.normalized_address)
+                    else:
+                        # For citywide schedules (like Imperial), use "citywide"
+                        zone = "citywide"
+
+                    # Get schedule for this zone
+                    if zone in zone_schedule_map:
+                        schedule_info = zone_schedule_map[zone]
+
+                        # Update Address record with official schedule
+                        addr.official_trash_day = schedule_info["trash_day_of_week"]
+                        addr.official_recycling_day = schedule_info["recycling_day_of_week"]
+                        addr.official_green_day = schedule_info["green_day_of_week"]
+
+                        stats["addresses_updated"] += 1
+
+                logger.info(f"✓ Updated {stats['addresses_updated']} addresses with official schedules")
+
             self.db.commit()
             logger.info(f"✓ Stored {stats['schedules']} schedules and {stats['exceptions']} exceptions")
 
         except Exception as e:
             self.db.rollback()
             logger.error(f"Failed to store results: {e}")
+            import traceback
+            traceback.print_exc()
             stats["errors"] += 1
 
         return stats
@@ -245,6 +360,9 @@ class ScheduleRunner:
                 print(f"  ✓ Success")
                 print(f"  - Schedules: {result.get('schedules', 0)}")
                 print(f"  - Exceptions: {result.get('exceptions', 0)}")
+                if result.get('stats'):
+                    print(f"  - Pickup Zones: {result['stats'].get('pickup_zones', 0)}")
+                    print(f"  - Addresses Updated: {result['stats'].get('addresses_updated', 0)}")
                 total_schedules += result.get('schedules', 0)
                 total_exceptions += result.get('exceptions', 0)
                 successful_cities += 1
