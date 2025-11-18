@@ -10,12 +10,12 @@ import logging
 import time
 
 from app.database import get_db, engine, Base
-from app.models import Address, CrowdReport, CrowdConsensus
+from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics, User, Badge
 from app.schemas import (
     ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ConsensusDetails,
-    InterpretAddressRequest, InterpretAddressResponse
+    InterpretAddressRequest, InterpretAddressResponse,
+    LeaderboardResponse, UserStatsResponse
 )
-from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics
 from app.utils import (
     normalize_address,
     find_or_create_address,
@@ -31,6 +31,7 @@ from app.utils import (
 from app.ai_service import create_ai_interpreter
 from app.rate_limiter import rate_limiter
 from app.cache import lookup_cache
+from app.gamification import GamificationService
 
 # Configure structured logging
 logging.basicConfig(
@@ -247,7 +248,15 @@ async def root() -> Dict[str, Any]:
         "status": "healthy",
         "service": "TrashAlert API",
         "version": "1.0.0",
-        "endpoints": ["/lookup", "/report", "/interpret-address", "/stats"]
+        "endpoints": [
+            "/lookup",
+            "/report",
+            "/interpret-address",
+            "/stats",
+            "/leaderboard",
+            "/badges",
+            "/users/{user_id}/stats"
+        ]
     }
 
 
@@ -875,4 +884,121 @@ async def get_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
         ]
     }
 
-    return stats
+
+# ============================================================================
+# GAMIFICATION ENDPOINTS
+# ============================================================================
+
+
+@app.get("/leaderboard", response_model=LeaderboardResponse)
+async def get_leaderboard(
+    limit: int = 100,
+    offset: int = 0,
+    user_id: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Get the leaderboard showing top users by points.
+
+    Args:
+        limit: Maximum number of entries to return (default: 100)
+        offset: Offset for pagination (default: 0)
+        user_id: Optional user ID to include current user's rank
+        db: Database session
+
+    Returns:
+        LeaderboardResponse with ranked users
+    """
+    try:
+        leaderboard, total_users = GamificationService.get_leaderboard(
+            db=db,
+            limit=limit,
+            offset=offset
+        )
+
+        current_user_rank = None
+        if user_id:
+            current_user_rank = GamificationService.get_user_rank(db, user_id)
+
+        return LeaderboardResponse(
+            leaderboard=leaderboard,
+            total_users=total_users,
+            current_user_rank=current_user_rank
+        )
+    except Exception as e:
+        error_logger.error(f"Leaderboard error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get("/users/{user_id}/stats", response_model=UserStatsResponse)
+async def get_user_stats(
+    user_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get detailed statistics for a specific user.
+
+    Args:
+        user_id: User ID
+        db: Database session
+
+    Returns:
+        UserStatsResponse with user stats and badges
+    """
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        badges = GamificationService.get_user_badges(db, user_id)
+        recent_points = GamificationService.get_recent_point_history(db, user_id)
+        rank = GamificationService.get_user_rank(db, user_id)
+
+        return UserStatsResponse(
+            user_id=user.id,
+            username=user.username,
+            email=user.email,
+            total_points=user.total_points or 0,
+            total_reports=user.total_reports or 0,
+            verified_reports=user.verified_reports or 0,
+            is_verified_reporter=user.is_verified_reporter or False,
+            badges=badges,
+            recent_points=recent_points,
+            rank=rank
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_logger.error(f"User stats error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get("/badges")
+async def get_all_badges(db: Session = Depends(get_db)):
+    """
+    Get all available badges.
+
+    Returns:
+        List of all badge definitions
+    """
+    try:
+        badges = db.query(Badge).all()
+        return {
+            "badges": [
+                {
+                    "id": badge.id,
+                    "slug": badge.slug,
+                    "name": badge.name,
+                    "description": badge.description,
+                    "icon": badge.icon,
+                    "color": badge.color,
+                    "tier": badge.tier,
+                    "requirement_type": badge.requirement_type,
+                    "requirement_value": badge.requirement_value
+                }
+                for badge in badges
+            ]
+        }
+    except Exception as e:
+        error_logger.error(f"Get badges error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")

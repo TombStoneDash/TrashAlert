@@ -188,4 +188,22 @@ export const statsAPI = {
   },
 };
 
+// Gamification endpoints
+export const gamificationAPI = {
+  getLeaderboard: async (limit = 100, offset = 0, userId = null) => {
+    const params = { limit, offset };
+    if (userId) params.user_id = userId;
+    const response = await api.get('/leaderboard', { params });
+    return response.data;
+  },
+  getUserStats: async (userId) => {
+    const response = await api.get(`/users/${userId}/stats`);
+    return response.data;
+  },
+  getBadges: async () => {
+    const response = await api.get('/badges');
+    return response.data;
+  },
+};
+
 export default api;

@@ -11,6 +11,9 @@ sqlalchemy==2.0.25
 alembic==1.13.1
 psycopg2-binary==2.9.9  # PostgreSQL adapter
 
+# Authentication
+passlib[bcrypt]>=1.7.4
+
 # Data processing
 pandas>=2.0.0
 geopandas>=0.14.0
