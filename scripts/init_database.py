@@ -85,6 +85,91 @@ def init_database(db_path: Path) -> None:
             )
         """)
 
+        # Create pickup_zones table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS pickup_zones (
+                zone_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                city_id INTEGER NOT NULL,
+                zone_name TEXT NOT NULL,
+                zone_identifier TEXT,
+                geometry_reference TEXT,
+                metadata TEXT,
+                source TEXT DEFAULT 'CITY_GIS',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (city_id) REFERENCES cities(city_id),
+                UNIQUE(city_id, zone_identifier)
+            )
+        """)
+
+        # Create schedules table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS schedules (
+                schedule_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                city_id INTEGER NOT NULL,
+                pickup_zone_id INTEGER,
+                trash_day_of_week TEXT,
+                recycling_day_of_week TEXT,
+                green_waste_day_of_week TEXT,
+                bulk_pickup_schedule TEXT,
+                source TEXT DEFAULT 'CITY_GIS',
+                effective_date DATE,
+                expiration_date DATE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (city_id) REFERENCES cities(city_id),
+                FOREIGN KEY (pickup_zone_id) REFERENCES pickup_zones(zone_id)
+            )
+        """)
+
+        # Create schedule_exceptions table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS schedule_exceptions (
+                exception_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                city_id INTEGER NOT NULL,
+                holiday_name TEXT NOT NULL,
+                exception_date DATE NOT NULL,
+                rule_description TEXT,
+                affected_service_types TEXT,
+                makeup_date DATE,
+                source TEXT DEFAULT 'CITY_GIS',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (city_id) REFERENCES cities(city_id),
+                UNIQUE(city_id, exception_date, holiday_name)
+            )
+        """)
+
+        # Create crowd_reports table for crowdsourced data
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS crowd_reports (
+                report_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                address_id INTEGER NOT NULL,
+                reported_trash_day TEXT,
+                reported_recycling_day TEXT,
+                reported_green_day TEXT,
+                reported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                report_source TEXT DEFAULT 'USER',
+                user_hash TEXT,
+                FOREIGN KEY (address_id) REFERENCES addresses(address_id)
+            )
+        """)
+
+        # Create crowd_consensus table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS crowd_consensus (
+                consensus_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                address_id INTEGER NOT NULL,
+                trash_day TEXT,
+                recycling_day TEXT,
+                green_day TEXT,
+                reports_count INTEGER DEFAULT 0,
+                agreement_ratio REAL,
+                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (address_id) REFERENCES addresses(address_id),
+                UNIQUE(address_id)
+            )
+        """)
+
         # Create indexes for better query performance
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_addresses_city
@@ -106,6 +191,41 @@ def init_database(db_path: Path) -> None:
             ON address_pickup_info(city_id)
         """)
 
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_pickup_zones_city
+            ON pickup_zones(city_id)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_schedules_city
+            ON schedules(city_id)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_schedules_zone
+            ON schedules(pickup_zone_id)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_exceptions_city
+            ON schedule_exceptions(city_id)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_exceptions_date
+            ON schedule_exceptions(exception_date)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_crowd_reports_address
+            ON crowd_reports(address_id)
+        """)
+
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_crowd_consensus_address
+            ON crowd_consensus(address_id)
+        """)
+
         conn.commit()
         logger.info("Database schema created successfully")
 
@@ -124,18 +244,53 @@ def init_database(db_path: Path) -> None:
         raise
     finally:
         conn.close()
-Initialize the TrashAlert database with sample data.
-Creates tables and loads address data with mock pickup schedules.
-"""
 
-import sqlite3
+
+def seed_pilot_cities(conn: sqlite3.Connection):
+    """
+    Seed the cities table with the 6 pilot cities.
+    """
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+
+    try:
+        from config.cities_config import get_pilot_cities
+        pilot_cities = get_pilot_cities()
+    except ImportError:
+        # Fallback if config module not available
+        pilot_cities = [
+            {'name': 'San Diego', 'state_abbr': 'CA'},
+            {'name': 'El Centro', 'state_abbr': 'CA'},
+            {'name': 'Imperial', 'state_abbr': 'CA'},
+            {'name': 'Brawley', 'state_abbr': 'CA'},
+            {'name': 'Holtville', 'state_abbr': 'CA'},
+            {'name': 'Calexico', 'state_abbr': 'CA'},
+        ]
+
+    cursor = conn.cursor()
+
+    for city in pilot_cities:
+        try:
+            cursor.execute("""
+                INSERT INTO cities (city_name, state)
+                VALUES (?, ?)
+            """, (city['name'], city.get('state_abbr', city.get('state', 'CA'))))
+            logger.info(f"  Seeded city: {city['name']}, {city.get('state_abbr', 'CA')}")
+        except sqlite3.IntegrityError:
+            # City already exists
+            pass
+
+    conn.commit()
+
+
+"""
+Extended functionality for loading address data with mock pickup schedules.
+"""
+# Initialize the TrashAlert database with sample data.
+# Creates tables and loads address data with mock pickup schedules.
+
 import pandas as pd
 import random
-from pathlib import Path
-import logging
-
-logging.basicConfig(level=logging.INFO, format='%(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
 
 # Set seed for reproducible mock data
 random.seed(42)
@@ -347,8 +502,8 @@ def main():
     base_dir = Path(__file__).parent.parent
     db_path = base_dir / 'data' / 'trashalert.db'
 
-    init_database(db_path)
-    logger.info(f"✓ Database initialized at {db_path}")
+    # init_database(db_path)  # Disabled - conflicts with create_tables below
+    # logger.info(f"✓ Database initialized at {db_path}")
     csv_path = base_dir / 'data' / 'addresses_sampled_50_per_city.csv'
 
     # Check if CSV exists
@@ -369,6 +524,10 @@ def main():
     try:
         # Create schema
         create_tables(conn)
+
+        # Seed pilot cities
+        logger.info("Seeding pilot cities...")
+        seed_pilot_cities(conn)
 
         # Load data
         load_address_data(conn, csv_path)

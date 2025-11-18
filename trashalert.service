@@ -1,0 +1,50 @@
+# TrashAlert API Systemd Service
+# This service manages the Docker Compose stack for TrashAlert
+#
+# Installation:
+#   sudo cp trashalert.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable trashalert.service
+#   sudo systemctl start trashalert.service
+#
+# Usage:
+#   sudo systemctl status trashalert
+#   sudo systemctl restart trashalert
+#   sudo systemctl stop trashalert
+
+[Unit]
+Description=TrashAlert API Docker Compose Stack
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/trashalert
+EnvironmentFile=/opt/trashalert/.env.production
+
+# Start command
+ExecStart=/usr/bin/docker compose up -d --remove-orphans
+
+# Stop command
+ExecStop=/usr/bin/docker compose down
+
+# Reload command (recreate containers if needed)
+ExecReload=/usr/bin/docker compose up -d --force-recreate
+
+# Restart policy
+Restart=on-failure
+RestartSec=10s
+
+# Security settings
+User=root
+Group=docker
+
+# Standard output and error logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=trashalert
+
+[Install]
+WantedBy=multi-user.target

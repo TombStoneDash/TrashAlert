@@ -1,0 +1,41 @@
+{
+  "type": "Feature",
+  "properties": {
+    "name": "Fresno",
+    "state": "California",
+    "note": "Mock boundary for testing - replace with actual OSM data when available"
+  },
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          -120.0,
+          36.6
+        ],
+        [
+          -119.6,
+          36.6
+        ],
+        [
+          -119.6,
+          36.9
+        ],
+        [
+          -120.0,
+          36.9
+        ],
+        [
+          -120.0,
+          36.6
+        ]
+      ]
+    ]
+  },
+  "bbox": [
+    -120.0,
+    36.6,
+    -119.6,
+    36.9
+  ]
+}

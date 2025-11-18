@@ -1,0 +1,41 @@
+{
+  "type": "Feature",
+  "properties": {
+    "name": "Riverside",
+    "state": "California",
+    "note": "Mock boundary for testing - replace with actual OSM data when available"
+  },
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          -117.5,
+          33.85
+        ],
+        [
+          -117.3,
+          33.85
+        ],
+        [
+          -117.3,
+          34.05
+        ],
+        [
+          -117.5,
+          34.05
+        ],
+        [
+          -117.5,
+          33.85
+        ]
+      ]
+    ]
+  },
+  "bbox": [
+    -117.5,
+    33.85,
+    -117.3,
+    34.05
+  ]
+}

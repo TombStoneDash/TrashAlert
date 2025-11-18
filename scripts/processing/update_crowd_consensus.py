@@ -69,9 +69,9 @@ def update_consensus(db_path: Path, verbose: bool = True):
     cursor.execute("""
         SELECT
             address_id,
-            reported_trash_day,
-            reported_recycling_day,
-            reported_green_day
+            trash_day,
+            recycling_day,
+            green_day
         FROM crowd_reports
         ORDER BY address_id
     """)
@@ -121,22 +121,30 @@ def update_consensus(db_path: Path, verbose: bool = True):
         # Upsert into crowd_consensus
         cursor.execute("""
             INSERT INTO crowd_consensus
-                (address_id, trash_day, recycling_day, green_day, reports_count, agreement_ratio, last_updated)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+                (address_id, consensus_trash_day, consensus_recycling_day, consensus_green_day,
+                 total_reports, trash_agreement_ratio, recycling_agreement_ratio, green_agreement_ratio,
+                 is_verified, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(address_id) DO UPDATE SET
-                trash_day = excluded.trash_day,
-                recycling_day = excluded.recycling_day,
-                green_day = excluded.green_day,
-                reports_count = excluded.reports_count,
-                agreement_ratio = excluded.agreement_ratio,
-                last_updated = excluded.last_updated
+                consensus_trash_day = excluded.consensus_trash_day,
+                consensus_recycling_day = excluded.consensus_recycling_day,
+                consensus_green_day = excluded.consensus_green_day,
+                total_reports = excluded.total_reports,
+                trash_agreement_ratio = excluded.trash_agreement_ratio,
+                recycling_agreement_ratio = excluded.recycling_agreement_ratio,
+                green_agreement_ratio = excluded.green_agreement_ratio,
+                is_verified = excluded.is_verified,
+                updated_at = excluded.updated_at
         """, (
             address_id,
             trash_consensus,
             recycling_consensus,
             green_consensus,
             total_reports,
-            agreement_ratio,
+            trash_agreement,
+            recycling_agreement,
+            green_agreement,
+            is_verified,
             datetime.now().isoformat()
         ))
 
