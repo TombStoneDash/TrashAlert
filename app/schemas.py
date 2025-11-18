@@ -130,3 +130,52 @@ class LookupResponse(BaseModel):
     consensus_details: Optional[ConsensusDetails] = Field(
         None, description="Detailed consensus metrics if data is crowdsourced"
     )
+
+
+class InterpretAddressRequest(BaseModel):
+    """Request schema for POST /interpret-address endpoint."""
+    text: str = Field(
+        ...,
+        min_length=3,
+        max_length=1000,
+        description="Freeform text containing an address to interpret"
+    )
+    use_geocoding: bool = Field(
+        default=True,
+        description="Whether to use geocoding fallback if AI interpretation has low confidence"
+    )
+
+    @field_validator('text')
+    @classmethod
+    def validate_text_not_empty(cls, v: str) -> str:
+        """Ensure text is not just whitespace."""
+        if not v or not v.strip():
+            raise ValueError("Text cannot be empty or whitespace only")
+        return v.strip()
+
+
+class InterpretAddressResponse(BaseModel):
+    """Response schema for POST /interpret-address endpoint."""
+    success: bool = Field(..., description="Whether interpretation was successful")
+    normalized_address: str = Field(..., description="Normalized address string")
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score (0.0 to 1.0)")
+
+    # Address components
+    city: Optional[str] = Field(None, description="Extracted city name")
+    city_id: Optional[str] = Field(None, description="Matched city ID from config")
+    state: Optional[str] = Field(None, description="State abbreviation")
+    zip_code: Optional[str] = Field(None, description="ZIP code")
+
+    # Coordinates (from geocoding fallback)
+    lat: Optional[float] = Field(None, description="Latitude (from geocoding)")
+    lon: Optional[float] = Field(None, description="Longitude (from geocoding)")
+
+    # Interpretation details
+    interpretation_method: Literal["ai", "geocoding", "hybrid"] = Field(
+        ..., description="Method used for interpretation"
+    )
+    ai_reasoning: Optional[str] = Field(None, description="AI's explanation of interpretation")
+    geocoding_quality: Optional[str] = Field(None, description="Geocoding match quality if used")
+
+    # Error information
+    error: Optional[str] = Field(None, description="Error message if interpretation failed")
