@@ -14,6 +14,8 @@ services:
     volumes:
       # Mount SQLite database directory as persistent volume
       - ./data:/app/data:rw
+      # Mount logs directory
+      - ./logs:/app/logs:rw
     networks:
       - trashalert-network
     healthcheck:
@@ -25,6 +27,28 @@ services:
     # Don't expose port directly - only through nginx
     expose:
       - "8000"
+
+  # Worker Service for Scheduled Pipeline Tasks
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: trashalert-worker
+    restart: unless-stopped
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      # Share same database and logs with API
+      - ./data:/app/data:rw
+      - ./logs:/app/logs:rw
+    networks:
+      - trashalert-network
+    # Override CMD to run worker instead of API
+    # Worker sleeps and can be used for cron jobs or manual pipeline runs
+    command: ["tail", "-f", "/dev/null"]
+    depends_on:
+      - api
 
   # Nginx Reverse Proxy
   nginx:

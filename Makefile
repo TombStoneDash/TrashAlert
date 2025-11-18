@@ -1,14 +1,22 @@
-.PHONY: test test-verbose test-coverage install clean help
+.PHONY: test test-verbose test-coverage install clean help docker-up docker-down docker-logs docker-ps docker-rebuild
 
 # Default target
 help:
 	@echo "TrashAlert - Available make commands:"
 	@echo ""
+	@echo "Development:"
 	@echo "  make install        Install dependencies"
 	@echo "  make test          Run all tests"
 	@echo "  make test-verbose  Run tests with verbose output"
 	@echo "  make test-coverage Run tests with coverage report"
 	@echo "  make clean         Clean up temporary files"
+	@echo ""
+	@echo "Docker Deployment:"
+	@echo "  make docker-up      Build and start all containers"
+	@echo "  make docker-down    Stop and remove all containers"
+	@echo "  make docker-logs    View logs from all containers"
+	@echo "  make docker-ps      Show status of all containers"
+	@echo "  make docker-rebuild Rebuild containers from scratch"
 	@echo ""
 
 # Install dependencies
@@ -37,3 +45,31 @@ clean:
 	rm -rf htmlcov
 	rm -rf .coverage
 	rm -f trashalert.db
+
+# Docker commands
+docker-up:
+	@echo "Building and starting TrashAlert containers..."
+	docker-compose up --build -d
+	@echo ""
+	@echo "TrashAlert is starting up!"
+	@echo "API will be available at: http://localhost (via nginx)"
+	@echo "Use 'make docker-logs' to view logs"
+	@echo "Use 'make docker-ps' to check container status"
+
+docker-down:
+	@echo "Stopping and removing TrashAlert containers..."
+	docker-compose down
+	@echo "TrashAlert containers stopped."
+
+docker-logs:
+	docker-compose logs -f
+
+docker-ps:
+	docker-compose ps
+
+docker-rebuild:
+	@echo "Rebuilding TrashAlert containers from scratch..."
+	docker-compose down
+	docker-compose build --no-cache
+	docker-compose up -d
+	@echo "TrashAlert containers rebuilt and started."
