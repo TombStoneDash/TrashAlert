@@ -11,6 +11,9 @@ sqlalchemy==2.0.25
 alembic==1.13.1
 psycopg2-binary==2.9.9  # PostgreSQL adapter
 
+# Caching
+redis>=5.0.0
+
 # Data processing
 pandas>=2.0.0
 geopandas>=0.14.0
