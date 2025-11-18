@@ -1,4 +1,5 @@
 """Database models for TrashAlert."""
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Text, JSON
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Index
 from sqlalchemy.sql import func
 from app.database import Base
@@ -81,6 +82,80 @@ class CrowdConsensus(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
+
+class Schedule(Base):
+    """Official trash collection schedules extracted from city sources."""
+    __tablename__ = "schedules"
+
+    id = Column(Integer, primary_key=True, index=True)
+    address_id = Column(Integer, ForeignKey("addresses.id"), nullable=True, index=True)  # Nullable for pilot
+
+    # Schedule information
+    day_of_week = Column(String, nullable=False)  # MON, TUE, WED, THU, FRI, SAT, SUN
+    collection_type = Column(String, nullable=False)  # trash, recycling, green_waste
+    zone = Column(String)  # Pickup zone identifier (if city uses zones)
+    recurrence = Column(String, default="weekly")  # weekly, biweekly, monthly
+
+    # Metadata
+    source_id = Column(Integer, ForeignKey("source_metadata.id"))
+    confidence = Column(Float, default=1.0)  # 0.0 - 1.0
+
+    # Timestamps
+    effective_date = Column(DateTime(timezone=True))  # When this schedule becomes effective
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class ScheduleException(Base):
+    """Holiday exceptions and special pickup date changes."""
+    __tablename__ = "schedule_exceptions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    schedule_id = Column(Integer, ForeignKey("schedules.id"), nullable=True, index=True)  # Nullable for pilot
+
+    # Exception details
+    exception_date = Column(DateTime(timezone=True), nullable=False, index=True)  # The holiday/exception date
+    rescheduled_date = Column(DateTime(timezone=True))  # New pickup date (if rescheduled)
+    is_cancelled = Column(Boolean, default=False)  # True if pickup is cancelled, not rescheduled
+
+    # Description
+    reason = Column(String)  # e.g., "Christmas", "Thanksgiving", "City Holiday"
+    notes = Column(Text)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class SourceMetadata(Base):
+    """Metadata about schedule data sources (PDFs, websites, etc.)."""
+    __tablename__ = "source_metadata"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Source identification
+    city = Column(String, nullable=False, index=True)
+    source_type = Column(String, nullable=False)  # pdf, html, api, manual
+    source_url = Column(String)  # URL where data was obtained
+    source_name = Column(String)  # Descriptive name (e.g., "2024 Trash Calendar PDF")
+
+    # Parsing information
+    parser_version = Column(String)  # Version of parser used
+    parser_name = Column(String)  # Name of parser module
+
+    # Data quality
+    total_records_extracted = Column(Integer, default=0)
+    successful_records = Column(Integer, default=0)
+    failed_records = Column(Integer, default=0)
+
+    # Additional metadata
+    extra_data = Column(JSON)  # Flexible JSON field for parser-specific data
+
+    # Timestamps
+    last_fetched_at = Column(DateTime(timezone=True))
+    last_parsed_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     # Composite indexes for common query patterns
     __table_args__ = (
         Index('idx_address_verified', 'address_id', 'is_verified'),
