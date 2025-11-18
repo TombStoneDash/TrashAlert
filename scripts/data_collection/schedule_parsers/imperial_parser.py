@@ -4,6 +4,7 @@ Imperial trash schedule parser.
 Extracts trash collection schedules for Imperial, CA.
 Data source: HTML table from city website
 """
+import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
 from typing import Any, List
@@ -37,14 +38,42 @@ class ImperialParser(BaseScheduleParser):
         """
         Fetch schedule data from Imperial website.
 
-        For pilot version, return simulated HTML table data.
-        In production, this would make an actual HTTP request.
+        Attempts to fetch real data from city website, falls back to simulated data if unavailable.
         """
         logger.info(f"Fetching data from {self.source_url}")
 
-        # Simulated HTML table from city website
-        # In production: response = requests.get(self.source_url)
-        html_content = """
+        # Try to fetch real data
+        html_content = None
+        try:
+            response = requests.get(self.source_url, timeout=10, headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            })
+            if response.status_code == 200:
+                html_content = response.text
+                logger.info("Successfully fetched live data from Imperial source")
+            else:
+                logger.warning(f"Failed to fetch live data (status {response.status_code}), using fallback")
+                html_content = self._get_fallback_html()
+        except Exception as e:
+            logger.warning(f"Error fetching live data: {e}, using fallback")
+            html_content = self._get_fallback_html()
+
+        return {
+            "html": html_content,
+            "citywide_schedule": True,
+            "holidays": [
+                {"date": "2025-11-27", "name": "Thanksgiving", "rescheduled": "2025-11-28"},
+                {"date": "2025-12-25", "name": "Christmas", "rescheduled": "2025-12-26"},
+                {"date": "2026-01-01", "name": "New Year's Day", "rescheduled": "2026-01-02"},
+                {"date": "2025-07-04", "name": "Independence Day", "rescheduled": "2025-07-05"},
+            ]
+        }
+
+    def _get_fallback_html(self) -> str:
+        """
+        Return fallback HTML content when live scraping fails.
+        """
+        return """
         <table class="schedule-table">
             <thead>
                 <tr>
@@ -72,15 +101,6 @@ class ImperialParser(BaseScheduleParser):
             </tbody>
         </table>
         """
-
-        return {
-            "html": html_content,
-            "citywide_schedule": True,
-            "holidays": [
-                {"date": "2025-11-27", "name": "Thanksgiving", "rescheduled": "2025-11-28"},
-                {"date": "2025-12-25", "name": "Christmas", "rescheduled": "2025-12-26"},
-            ]
-        }
 
     def parse_raw_data(self, raw_data: Any) -> ParseResult:
         """
