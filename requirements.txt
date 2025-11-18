@@ -8,6 +8,8 @@ python-multipart==0.0.6
 
 # Database
 sqlalchemy==2.0.25
+alembic==1.13.1
+psycopg2-binary==2.9.9  # PostgreSQL adapter
 
 # Data processing
 pandas>=2.0.0
@@ -31,6 +33,15 @@ Pillow>=10.0.0
 # Web scraping
 beautifulsoup4>=4.12.0
 lxml>=5.0.0
+
+# Authentication and security
+PyJWT>=2.8.0
+passlib[bcrypt]>=1.7.4
+python-jose[cryptography]>=3.3.0
+email-validator>=2.1.0
+# AI/LLM libraries
+anthropic>=0.39.0
+openai>=1.54.0
 
 # Testing dependencies
 pytest>=7.4.0
