@@ -3,17 +3,26 @@ from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, Dict, List, Tuple, Any
 from datetime import datetime, timedelta
 from collections import defaultdict
 import logging
 import time
 
 from app.database import get_db, engine, Base
-from app.models import Address, CrowdReport, CrowdConsensus
+from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics, ApiKey
+from app.schemas import (
+    ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ConsensusDetails,
+    MobileLookupRequest, MobileLookupResponse, MobileReportRequest, MobileReportResponse
+)
+from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics, User
 from app.schemas import ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ConsensusDetails
+from app.models import Address, CrowdReport, CrowdConsensus
+from app.schemas import (
+    ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ConsensusDetails,
+    InterpretAddressRequest, InterpretAddressResponse
+)
 from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics
-from app.schemas import ReportRequest, ReportResponse, LookupResponse, ConsensusInfo
 from app.utils import (
     normalize_address,
     find_or_create_address,
@@ -22,10 +31,15 @@ from app.utils import (
     validate_day,
     day_abbrev_to_full,
     get_city_id_from_name,
-    get_city_name_from_id
+    get_city_name_from_id,
+    geocode_address,
+    get_supported_cities
 )
+from app.ai_service import create_ai_interpreter
 from app.rate_limiter import rate_limiter
 from app.cache import lookup_cache
+from app.api_key_auth import require_api_key, record_api_key_usage
+from app.mobile_rate_limiter import mobile_rate_limiter
 
 # Configure structured logging
 logging.basicConfig(
@@ -42,6 +56,8 @@ from app.middleware import (
 from app.metrics import MetricsManager
 from app.logging_config import app_logger, error_logger
 from app.admin_routes import router as admin_router
+from app.auth import get_optional_current_user, require_authenticated
+from app.routers import auth, admin
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -49,9 +65,13 @@ Base.metadata.create_all(bind=engine)
 # Initialize FastAPI
 app = FastAPI(
     title="TrashAlert API",
-    description="API for trash pickup schedules with crowdsourced data",
-    version="1.0.0"
+    description="API for trash pickup schedules with crowdsourced data and RBAC",
+    version="2.0.0"
 )
+
+# Include routers
+app.include_router(auth.router)
+app.include_router(admin.router)
 
 # Simple in-memory rate limiter
 # In production, use Redis or similar distributed cache
@@ -252,29 +272,33 @@ async def rate_limit_and_logging_middleware(request: Request, call_next):
 
 
 @app.get("/")
-async def root():
+async def root() -> Dict[str, Any]:
     """Health check endpoint."""
     return {
         "status": "healthy",
         "service": "TrashAlert API",
         "version": "1.0.0",
-        "endpoints": ["/lookup", "/report", "/stats"]
+        "endpoints": ["/lookup", "/report", "/interpret-address", "/stats"]
     }
 
 
-@app.post("/report", response_model=ReportResponse)
+@app.post("/report", response_model=ReportResponse, dependencies=[Depends(require_authenticated)])
 async def submit_report(
     report: ReportRequest,
     request: Request,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_optional_current_user)
 ):
     """
     Submit a crowdsourced report for trash pickup schedule.
 
+    **Authentication Required:** This endpoint requires authentication with any role
+    (user, reporter, city_partner, admin).
+
     This endpoint:
     1. Normalizes the provided address
     2. Finds or creates an address record
-    3. Stores the report in crowd_reports table
+    3. Stores the report in crowd_reports table (linked to authenticated user)
     4. Updates consensus calculations
     5. Returns the updated consensus
 
@@ -282,6 +306,7 @@ async def submit_report(
         report: Report data including address and pickup days
         request: FastAPI request (for IP tracking and metrics)
         db: Database session
+        current_user: Current authenticated user (optional for backward compatibility)
 
     Returns:
         Report response with consensus information
@@ -312,13 +337,14 @@ async def submit_report(
             f"City: {city} - Trash: {trash_day}, Recycling: {recycling_day}, Green: {green_day}"
         )
 
-        # Create crowd report
+        # Create crowd report (link to authenticated user if available)
         new_report = CrowdReport(
             address_id=address.id,
             trash_day=trash_day,
             recycling_day=recycling_day,
             green_day=green_day,
-            user_hash=report.user_hash,
+            user_hash=report.user_hash,  # Keep for backward compatibility
+            user_id=current_user.id if current_user else None,  # Link to authenticated user
             ip_address=request.client.host if request.client else None
         )
         db.add(new_report)
@@ -630,12 +656,227 @@ async def lookup_address(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@app.get("/stats")
-async def get_stats(db: Session = Depends(get_db)):
-    """Get statistics about the database."""
-    from sqlalchemy import func, distinct
+@app.post("/interpret-address", response_model=InterpretAddressResponse)
+async def interpret_address(
+    request_data: InterpretAddressRequest,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Interpret and normalize a freeform address using AI with geocoding fallback.
 
+    This endpoint:
+    1. Uses AI (OpenAI or Anthropic) to parse and normalize freeform text
+    2. Extracts address components and infers likely city from config
+    3. Optionally uses Nominatim geocoding as fallback for low-confidence results
+    4. Returns normalized address, coordinates, and confidence score
+
+    Args:
+        request_data: Request with freeform text to interpret
+        request: FastAPI request object
+        db: Database session
+
+    Returns:
+        InterpretAddressResponse with normalized address and metadata
+    """
+    start_time = time.time()
+    city_name = None
+    status_code = 200
+    error_msg = None
+
+    try:
+        text = request_data.text
+        use_geocoding = request_data.use_geocoding
+
+        app_logger.info(f"Interpreting address from text: {text[:100]}")
+
+        # Step 1: Get supported cities for better AI matching
+        supported_cities = get_supported_cities()
+
+        # Step 2: Try AI interpretation first
+        ai_interpreter = create_ai_interpreter(cities_list=supported_cities)
+        ai_result = await ai_interpreter.interpret(text)
+
+        interpretation_method = "ai"
+        normalized_address = ""
+        confidence = 0.0
+        city = None
+        city_id = None
+        state = None
+        zip_code = None
+        lat = None
+        lon = None
+        ai_reasoning = None
+        geocoding_quality = None
+
+        if ai_result and ai_result.confidence > 0.0:
+            # AI interpretation succeeded
+            normalized_address = ai_result.normalized_address
+            confidence = ai_result.confidence
+            city = ai_result.city
+            state = ai_result.state
+            zip_code = ai_result.zip_code
+            ai_reasoning = ai_result.reasoning
+
+            # Match city to city_id from config
+            if city:
+                city_id = get_city_id_from_name(city)
+
+            app_logger.info(
+                f"AI interpretation: {normalized_address} "
+                f"(confidence={confidence}, city={city})"
+            )
+
+            # Step 3: If confidence is low and geocoding is enabled, try geocoding fallback
+            if use_geocoding and confidence < 0.7:
+                app_logger.info("Low confidence, attempting geocoding fallback")
+                geocode_result = geocode_address(normalized_address)
+
+                if geocode_result:
+                    interpretation_method = "hybrid"
+                    lat = geocode_result['lat']
+                    lon = geocode_result['lon']
+                    geocoding_quality = geocode_result['quality']
+
+                    # Update address components from geocoding if better
+                    components = geocode_result['address_components']
+                    if not city and components.get('city'):
+                        city = components['city']
+                        city_id = get_city_id_from_name(city)
+                    if not state and components.get('state'):
+                        state = components['state']
+                    if not zip_code and components.get('postcode'):
+                        zip_code = components['postcode']
+
+                    # Boost confidence if geocoding quality is high
+                    if geocoding_quality == 'high':
+                        confidence = max(confidence, 0.8)
+                    elif geocoding_quality == 'medium':
+                        confidence = max(confidence, 0.6)
+
+                    app_logger.info(
+                        f"Geocoding enhanced result: quality={geocoding_quality}, "
+                        f"new confidence={confidence}"
+                    )
+
+        elif use_geocoding:
+            # AI failed, try geocoding directly on the input text
+            app_logger.info("AI interpretation failed, trying geocoding directly")
+            geocode_result = geocode_address(text)
+
+            if geocode_result:
+                interpretation_method = "geocoding"
+                normalized_address = geocode_result['display_name']
+                lat = geocode_result['lat']
+                lon = geocode_result['lon']
+                geocoding_quality = geocode_result['quality']
+
+                # Extract components
+                components = geocode_result['address_components']
+                city = components.get('city')
+                state = components.get('state')
+                zip_code = components.get('postcode')
+
+                if city:
+                    city_id = get_city_id_from_name(city)
+
+                # Set confidence based on geocoding quality
+                if geocoding_quality == 'high':
+                    confidence = 0.85
+                elif geocoding_quality == 'medium':
+                    confidence = 0.65
+                else:
+                    confidence = 0.4
+
+                app_logger.info(
+                    f"Geocoding result: {normalized_address} "
+                    f"(quality={geocoding_quality}, confidence={confidence})"
+                )
+
+        # Step 4: Build response
+        if not normalized_address:
+            # Complete failure
+            status_code = 400
+            error_msg = "Failed to interpret address with both AI and geocoding"
+            app_logger.warning(f"Failed to interpret: {text}")
+
+            response_time_ms = (time.time() - start_time) * 1000
+            MetricsManager.record_request(
+                db=db,
+                endpoint='/interpret-address',
+                method='POST',
+                status_code=status_code,
+                response_time_ms=response_time_ms,
+                city=city_name,
+                error_message=error_msg,
+                user_agent=request.headers.get('user-agent'),
+                ip_address=request.client.host if request.client else None
+            )
+
+            return InterpretAddressResponse(
+                success=False,
+                normalized_address="",
+                confidence=0.0,
+                interpretation_method=interpretation_method,
+                error=error_msg
+            )
+
+        # Success
+        app_logger.info(
+            f"Successfully interpreted address: {normalized_address} "
+            f"(method={interpretation_method}, confidence={confidence})"
+        )
+
+        response_time_ms = (time.time() - start_time) * 1000
+        MetricsManager.record_request(
+            db=db,
+            endpoint='/interpret-address',
+            method='POST',
+            status_code=status_code,
+            response_time_ms=response_time_ms,
+            city=city,
+            user_agent=request.headers.get('user-agent'),
+            ip_address=request.client.host if request.client else None
+        )
+
+        return InterpretAddressResponse(
+            success=True,
+            normalized_address=normalized_address,
+            confidence=confidence,
+            city=city,
+            city_id=city_id,
+            state=state,
+            zip_code=zip_code,
+            lat=lat,
+            lon=lon,
+            interpretation_method=interpretation_method,
+            ai_reasoning=ai_reasoning,
+            geocoding_quality=geocoding_quality
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_logger.error(f"Address interpretation error: {str(e)}", exc_info=True)
+        response_time_ms = (time.time() - start_time) * 1000
+        MetricsManager.record_request(
+            db=db,
+            endpoint='/interpret-address',
+            method='POST',
+            status_code=500,
+            response_time_ms=response_time_ms,
+            city=city_name,
+            error_message=str(e),
+            user_agent=request.headers.get('user-agent'),
+            ip_address=request.client.host if request.client else None
+        )
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.get("/stats")
+async def get_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Get statistics about the database and cache performance."""
+    from sqlalchemy import func, distinct
     total_addresses = db.query(Address).count()
     total_reports = db.query(CrowdReport).count()
     total_consensus = db.query(CrowdConsensus).count()
@@ -671,4 +912,316 @@ async def get_stats(db: Session = Depends(get_db)):
         ]
     }
 
-    return stats
+
+# ============================================================================
+# MOBILE ENDPOINTS - Simplified & Optimized for Mobile Apps
+# ============================================================================
+
+@app.get(
+    "/mobile/lookup",
+    response_model=MobileLookupResponse,
+    tags=["Mobile"],
+    summary="Mobile-optimized lookup endpoint",
+    description="Simplified lookup endpoint for mobile apps. Requires API key authentication. "
+                "Returns minimal payload to reduce bandwidth usage."
+)
+async def mobile_lookup(
+    request: Request,
+    address: Optional[str] = None,
+    lat: Optional[float] = None,
+    lon: Optional[float] = None,
+    api_key: ApiKey = Depends(require_api_key),
+    db: Session = Depends(get_db)
+):
+    """Mobile-optimized address lookup endpoint.
+
+    Features:
+    - API key authentication required
+    - Per-API-key rate limiting (30/min, 500/hour by default)
+    - Simplified response payload (minimal JSON)
+    - Abbreviated day names (MON-SUN vs MONDAY-SUNDAY)
+    - Essential fields only
+
+    Query Parameters:
+        - address: Full address string OR
+        - lat + lon: Coordinates
+
+    Returns:
+        MobileLookupResponse with simplified data structure
+    """
+    start_time = time.time()
+    client_ip = request.client.host if request.client else "unknown"
+    user_agent = request.headers.get("user-agent", "")
+
+    # Validate input
+    lookup_req = MobileLookupRequest(address=address, lat=lat, lon=lon)
+
+    # Check mobile rate limiter (API key-based)
+    allowed, error_msg, rate_stats = mobile_rate_limiter.is_allowed(
+        api_key=api_key,
+        ip_address=client_ip
+    )
+
+    if not allowed:
+        # Record blocked request
+        response_time = (time.time() - start_time) * 1000
+        record_api_key_usage(
+            db=db,
+            api_key_id=api_key.id,
+            endpoint="/mobile/lookup",
+            method="GET",
+            status_code=429,
+            response_time_ms=response_time,
+            ip_address=client_ip,
+            user_agent=user_agent
+        )
+
+        raise HTTPException(
+            status_code=429,
+            detail=error_msg,
+            headers={
+                "X-RateLimit-Limit-Minute": str(rate_stats["limit_per_minute"]),
+                "X-RateLimit-Limit-Hour": str(rate_stats["limit_per_hour"]),
+                "X-RateLimit-Remaining-Minute": str(rate_stats["remaining_minute"]),
+                "X-RateLimit-Remaining-Hour": str(rate_stats["remaining_hour"])
+            }
+        )
+
+    try:
+        # Determine lookup method
+        if lookup_req.lat is not None and lookup_req.lon is not None:
+            # Coordinate-based lookup
+            address_record = find_address_by_coordinates(db, lookup_req.lat, lookup_req.lon)
+            if not address_record:
+                raise HTTPException(
+                    status_code=404,
+                    detail="No address found near coordinates"
+                )
+        else:
+            # Address-based lookup
+            normalized = normalize_address(lookup_req.address)
+            address_record = db.query(Address).filter(
+                Address.normalized_address == normalized
+            ).first()
+
+            if not address_record:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Address not found"
+                )
+
+        # Determine data source priority
+        consensus = db.query(CrowdConsensus).filter(
+            CrowdConsensus.address_id == address_record.id
+        ).first()
+
+        # Determine source and days
+        if consensus and consensus.is_verified:
+            source = "verified"
+            trash_day = consensus.consensus_trash_day
+            recycling_day = consensus.consensus_recycling_day
+            green_day = consensus.consensus_green_day
+        elif address_record.official_trash_day:
+            source = "official"
+            trash_day = address_record.official_trash_day
+            recycling_day = address_record.official_recycling_day
+            green_day = address_record.official_green_day
+        elif consensus:
+            source = "unverified"
+            trash_day = consensus.consensus_trash_day
+            recycling_day = consensus.consensus_recycling_day
+            green_day = consensus.consensus_green_day
+        else:
+            source = "unknown"
+            trash_day = None
+            recycling_day = None
+            green_day = None
+
+        # Helper to convert to abbreviation
+        def to_abbrev(day: Optional[str]) -> Optional[str]:
+            if not day:
+                return None
+            day_map = {
+                'MONDAY': 'MON', 'TUESDAY': 'TUE', 'WEDNESDAY': 'WED',
+                'THURSDAY': 'THU', 'FRIDAY': 'FRI', 'SATURDAY': 'SAT', 'SUNDAY': 'SUN'
+            }
+            return day_map.get(day.upper(), day[:3].upper())
+
+        # Build response
+        response = MobileLookupResponse(
+            address=address_record.normalized_address,
+            city=address_record.city,
+            trash=to_abbrev(trash_day),
+            recycling=to_abbrev(recycling_day),
+            green=to_abbrev(green_day),
+            source=source,
+            lat=address_record.lat,
+            lon=address_record.lon
+        )
+
+        # Record successful usage
+        response_time = (time.time() - start_time) * 1000
+        record_api_key_usage(
+            db=db,
+            api_key_id=api_key.id,
+            endpoint="/mobile/lookup",
+            method="GET",
+            status_code=200,
+            response_time_ms=response_time,
+            ip_address=client_ip,
+            user_agent=user_agent
+        )
+
+        app_logger.info(
+            f"Mobile lookup success: {address_record.normalized_address} "
+            f"(API key: {api_key.key_prefix})"
+        )
+
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_logger.error(f"Mobile lookup error: {str(e)}", exc_info=True)
+        response_time = (time.time() - start_time) * 1000
+        record_api_key_usage(
+            db=db,
+            api_key_id=api_key.id,
+            endpoint="/mobile/lookup",
+            method="GET",
+            status_code=500,
+            response_time_ms=response_time,
+            ip_address=client_ip,
+            user_agent=user_agent
+        )
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.post(
+    "/mobile/report",
+    response_model=MobileReportResponse,
+    tags=["Mobile"],
+    summary="Mobile-optimized report endpoint",
+    description="Simplified report submission for mobile apps. Requires API key authentication."
+)
+async def mobile_report(
+    request: Request,
+    report_data: MobileReportRequest,
+    api_key: ApiKey = Depends(require_api_key),
+    db: Session = Depends(get_db)
+):
+    """Mobile-optimized report submission endpoint.
+
+    Features:
+    - API key authentication required
+    - Per-API-key rate limiting
+    - Simplified request/response payloads
+    - Abbreviated day names
+
+    Request Body:
+        MobileReportRequest with address and at least one pickup day
+
+    Returns:
+        MobileReportResponse with success status and simplified consensus info
+    """
+    start_time = time.time()
+    client_ip = request.client.host if request.client else "unknown"
+    user_agent = request.headers.get("user-agent", "")
+
+    # Check mobile rate limiter
+    allowed, error_msg, rate_stats = mobile_rate_limiter.is_allowed(
+        api_key=api_key,
+        ip_address=client_ip
+    )
+
+    if not allowed:
+        response_time = (time.time() - start_time) * 1000
+        record_api_key_usage(
+            db=db,
+            api_key_id=api_key.id,
+            endpoint="/mobile/report",
+            method="POST",
+            status_code=429,
+            response_time_ms=response_time,
+            ip_address=client_ip,
+            user_agent=user_agent
+        )
+
+        raise HTTPException(
+            status_code=429,
+            detail=error_msg,
+            headers={
+                "X-RateLimit-Limit-Minute": str(rate_stats["limit_per_minute"]),
+                "X-RateLimit-Limit-Hour": str(rate_stats["limit_per_hour"]),
+                "X-RateLimit-Remaining-Minute": str(rate_stats["remaining_minute"]),
+                "X-RateLimit-Remaining-Hour": str(rate_stats["remaining_hour"])
+            }
+        )
+
+    try:
+        # Normalize address
+        normalized_address = normalize_address(report_data.address)
+
+        # Find or create address
+        address_record = find_or_create_address(db, normalized_address)
+
+        # Create crowd report
+        crowd_report = CrowdReport(
+            address_id=address_record.id,
+            trash_day=report_data.trash,
+            recycling_day=report_data.recycling,
+            green_day=report_data.green,
+            user_hash=report_data.user_id,
+            ip_address=client_ip,
+            user_agent=user_agent
+        )
+
+        db.add(crowd_report)
+        db.commit()
+
+        # Update consensus
+        consensus = update_crowd_consensus(db, address_record.id)
+
+        # Build response
+        response = MobileReportResponse(
+            success=True,
+            message="Report submitted successfully",
+            address=normalized_address,
+            verified=consensus.is_verified if consensus else False,
+            reports=consensus.reports_count if (consensus and consensus.is_verified) else None
+        )
+
+        # Record successful usage
+        response_time = (time.time() - start_time) * 1000
+        record_api_key_usage(
+            db=db,
+            api_key_id=api_key.id,
+            endpoint="/mobile/report",
+            method="POST",
+            status_code=200,
+            response_time_ms=response_time,
+            ip_address=client_ip,
+            user_agent=user_agent
+        )
+
+        app_logger.info(
+            f"Mobile report success: {normalized_address} "
+            f"(API key: {api_key.key_prefix})"
+        )
+
+        return response
+
+    except Exception as e:
+        error_logger.error(f"Mobile report error: {str(e)}", exc_info=True)
+        response_time = (time.time() - start_time) * 1000
+        record_api_key_usage(
+            db=db,
+            api_key_id=api_key.id,
+            endpoint="/mobile/report",
+            method="POST",
+            status_code=500,
+            response_time_ms=response_time,
+            ip_address=client_ip,
+            user_agent=user_agent
+        )
+        raise HTTPException(status_code=500, detail="Internal server error")

@@ -1,8 +1,45 @@
 """Database models for TrashAlert."""
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Text, JSON, Index
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Text, JSON, Index, Enum
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from app.database import Base
+import enum
+
+
+class UserRole(str, enum.Enum):
+    """User role enum."""
+    USER = "user"
+    REPORTER = "reporter"
+    ADMIN = "admin"
+    CITY_PARTNER = "city_partner"
+
+
+class User(Base):
+    """User table - stores user accounts for authentication."""
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True, nullable=False)
+    email = Column(String, unique=True, index=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    role = Column(Enum(UserRole), default=UserRole.USER, nullable=False, index=True)
+
+    # User status
+    is_active = Column(Boolean, default=True, index=True)
+    is_verified = Column(Boolean, default=False)
+
+    # Metadata
+    full_name = Column(String)
+    city_id = Column(Integer, ForeignKey("cities.id"), nullable=True)  # For city_partner role
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    last_login_at = Column(DateTime(timezone=True))
+
+    # Relationships
+    city = relationship("City")
+    crowd_reports = relationship("CrowdReport", back_populates="user")
 
 
 class City(Base):
@@ -23,6 +60,7 @@ class City(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
+    addresses = relationship("Address", back_populates="city_relation")
     pickup_zones = relationship("PickupZone", back_populates="city")
 
 
@@ -53,12 +91,17 @@ class Address(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
+    # City relationship (integer FK to cities table)
+    city_table_id = Column(Integer, ForeignKey("cities.id"), nullable=True, index=True)
+
     # Address fields
     normalized_address = Column(String, index=True, nullable=False)
     house_number = Column(String)
     street = Column(String, index=True)
-    city = Column(String, index=True)
+    city = Column(String, index=True)  # City name (denormalized)
     city_id = Column(String, index=True)  # Links to cities.yaml (e.g., 'san_diego', 'fresno')
+    city = Column(String, index=True)
+    city_slug = Column(String, index=True)  # Links to cities.yaml (e.g., 'san_diego', 'fresno')
     city_name = Column(String, index=True)  # Denormalized for backward compatibility
     state = Column(String, index=True)  # Added index for filtering by state
     zip_code = Column(String, index=True)  # Added index for filtering by zip
@@ -75,6 +118,9 @@ class Address(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
+    # Relationships
+    city_relation = relationship("City", back_populates="addresses", foreign_keys=[city_table_id])
+
 
 class CrowdReport(Base):
     """Individual crowdsourced reports from users."""
@@ -89,15 +135,26 @@ class CrowdReport(Base):
     green_day = Column(String)
 
     # User tracking (optional, for preventing spam)
-    user_hash = Column(String, index=True)
+    user_hash = Column(String, index=True)  # Keep for backward compatibility
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)  # New authenticated user reference
+
+    # Verification
+    is_verified = Column(Boolean, default=False, index=True)
+    verified_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    verified_at = Column(DateTime(timezone=True))
 
     # Metadata
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     ip_address = Column(String, index=True)  # Index for spam prevention queries
 
+    # Relationships
+    user = relationship("User", foreign_keys=[user_id], back_populates="crowd_reports")
+    verified_by = relationship("User", foreign_keys=[verified_by_user_id])
+
     # Composite indexes for common query patterns
     __table_args__ = (
         Index('idx_address_created', 'address_id', 'created_at'),
+        Index('idx_user_created', 'user_id', 'created_at'),
     )
 
 
@@ -258,6 +315,8 @@ class RequestMetrics(Base):
 
 class APIKey(Base):
     """B2B API keys for authenticated access."""
+class ApiKey(Base):
+    """API keys for mobile and third-party access."""
     __tablename__ = "api_keys"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -283,6 +342,30 @@ class APIKey(Base):
     # Notes and metadata
     notes = Column(Text)  # Admin notes about this key
     extra_metadata = Column(JSON)  # Flexible JSON for additional data
+    # Key details
+    key = Column(String, unique=True, index=True, nullable=False)  # The actual API key (hashed)
+    key_prefix = Column(String, index=True)  # First 8 chars for identification (unhashed)
+    name = Column(String, nullable=False)  # Human-readable name (e.g., "iOS App v1.0")
+    description = Column(Text)  # Optional description
+
+    # Authorization
+    is_active = Column(Boolean, default=True, index=True)
+    scopes = Column(JSON, default=list)  # ["mobile:lookup", "mobile:report"]
+
+    # Rate limiting (per API key, in addition to IP-based)
+    rate_limit_per_minute = Column(Integer, default=30)  # More restrictive than IP
+    rate_limit_per_hour = Column(Integer, default=500)
+
+    # Usage tracking
+    total_requests = Column(Integer, default=0)
+    last_used_at = Column(DateTime(timezone=True))
+
+    # Expiration
+    expires_at = Column(DateTime(timezone=True))  # Optional expiration
+
+    # Metadata
+    created_by = Column(String)  # Who created this key
+    extra_metadata = Column(JSON)  # Additional metadata
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -304,6 +387,22 @@ class APIUsage(Base):
     id = Column(Integer, primary_key=True, index=True)
 
     # API key reference
+
+    # Relationships
+    usage_logs = relationship("ApiKeyUsage", back_populates="api_key")
+
+    __table_args__ = (
+        Index('idx_api_key_active', 'is_active', 'expires_at'),
+    )
+
+
+class ApiKeyUsage(Base):
+    """Track API key usage for analytics and abuse detection."""
+    __tablename__ = "api_key_usage"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Foreign key
     api_key_id = Column(Integer, ForeignKey("api_keys.id"), nullable=False, index=True)
 
     # Request details
@@ -321,6 +420,13 @@ class APIUsage(Base):
     # Error tracking
     error_message = Column(String)
 
+    status_code = Column(Integer)
+    response_time_ms = Column(Float)
+
+    # Context
+    ip_address = Column(String)
+    user_agent = Column(String)
+
     # Timestamp
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
@@ -330,4 +436,8 @@ class APIUsage(Base):
     __table_args__ = (
         Index('idx_apiusage_key_created', 'api_key_id', 'created_at'),
         Index('idx_apiusage_key_endpoint', 'api_key_id', 'endpoint'),
+    api_key = relationship("ApiKey", back_populates="usage_logs")
+
+    __table_args__ = (
+        Index('idx_api_key_usage_lookup', 'api_key_id', 'created_at'),
     )

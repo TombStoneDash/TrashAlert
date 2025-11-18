@@ -116,7 +116,9 @@ class SanDiegoParser(BaseScheduleParser):
 
             # Parse neighborhood schedules
             for neighborhood, schedule_info in neighborhoods.items():
-                zone = schedule_info.get("zone", "UNKNOWN")
+                # Use neighborhood name as zone for better matching
+                # The zone code (SD-1, SD-2, etc.) can be stored in metadata
+                zone_code = schedule_info.get("zone", "UNKNOWN")
 
                 # Create schedule entries for each collection type
                 for collection_type in ["trash", "recycling", "green_waste"]:
@@ -127,7 +129,7 @@ class SanDiegoParser(BaseScheduleParser):
                             address=f"San Diego, {neighborhood}",
                             day_of_week=day,
                             collection_type=collection_type,
-                            zone=zone,
+                            zone=neighborhood,  # Use neighborhood name as zone identifier
                             recurrence="weekly",
                             confidence=0.98,  # High confidence - official PDF
                             effective_date=datetime(2025, 1, 1),
@@ -189,13 +191,13 @@ class SanDiegoParser(BaseScheduleParser):
         address_upper = address.upper()
 
         # Simple keyword matching
-        if any(kw in address_upper for kw in ["DOWNTOWN", "GASLAMP", "BROADWAY"]):
+        if any(kw in address_upper for kw in ["DOWNTOWN", "GASLAMP", "BROADWAY", "92101"]):
             return "Downtown"
-        elif any(kw in address_upper for kw in ["LA JOLLA", "TORREY PINES"]):
+        elif any(kw in address_upper for kw in ["LA JOLLA", "TORREY PINES", "92037"]):
             return "La Jolla"
-        elif any(kw in address_upper for kw in ["PACIFIC BEACH", "GARNET"]):
+        elif any(kw in address_upper for kw in ["PACIFIC BEACH", "GARNET", "92109"]):
             return "Pacific Beach"
-        elif any(kw in address_upper for kw in ["NORTH PARK", "UNIVERSITY"]):
+        elif any(kw in address_upper for kw in ["NORTH PARK", "UNIVERSITY", "92104"]):
             return "North Park"
         elif any(kw in address_upper for kw in ["POINT LOMA", "SUNSET CLIFFS"]):
             return "Point Loma"
