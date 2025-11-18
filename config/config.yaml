@@ -1,0 +1,41 @@
+# TrashAlert Pipeline Configuration
+# Central configuration for all pipeline scripts
+
+# Overpass API Configuration
+overpass_api:
+  url: "https://overpass-api.de/api/interpreter"
+  timeout_seconds: 120
+  rate_limit_delay_seconds: 3
+  retry:
+    max_attempts: 4
+    initial_delay_seconds: 2
+    backoff_multiplier: 2.0
+    max_delay_seconds: 30
+
+# Data Directory Paths
+paths:
+  data_root: "data"
+  raw: "data/raw"
+  processed: "data/processed"
+  boundaries: "data/boundaries"
+  subdivisions: "data/subdivisions"
+
+  # Output files
+  addresses_osm_raw: "data/raw/addresses_osm_raw.csv"
+  addresses_sampled: "data/processed/addresses_sampled_50_per_city.csv"
+  addresses_normalized_csv: "data/processed/addresses_normalized.csv"
+  database: "data/trashalert.db"
+
+# Processing Settings
+processing:
+  # Address sampling
+  max_addresses_per_city: 50
+
+  # Subdivision sampling
+  try_spread_across_subdivisions: true
+
+# Logging Configuration
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  date_format: "%Y-%m-%d %H:%M:%S"

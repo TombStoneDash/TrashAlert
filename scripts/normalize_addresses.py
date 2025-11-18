@@ -9,9 +9,17 @@ deduplicates based on (city_id, full_address), and writes to SQLite and CSV.
 import csv
 import sqlite3
 import re
+import sys
+import argparse
+import logging
 from collections import defaultdict
 from pathlib import Path
+from typing import List, Dict, Optional
 
+# Add parent directory to path to import utils
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from utils.config_loader import get_config_loader, get_city_display_name
 
 # Street suffix abbreviations mapping
 STREET_SUFFIXES = {
@@ -60,40 +68,53 @@ def normalize_street_name(street: str) -> str:
     return normalized
 
 
-def create_full_address(house_number: str, street: str, city_name: str) -> str:
+def create_full_address(house_number: str, street: str, city_name: str, state_abbr: str = 'CA') -> str:
     """
     Create a full address in canonical format.
 
-    Format: "{house_number} {street}, {city_name}, CA, USA"
+    Format: "{house_number} {street}, {city_name}, {state_abbr}, USA"
     """
     normalized_street = normalize_street_name(street)
     house_number = str(house_number).strip()
     city_name = city_name.strip()
 
-    return f"{house_number} {normalized_street}, {city_name}, CA, USA"
+    return f"{house_number} {normalized_street}, {city_name}, {state_abbr}, USA"
 
 
-def load_addresses_from_csv(csv_path: str) -> list:
-    """Load addresses from CSV file."""
+def load_addresses_from_csv(csv_path: Path, city_filter: Optional[List[str]] = None) -> List[Dict]:
+    """
+    Load addresses from CSV file.
+
+    Args:
+        csv_path: Path to input CSV
+        city_filter: Optional list of city names to filter
+
+    Returns:
+        List of address dictionaries
+    """
     addresses = []
 
     with open(csv_path, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         for row in reader:
+            # Apply city filter if specified
+            if city_filter and row['city_name'] not in city_filter:
+                continue
+
             addresses.append({
                 'city_name': row['city_name'],
-                'subdivision_id': row['subdivision_id'],
+                'subdivision_id': row.get('subdivision_id', ''),
                 'house_number': row['house_number'],
                 'street': row['street'],
                 'lat': row['lat'],
                 'lon': row['lon'],
-                'osm_id': row['osm_id']
+                'osm_id': row.get('osm_id', '')
             })
 
     return addresses
 
 
-def setup_database(db_path: str):
+def setup_database(db_path: Path):
     """Create necessary tables in the database."""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -166,7 +187,7 @@ def get_or_create_city_id(cursor, city_name: str) -> int:
     return cursor.lastrowid
 
 
-def normalize_and_dedupe(addresses: list, conn: sqlite3.Connection):
+def normalize_and_dedupe(addresses: List[Dict], conn: sqlite3.Connection, logger: logging.Logger) -> Dict:
     """
     Normalize addresses, deduplicate, and insert into database.
 
@@ -186,7 +207,7 @@ def normalize_and_dedupe(addresses: list, conn: sqlite3.Connection):
     # Track unique addresses per city to count duplicates
     seen_addresses = set()
 
-    print("Processing addresses...")
+    logger.info("Processing addresses...")
 
     for addr in addresses:
         city_name = addr['city_name']
@@ -267,7 +288,7 @@ def normalize_and_dedupe(addresses: list, conn: sqlite3.Connection):
     return stats
 
 
-def export_to_csv(db_path: str, csv_path: str):
+def export_to_csv(db_path: Path, csv_path: Path, logger: logging.Logger):
     """Export normalized addresses to CSV."""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -290,22 +311,22 @@ def export_to_csv(db_path: str, csv_path: str):
         writer.writerows(rows)
 
     conn.close()
-    print(f"\nExported {len(rows)} normalized addresses to {csv_path}")
+    logger.info(f"Exported {len(rows)} normalized addresses to {csv_path}")
 
 
-def print_stats_report(stats: dict):
+def print_stats_report(stats: Dict, logger: logging.Logger):
     """Print statistics about the normalization process."""
-    print("\n" + "=" * 80)
-    print("ADDRESS NORMALIZATION REPORT")
-    print("=" * 80)
+    logger.info("\n" + "=" * 80)
+    logger.info("ADDRESS NORMALIZATION REPORT")
+    logger.info("=" * 80)
 
-    print(f"\nTotal raw addresses: {stats['total_raw']}")
-    print(f"Total normalized addresses: {stats['total_normalized']}")
-    print(f"Duplicates removed: {stats['duplicates_removed']}")
+    logger.info(f"\nTotal raw addresses: {stats['total_raw']}")
+    logger.info(f"Total normalized addresses: {stats['total_normalized']}")
+    logger.info(f"Duplicates removed: {stats['duplicates_removed']}")
 
-    print("\nPer-city breakdown:")
-    print(f"{'City':<30} {'Raw Count':<15} {'Normalized Count':<20} {'Removed':<10}")
-    print("-" * 80)
+    logger.info("\nPer-city breakdown:")
+    logger.info(f"{'City':<30} {'Raw Count':<15} {'Normalized Count':<20} {'Removed':<10}")
+    logger.info("-" * 80)
 
     all_cities = sorted(set(list(stats['raw_count_by_city'].keys()) +
                             list(stats['normalized_count_by_city'].keys())))
@@ -314,12 +335,12 @@ def print_stats_report(stats: dict):
         raw = stats['raw_count_by_city'][city]
         normalized = stats['normalized_count_by_city'][city]
         removed = raw - normalized
-        print(f"{city:<30} {raw:<15} {normalized:<20} {removed:<10}")
+        logger.info(f"{city:<30} {raw:<15} {normalized:<20} {removed:<10}")
 
-    print("=" * 80)
+    logger.info("=" * 80)
 
 
-def show_schema(db_path: str):
+def show_schema(db_path: Path, logger: logging.Logger):
     """Display the schema of the addresses_normalized table."""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -331,44 +352,112 @@ def show_schema(db_path: str):
 
     schema = cursor.fetchone()
     if schema:
-        print("\n" + "=" * 80)
-        print("ADDRESSES_NORMALIZED TABLE SCHEMA")
-        print("=" * 80)
-        print(schema[0])
-        print("=" * 80)
+        logger.info("\n" + "=" * 80)
+        logger.info("ADDRESSES_NORMALIZED TABLE SCHEMA")
+        logger.info("=" * 80)
+        logger.info(schema[0])
+        logger.info("=" * 80)
 
     conn.close()
 
 
 def main():
     """Main execution function."""
-    # Paths - updated to use addresses_osm_raw.csv and trashalert.db
-    csv_input = 'data/addresses_osm_raw.csv'
-    csv_output = 'data/addresses_normalized.csv'
-    db_path = 'data/trashalert.db'
+    parser = argparse.ArgumentParser(
+        description='Normalize and deduplicate addresses from sampled OSM data'
+    )
+    parser.add_argument(
+        '--city-id',
+        help='Process only specific city by ID (e.g., "ca_el_centro")'
+    )
+    parser.add_argument(
+        '--city',
+        help='Process only specific city by name (e.g., "El Centro" or "El Centro, CA")'
+    )
+    parser.add_argument(
+        '--state',
+        help='Process only cities in specific state (e.g., "CA" or "California")'
+    )
+    parser.add_argument(
+        '--all',
+        action='store_true',
+        help='Process all cities (default behavior if no filter specified)'
+    )
+    parser.add_argument(
+        '--input',
+        type=Path,
+        help='Input CSV file (default from config: addresses_sampled)'
+    )
+    parser.add_argument(
+        '--output-csv',
+        type=Path,
+        help='Output CSV file (default from config: addresses_normalized_csv)'
+    )
+    parser.add_argument(
+        '--output-db',
+        type=Path,
+        help='Output database file (default from config: database)'
+    )
 
-    print("Starting address normalization and deduplication...")
+    args = parser.parse_args()
+
+    # Load configuration
+    config = get_config_loader()
+    logger = config.setup_logging(__name__)
+
+    logger.info("Starting address normalization and deduplication...")
+
+    # Get paths from config or CLI args
+    csv_input = args.input or config.get_path('addresses_sampled')
+    csv_output = args.output_csv or config.get_path('addresses_normalized_csv')
+    db_path = args.output_db or config.get_path('database')
+
+    # Check if input file exists
+    if not csv_input.exists():
+        logger.error(f"Input file not found: {csv_input}")
+        logger.error("Please run the sampling script first or specify a valid input file.")
+        return 1
+
+    # Determine which cities to process
+    city_filter = None
+    if args.city_id or args.city or args.state:
+        cities = config.filter_cities(
+            city_id=args.city_id,
+            city_name=args.city,
+            state=args.state
+        )
+
+        if not cities:
+            logger.error("No cities match the specified filters")
+            return 1
+
+        city_filter = [city['name'] for city in cities]
+        logger.info(f"Filtering to {len(city_filter)} cities: {', '.join(city_filter)}")
 
     # Load addresses from CSV
-    print(f"\nLoading addresses from {csv_input}...")
-    addresses = load_addresses_from_csv(csv_input)
-    print(f"Loaded {len(addresses)} addresses")
+    logger.info(f"Loading addresses from {csv_input}...")
+    addresses = load_addresses_from_csv(csv_input, city_filter)
+    logger.info(f"Loaded {len(addresses)} addresses")
+
+    if len(addresses) == 0:
+        logger.warning("No addresses to process")
+        return 0
 
     # Setup database
-    print(f"\nSetting up database at {db_path}...")
+    logger.info(f"Setting up database at {db_path}...")
     conn = setup_database(db_path)
 
     # Normalize and deduplicate
-    stats = normalize_and_dedupe(addresses, conn)
+    stats = normalize_and_dedupe(addresses, conn, logger)
 
     # Export to CSV
-    export_to_csv(db_path, csv_output)
+    export_to_csv(db_path, csv_output, logger)
 
     # Print stats report
-    print_stats_report(stats)
+    print_stats_report(stats, logger)
 
     # Show schema
-    show_schema(db_path)
+    show_schema(db_path, logger)
 
     # Show sample data from addresses table
     cursor = conn.cursor()
@@ -376,16 +465,16 @@ def main():
     rows = cursor.fetchall()
 
     if rows:
-        print("\n" + "=" * 80)
-        print("SAMPLE ADDRESSES IN 'addresses' TABLE")
-        print("=" * 80)
+        logger.info("\n" + "=" * 80)
+        logger.info("SAMPLE ADDRESSES IN 'addresses' TABLE")
+        logger.info("=" * 80)
         cursor.execute("PRAGMA table_info(addresses)")
         columns = [col[1] for col in cursor.fetchall()]
 
         for row in rows:
             for col, val in zip(columns, row):
-                print(f"  {col}: {val}")
-            print("-" * 80)
+                logger.info(f"  {col}: {val}")
+            logger.info("-" * 80)
 
     # Show counts
     cursor.execute("SELECT COUNT(*) FROM addresses")
@@ -393,12 +482,14 @@ def main():
     cursor.execute("SELECT COUNT(*) FROM addresses_normalized")
     addresses_normalized_count = cursor.fetchone()[0]
 
-    print(f"\nTotal rows in 'addresses' table: {addresses_count}")
-    print(f"Total rows in 'addresses_normalized' table: {addresses_normalized_count}")
+    logger.info(f"\nTotal rows in 'addresses' table: {addresses_count}")
+    logger.info(f"Total rows in 'addresses_normalized' table: {addresses_normalized_count}")
 
     conn.close()
-    print("\nNormalization complete!")
+    logger.info("\nNormalization complete!")
+
+    return 0
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
