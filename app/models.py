@@ -16,7 +16,7 @@ class UserRole(str, enum.Enum):
 
 
 class User(Base):
-    """User table - stores user accounts for authentication."""
+    """User table - stores user accounts for authentication, notifications, and gamification."""
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -25,13 +25,22 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     role = Column(Enum(UserRole), default=UserRole.USER, nullable=False, index=True)
 
+    # User profile
+    full_name = Column(String)
+    display_name = Column(String)
+    phone = Column(String)  # Optional phone number for SMS notifications
+    timezone = Column(String, default="America/Los_Angeles")
+    city_id = Column(Integer, ForeignKey("cities.id"), nullable=True)  # For city_partner role
+
     # User status
     is_active = Column(Boolean, default=True, index=True)
     is_verified = Column(Boolean, default=False)
+    is_verified_reporter = Column(Boolean, default=False, index=True)
 
-    # Metadata
-    full_name = Column(String)
-    city_id = Column(Integer, ForeignKey("cities.id"), nullable=True)  # For city_partner role
+    # Gamification stats
+    total_points = Column(Integer, default=0, index=True)
+    total_reports = Column(Integer, default=0)
+    verified_reports = Column(Integer, default=0)
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -41,6 +50,9 @@ class User(Base):
     # Relationships
     city = relationship("City")
     crowd_reports = relationship("CrowdReport", back_populates="user")
+    subscriptions = relationship("AddressSubscription", back_populates="user")
+    badges = relationship("UserBadge", back_populates="user")
+    point_history = relationship("PointHistory", back_populates="user")
 
 # Import AI cache model to ensure it's registered with Base metadata
 from app.ai_cache import AIClassificationCache  # noqa: F401
@@ -319,16 +331,6 @@ class RequestMetrics(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 
-class User(Base):
-    """User table - stores registered users for notification system."""
-    __tablename__ = "users"
-
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, nullable=False, index=True)
-    phone = Column(String)  # Optional phone number for SMS notifications
-    display_name = Column(String)
-    timezone = Column(String, default="America/Los_Angeles")
-    is_active = Column(Boolean, default=True, index=True)
 class Truck(Base):
     """Truck fleet information for GPS tracking."""
     __tablename__ = "trucks"
@@ -413,6 +415,9 @@ class TruckRoute(Base):
 
     __table_args__ = (
         Index('idx_truck_routes_truck_date', 'truck_id', 'route_date'),
+    )
+
+
 class PredictionModel(Base):
     """Store trained prediction models and their metadata."""
     __tablename__ = "prediction_models"
@@ -435,30 +440,12 @@ class PredictionModel(Base):
     is_active = Column(Boolean, default=False, index=True)  # Only one active model per type
 
     # Timestamps
-class User(Base):
-    """User table for gamification and authentication."""
-    __tablename__ = "users"
-
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True, nullable=False)
-    username = Column(String, unique=True, index=True, nullable=False)
-    hashed_password = Column(String, nullable=False)
-
-    # Gamification stats
-    total_points = Column(Integer, default=0, index=True)
-    total_reports = Column(Integer, default=0)
-    verified_reports = Column(Integer, default=0)
-
-    # User status
-    is_active = Column(Boolean, default=True)
-    is_verified_reporter = Column(Boolean, default=False, index=True)
-
-    # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationships
-    subscriptions = relationship("AddressSubscription", back_populates="user")
+    __table_args__ = (
+        Index('idx_model_type_active', 'model_type', 'is_active'),
+    )
 
 
 class AddressSubscription(Base):
@@ -508,6 +495,8 @@ class Badge(Base):
     # Display
     color = Column(String)  # Hex color for badge display
     tier = Column(Integer, default=1)  # Badge tier (1=bronze, 2=silver, 3=gold)
+
+
 class PipelineRun(Base):
     """Track bulk pipeline execution runs."""
     __tablename__ = "pipeline_runs"
@@ -545,7 +534,7 @@ class PipelineRun(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     __table_args__ = (
-        Index('idx_model_type_active', 'model_type', 'is_active'),
+        Index('idx_pipeline_run_status_started', 'status', 'started_at'),
     )
 
 
@@ -572,7 +561,6 @@ class PredictionCache(Base):
 
     __table_args__ = (
         Index('idx_prediction_cache_lookup', 'address_id', 'prediction_type', 'expires_at'),
-        Index('idx_pipeline_run_status_started', 'status', 'started_at'),
     )
 
 
@@ -612,8 +600,9 @@ class PipelineCityStatus(Base):
     __table_args__ = (
         Index('idx_city_status_run_city', 'pipeline_run_id', 'city_id'),
         Index('idx_city_status_status', 'status'),
-class APIKey(Base):
-    """B2B API keys for authenticated access."""
+    )
+
+
 class ApiKey(Base):
     """API keys for mobile and third-party access."""
     __tablename__ = "api_keys"
@@ -627,23 +616,6 @@ class ApiKey(Base):
     # Owner information
     company_name = Column(String, nullable=False)
     contact_email = Column(String)
-
-    # Status and limits
-    is_active = Column(Boolean, default=True, index=True)
-    rate_limit_per_minute = Column(Integer, default=60)
-    rate_limit_per_hour = Column(Integer, default=1000)
-    rate_limit_per_day = Column(Integer, default=10000)
-
-    # Usage metadata
-    last_used_at = Column(DateTime(timezone=True))
-    total_requests = Column(Integer, default=0)
-
-    # Notes and metadata
-    notes = Column(Text)  # Admin notes about this key
-    extra_metadata = Column(JSON)  # Flexible JSON for additional data
-    # Key details
-    key = Column(String, unique=True, index=True, nullable=False)  # The actual API key (hashed)
-    key_prefix = Column(String, index=True)  # First 8 chars for identification (unhashed)
     name = Column(String, nullable=False)  # Human-readable name (e.g., "iOS App v1.0")
     description = Column(Text)  # Optional description
 
@@ -652,8 +624,9 @@ class ApiKey(Base):
     scopes = Column(JSON, default=list)  # ["mobile:lookup", "mobile:report"]
 
     # Rate limiting (per API key, in addition to IP-based)
-    rate_limit_per_minute = Column(Integer, default=30)  # More restrictive than IP
+    rate_limit_per_minute = Column(Integer, default=30)
     rate_limit_per_hour = Column(Integer, default=500)
+    rate_limit_per_day = Column(Integer, default=10000)
 
     # Usage tracking
     total_requests = Column(Integer, default=0)
@@ -664,19 +637,12 @@ class ApiKey(Base):
 
     # Metadata
     created_by = Column(String)  # Who created this key
-    extra_metadata = Column(JSON)  # Additional metadata
+    notes = Column(Text)  # Admin notes about this key
+    extra_metadata = Column(JSON)  # Flexible JSON for additional data
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-    # Relationships
-    user = relationship("User", back_populates="subscriptions")
-
-    __table_args__ = (
-        Index('idx_user_address', 'user_id', 'address_id'),
-        Index('idx_active_subscriptions', 'is_active', 'user_id'),
-    )
 
 
 class NotificationLog(Base):
@@ -709,6 +675,8 @@ class NotificationLog(Base):
     __table_args__ = (
         Index('idx_notification_status_scheduled', 'status', 'scheduled_for'),
         Index('idx_user_created', 'user_id', 'created_at'),
+    )
+
 
 class UserBadge(Base):
     """User badge awards - tracks which badges users have earned."""
@@ -748,27 +716,14 @@ class PointHistory(Base):
     report_id = Column(Integer, ForeignKey("crowd_reports.id"), nullable=True, index=True)
     expires_at = Column(DateTime(timezone=True))  # Optional expiration
 
-    # Relationships
-    usage_logs = relationship("APIUsage", back_populates="api_key")
-
-    __table_args__ = (
-        Index('idx_apikey_active_hash', 'is_active', 'key_hash'),
-    )
-
-
-class APIUsage(Base):
-    """Track per-key API usage for analytics and billing."""
-    __tablename__ = "api_usage"
-
-    id = Column(Integer, primary_key=True, index=True)
-
-    # API key reference
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
 
     # Relationships
-    usage_logs = relationship("ApiKeyUsage", back_populates="api_key")
+    user = relationship("User", back_populates="point_history")
 
     __table_args__ = (
-        Index('idx_api_key_active', 'is_active', 'expires_at'),
+        Index('idx_user_created', 'user_id', 'created_at'),
     )
 
 
@@ -796,27 +751,8 @@ class ApiKeyUsage(Base):
     # Error tracking
     error_message = Column(String)
 
-    status_code = Column(Integer)
-    response_time_ms = Column(Float)
-
-    # Context
-    ip_address = Column(String)
-    user_agent = Column(String)
-
     # Timestamp
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
-
-    # Relationships
-    user = relationship("User", back_populates="point_history")
-
-    __table_args__ = (
-        Index('idx_user_created', 'user_id', 'created_at'),
-    api_key = relationship("APIKey", back_populates="usage_logs")
-
-    __table_args__ = (
-        Index('idx_apiusage_key_created', 'api_key_id', 'created_at'),
-        Index('idx_apiusage_key_endpoint', 'api_key_id', 'endpoint'),
-    api_key = relationship("ApiKey", back_populates="usage_logs")
 
     __table_args__ = (
         Index('idx_api_key_usage_lookup', 'api_key_id', 'created_at'),

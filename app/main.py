@@ -12,31 +12,19 @@ import time
 from strawberry.fastapi import GraphQLRouter
 
 from app.database import get_db, engine, Base
-from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics, User, Badge
-from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics, PipelineRun, PipelineCityStatus
-from app.schemas import ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ConsensusDetails
-from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics
-from app.schemas import ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ZoneResponse
-from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics, ApiKey
-from app.schemas import (
-    ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ConsensusDetails,
-    MobileLookupRequest, MobileLookupResponse, MobileReportRequest, MobileReportResponse
+from app.models import (
+    Address, CrowdReport, CrowdConsensus, RequestMetrics,
+    User, Badge, ApiKey, AddressSubscription, NotificationLog,
+    PipelineRun, PipelineCityStatus
 )
-from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics, User
-from app.schemas import ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ConsensusDetails
-from app.models import Address, CrowdReport, CrowdConsensus
 from app.schemas import (
-    ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ConsensusDetails,
-    InterpretAddressRequest, InterpretAddressResponse,
-    UserCreate, UserResponse, SubscriptionCreate, SubscriptionUpdate, SubscriptionResponse,
-    TestNotificationRequest, TestNotificationResponse
-)
-from app.models import Address, CrowdReport, CrowdConsensus, RequestMetrics, User, AddressSubscription, NotificationLog
+    ReportRequest, ReportResponse, LookupResponse, ConsensusInfo, ConsensusDetails, ZoneResponse,
+    MobileLookupRequest, MobileLookupResponse, MobileReportRequest, MobileReportResponse,
     InterpretAddressRequest, InterpretAddressResponse, PredictRequest, PredictResponse,
     DelayPrediction, SeasonalPredictionResponse, SeasonalPrediction,
-    TrainModelRequest, TrainModelResponse
-    InterpretAddressRequest, InterpretAddressResponse, HeatmapResponse, HeatmapPoint
-    InterpretAddressRequest, InterpretAddressResponse,
+    TrainModelRequest, TrainModelResponse, HeatmapResponse, HeatmapPoint,
+    UserCreate, UserResponse, SubscriptionCreate, SubscriptionUpdate, SubscriptionResponse,
+    TestNotificationRequest, TestNotificationResponse,
     LeaderboardResponse, UserStatsResponse
 )
 from app.utils import (
@@ -387,27 +375,18 @@ async def root() -> Dict[str, Any]:
         "status": "healthy",
         "service": "TrashAlert API",
         "version": "1.0.0",
-        "endpoints": ["/lookup", "/report", "/interpret-address", "/stats", "/predict", "/predict/train"]
-        "endpoints": ["/lookup", "/report", "/interpret-address", "/stats", "/analytics/heatmap"]
-        "endpoints": [
-            "/lookup",
-            "/report",
-            "/interpret-address",
-            "/stats",
-            "/leaderboard",
-            "/badges",
-            "/users/{user_id}/stats"
-        ]
-        "endpoints": ["/lookup", "/report", "/stats"],
-        "mobile_endpoints": ["/mobile/lookup", "/mobile/daily-schedule", "/mobile/report"]
         "endpoints": {
-            "rest": ["/lookup", "/report", "/stats"],
+            "rest": [
+                "/lookup", "/report", "/interpret-address", "/stats",
+                "/predict", "/predict/train", "/analytics/heatmap",
+                "/leaderboard", "/badges", "/users/{user_id}/stats"
+            ],
+            "mobile": ["/mobile/lookup", "/mobile/daily-schedule", "/mobile/report"],
             "graphql": "/graphql",
-            "graphiql": "/graphql (interactive GraphQL console)"
+            "graphiql": "/graphql (interactive GraphQL console)",
+            "optimization": ["/optimize-route"],
+            "zones": ["/zone"]
         }
-        "endpoints": ["/lookup", "/report", "/stats", "/optimize-route"]
-        "endpoints": ["/lookup", "/report", "/stats", "/zone"]
-        "endpoints": ["/lookup", "/report", "/interpret-address", "/stats"]
     }
 
 
@@ -474,11 +453,9 @@ async def submit_report(
             trash_day=trash_day,
             recycling_day=recycling_day,
             green_day=green_day,
-            user_hash=report.user_hash,
-            ip_address=get_client_ip(request)
             user_hash=report.user_hash,  # Keep for backward compatibility
             user_id=current_user.id if current_user else None,  # Link to authenticated user
-            ip_address=request.client.host if request.client else None
+            ip_address=get_client_ip(request)
         )
         db.add(new_report)
         db.commit()
@@ -1092,16 +1069,6 @@ async def interpret_address(
             f"(method={interpretation_method}, confidence={confidence})"
         )
 
-    # Check Redis cache first
-    cache_key = "stats:general"
-    cached_stats = redis_cache.get(cache_key)
-    if cached_stats:
-        app_logger.info("Cache hit for stats")
-        # Add cache stats to the cached response
-        cached_stats["cache_stats"] = redis_cache.get_stats()
-        return cached_stats
-
-    # Generate stats
         response_time_ms = (time.time() - start_time) * 1000
         from app.security import get_client_ip
         MetricsManager.record_request(
@@ -1173,7 +1140,6 @@ async def get_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
         if city  # Filter out None values
     ]
 
-    stats = {
     # Get cache statistics
     cache_manager = get_cache_manager()
     cache_stats = cache_manager.get_stats()
@@ -1192,7 +1158,7 @@ async def get_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
             "Calexico",
             "San Diego"
         ],
-        "cache_stats": redis_cache.get_stats()
+        "cache_stats": redis_cache.get_stats(),
         "ai_cache_stats": cache_stats
     }
 
@@ -1902,6 +1868,14 @@ async def predict(
 
     Args:
         request_data: Prediction request with type and parameters
+    """
+    # TODO: Implement prediction endpoint
+    return PredictResponse(
+        prediction_type=request_data.prediction_type,
+        predictions=[]
+    )
+
+
 # ============================================================================
 # PIPELINE STATUS ENDPOINTS
 # ============================================================================
