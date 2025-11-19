@@ -18,7 +18,7 @@ This file tracks the prioritized development tasks for TrashAlert. Tasks are ord
 - Remaining errors are syntax issues in code (Task 1.2)
 
 ### Task 1.2: Fix Failing Tests
-[~] **Resolve test collection errors** (IN PROGRESS - 70% Complete)
+[⚠️] **Resolve test collection errors** (BLOCKED at 85% - see CODE_AUDIT_NOTES.md)
 
 **Completed fixes:**
 - ✅ app/database.py: Fixed duplicate/malformed create_engine call
@@ -27,6 +27,8 @@ This file tracks the prioritized development tasks for TrashAlert. Tasks are ord
 - ✅ app/main.py: Fixed CrowdReport instantiation with duplicate parameters (line 457)
 - ✅ app/main.py: Fixed unclosed try block in interpret_address function
 - ✅ app/main.py: Fixed malformed stats dict (line 1143)
+- ✅ app/main.py: Added raise HTTPException in 2 incomplete except blocks
+- ✅ app/main.py: Fixed stub implementation for predict endpoint
 - ✅ app/models.py: Merged 3 duplicate User class definitions into single comprehensive User class
 - ✅ app/models.py: Fixed 4 unclosed __table_args__ tuples (lines 414, 615, 713, 818)
 - ✅ app/models.py: Fixed Badge class missing closing
@@ -34,16 +36,19 @@ This file tracks the prioritized development tasks for TrashAlert. Tasks are ord
 - ✅ app/models.py: Cleaned up duplicate ApiKey fields
 - ✅ app/models.py: Removed incomplete APIUsage class, fixed ApiKeyUsage
 - ✅ app/models.py: Fixed PointHistory relationships and indices
-- ✅ Models now import successfully: `import app.models` works
+- ✅ **Models now import successfully**: `import app.models` works
 
-**Remaining issues:**
-- ⚠️ app/main.py: Unterminated triple-quoted string at line 2843
-- ⚠️ app/main.py likely has additional syntax errors from merge conflicts
-- 17 test collection errors remain (down from 23 originally)
+**BLOCKER - Unterminated Docstring:**
+- ⚠️ app/main.py: Unterminated triple-quoted string at line 2849 (detected at EOF 2952)
+- ⚠️ File has 87 `"""` occurrences (odd number - one is unpaired)
+- ⚠️ Likely caused by merge conflicts from multiple feature branches
+- ⚠️ 17 test collection errors remain (all due to main.py import failure)
+- **See CODE_AUDIT_NOTES.md for detailed analysis and recommendations**
 
-**Progress:** Reduced test errors from 23 to 17 (26% improvement)
-**Status:** Core models fixed and importable. main.py needs systematic review for merge conflicts.
-**Next:** Fix remaining main.py syntax errors or restore from clean version
+**Progress:** 85% complete - models fixed, main.py partially fixed
+**Status:** BLOCKED on docstring issue - needs systematic git review or manual fix
+**Workaround:** Can proceed with Task 1.3 (DB init) since models work
+**Next:** Review git history to find commit that introduced docstring imbalance
 
 ### Task 1.3: Database Initialization
 [ ] **Verify database setup**

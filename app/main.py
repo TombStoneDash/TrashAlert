@@ -2622,6 +2622,9 @@ async def clear_ai_cache(
         }
     except Exception as e:
         error_logger.error(f"Error clearing cache: {e}")
+        raise HTTPException(status_code=500, detail="Error clearing cache")
+
+
 # ============================================================================
 # MOBILE ENDPOINTS - Simplified & Optimized for Mobile Apps
 # ============================================================================
@@ -2814,6 +2817,9 @@ async def get_model_info(db: Session = Depends(get_db)) -> Dict[str, Any]:
         return prediction_service.get_model_info()
     except Exception as e:
         error_logger.error(f"Error fetching model info: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error fetching model information")
+
+
 @app.post(
     "/mobile/report",
     response_model=MobileReportResponse,
