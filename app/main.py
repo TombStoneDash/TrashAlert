@@ -2279,6 +2279,27 @@ async def train_models(
             error_message=str(e),
             user_agent=request.headers.get('user-agent'),
             ip_address=request.client.host if request.client else None
+        )
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@app.post("/routing/optimize", response_model=OptimizeRouteResponse)
+async def optimize_route(
+    city_id: str,
+    max_stops: Optional[int] = None,
+    request: Request = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Optimize collection route for a city using OR-Tools.
+
+    Args:
+        city_id: City identifier
+        max_stops: Maximum number of stops to include (optional)
+        request: FastAPI request object
+        db: Database session
+
+    Returns:
         OptimizeRouteResponse with optimized route and statistics
     """
     start_time = time.time()
@@ -2378,10 +2399,35 @@ async def train_models(
         MetricsManager.record_request(
             db=db,
             endpoint='/optimize-route',
-            method='GET',
+            method='POST',
             status_code=status_code,
             response_time_ms=response_time_ms,
-            city=city_id_normalized,
+            city=city_id_normalized
+        )
+
+        return OptimizeRouteResponse(
+            success=True,
+            route=route_stops,
+            statistics=result
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_logger.error(f"Route optimization error: {str(e)}", exc_info=True)
+        response_time_ms = (time.time() - start_time) * 1000
+        MetricsManager.record_request(
+            db=db,
+            endpoint='/optimize-route',
+            method='POST',
+            status_code=500,
+            response_time_ms=response_time_ms,
+            error_message=str(e),
+            city=city_id_normalized
+        )
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 @app.post("/ai-classify", response_model=AIClassifierResponse)
 async def ai_classify(
     request_data: AIClassifierRequest,
@@ -2814,6 +2860,9 @@ async def get_model_info(db: Session = Depends(get_db)) -> Dict[str, Any]:
         return prediction_service.get_model_info()
     except Exception as e:
         error_logger.error(f"Error fetching model info: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 @app.post(
     "/mobile/report",
     response_model=MobileReportResponse,
