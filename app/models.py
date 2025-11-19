@@ -54,9 +54,6 @@ class User(Base):
     badges = relationship("UserBadge", back_populates="user")
     point_history = relationship("PointHistory", back_populates="user")
 
-# Import AI cache model to ensure it's registered with Base metadata
-from app.ai_cache import AIClassificationCache  # noqa: F401
-
 
 class City(Base):
     """City table - stores cities supported by TrashAlert."""
@@ -171,8 +168,8 @@ class CrowdReport(Base):
 
     # Composite indexes for common query patterns
     __table_args__ = (
-        Index('idx_address_created', 'address_id', 'created_at'),
-        Index('idx_user_created', 'user_id', 'created_at'),
+        Index('idx_crowd_reports_address_created', 'address_id', 'created_at'),
+        Index('idx_crowd_reports_user_created', 'user_id', 'created_at'),
     )
 
 
@@ -674,7 +671,7 @@ class NotificationLog(Base):
 
     __table_args__ = (
         Index('idx_notification_status_scheduled', 'status', 'scheduled_for'),
-        Index('idx_user_created', 'user_id', 'created_at'),
+        Index('idx_notification_logs_user_created', 'user_id', 'created_at'),
     )
 
 
@@ -723,7 +720,7 @@ class PointHistory(Base):
     user = relationship("User", back_populates="point_history")
 
     __table_args__ = (
-        Index('idx_user_created', 'user_id', 'created_at'),
+        Index('idx_point_history_user_created', 'user_id', 'created_at'),
     )
 
 

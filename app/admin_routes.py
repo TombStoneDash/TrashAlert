@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from typing import List
 
 from app.database import get_db
-from app.models import APIKey, APIUsage
+from app.models import ApiKey, ApiKeyUsage
 from app.schemas import (
     CreateAPIKeyRequest,
     CreateAPIKeyResponse,
@@ -36,7 +36,7 @@ async def create_api_key(
     full_key, key_hash, key_prefix = generate_api_key()
 
     # Create API key record
-    api_key = APIKey(
+    api_key = ApiKey(
         key_hash=key_hash,
         key_prefix=key_prefix,
         company_name=request.company_name,
@@ -66,12 +66,12 @@ async def list_api_keys(
     db: Session = Depends(get_db)
 ):
     """List all API keys."""
-    query = db.query(APIKey)
+    query = db.query(ApiKey)
 
     if active_only:
-        query = query.filter(APIKey.is_active == True)
+        query = query.filter(ApiKey.is_active == True)
 
-    keys = query.order_by(desc(APIKey.created_at)).all()
+    keys = query.order_by(desc(ApiKey.created_at)).all()
     return [APIKeyResponse.model_validate(key) for key in keys]
 
 
@@ -81,7 +81,7 @@ async def get_api_key(
     db: Session = Depends(get_db)
 ):
     """Get details of a specific API key."""
-    api_key = db.query(APIKey).filter(APIKey.id == key_id).first()
+    api_key = db.query(ApiKey).filter(ApiKey.id == key_id).first()
 
     if not api_key:
         raise HTTPException(status_code=404, detail="API key not found")
@@ -96,7 +96,7 @@ async def update_api_key(
     db: Session = Depends(get_db)
 ):
     """Update an API key's settings."""
-    api_key = db.query(APIKey).filter(APIKey.id == key_id).first()
+    api_key = db.query(ApiKey).filter(ApiKey.id == key_id).first()
 
     if not api_key:
         raise HTTPException(status_code=404, detail="API key not found")
@@ -127,7 +127,7 @@ async def delete_api_key(
     db: Session = Depends(get_db)
 ):
     """Delete an API key (soft delete by deactivating)."""
-    api_key = db.query(APIKey).filter(APIKey.id == key_id).first()
+    api_key = db.query(ApiKey).filter(ApiKey.id == key_id).first()
 
     if not api_key:
         raise HTTPException(status_code=404, detail="API key not found")
@@ -187,7 +187,7 @@ async def get_api_key_usage(
     db: Session = Depends(get_db)
 ):
     """Get usage statistics for a specific API key."""
-    api_key = db.query(APIKey).filter(APIKey.id == key_id).first()
+    api_key = db.query(ApiKey).filter(ApiKey.id == key_id).first()
 
     if not api_key:
         raise HTTPException(status_code=404, detail="API key not found")
@@ -195,25 +195,25 @@ async def get_api_key_usage(
     now = datetime.utcnow()
 
     # Get usage logs for different time periods
-    usage_today = db.query(APIUsage).filter(
-        APIUsage.api_key_id == key_id,
-        APIUsage.created_at >= now - timedelta(days=1)
+    usage_today = db.query(ApiKeyUsage).filter(
+        ApiKeyUsage.api_key_id == key_id,
+        ApiKeyUsage.created_at >= now - timedelta(days=1)
     ).all()
 
-    usage_7days = db.query(APIUsage).filter(
-        APIUsage.api_key_id == key_id,
-        APIUsage.created_at >= now - timedelta(days=7)
+    usage_7days = db.query(ApiKeyUsage).filter(
+        ApiKeyUsage.api_key_id == key_id,
+        ApiKeyUsage.created_at >= now - timedelta(days=7)
     ).all()
 
-    usage_30days = db.query(APIUsage).filter(
-        APIUsage.api_key_id == key_id,
-        APIUsage.created_at >= now - timedelta(days=30)
+    usage_30days = db.query(ApiKeyUsage).filter(
+        ApiKeyUsage.api_key_id == key_id,
+        ApiKeyUsage.created_at >= now - timedelta(days=30)
     ).all()
 
     # Get recent requests (last 100)
-    recent_logs = db.query(APIUsage).filter(
-        APIUsage.api_key_id == key_id
-    ).order_by(desc(APIUsage.created_at)).limit(100).all()
+    recent_logs = db.query(ApiKeyUsage).filter(
+        ApiKeyUsage.api_key_id == key_id
+    ).order_by(desc(ApiKeyUsage.created_at)).limit(100).all()
 
     recent_requests = [
         {
@@ -246,34 +246,34 @@ async def get_usage_dashboard(db: Session = Depends(get_db)):
     now = datetime.utcnow()
 
     # Total API keys
-    total_api_keys = db.query(func.count(APIKey.id)).scalar()
-    active_api_keys = db.query(func.count(APIKey.id)).filter(APIKey.is_active == True).scalar()
+    total_api_keys = db.query(func.count(ApiKey.id)).scalar()
+    active_api_keys = db.query(func.count(ApiKey.id)).filter(ApiKey.is_active == True).scalar()
 
     # Total requests by time period
-    total_requests_today = db.query(func.count(APIUsage.id)).filter(
-        APIUsage.created_at >= now - timedelta(days=1)
+    total_requests_today = db.query(func.count(ApiKeyUsage.id)).filter(
+        ApiKeyUsage.created_at >= now - timedelta(days=1)
     ).scalar()
 
-    total_requests_7days = db.query(func.count(APIUsage.id)).filter(
-        APIUsage.created_at >= now - timedelta(days=7)
+    total_requests_7days = db.query(func.count(ApiKeyUsage.id)).filter(
+        ApiKeyUsage.created_at >= now - timedelta(days=7)
     ).scalar()
 
-    total_requests_30days = db.query(func.count(APIUsage.id)).filter(
-        APIUsage.created_at >= now - timedelta(days=30)
+    total_requests_30days = db.query(func.count(ApiKeyUsage.id)).filter(
+        ApiKeyUsage.created_at >= now - timedelta(days=30)
     ).scalar()
 
     # Top keys by usage (last 30 days)
     top_keys = db.query(
-        APIKey.id,
-        APIKey.key_prefix,
-        APIKey.company_name,
-        func.count(APIUsage.id).label('request_count')
+        ApiKey.id,
+        ApiKey.key_prefix,
+        ApiKey.company_name,
+        func.count(ApiKeyUsage.id).label('request_count')
     ).join(
-        APIUsage, APIKey.id == APIUsage.api_key_id
+        APIUsage, ApiKey.id == ApiKeyUsage.api_key_id
     ).filter(
-        APIUsage.created_at >= now - timedelta(days=30)
+        ApiKeyUsage.created_at >= now - timedelta(days=30)
     ).group_by(
-        APIKey.id
+        ApiKey.id
     ).order_by(
         desc('request_count')
     ).limit(10).all()
@@ -290,19 +290,19 @@ async def get_usage_dashboard(db: Session = Depends(get_db)):
 
     # Requests by endpoint (last 30 days)
     endpoint_stats = db.query(
-        APIUsage.endpoint,
-        func.count(APIUsage.id).label('count')
+        ApiKeyUsage.endpoint,
+        func.count(ApiKeyUsage.id).label('count')
     ).filter(
-        APIUsage.created_at >= now - timedelta(days=30)
+        ApiKeyUsage.created_at >= now - timedelta(days=30)
     ).group_by(
-        APIUsage.endpoint
+        ApiKeyUsage.endpoint
     ).all()
 
     requests_by_endpoint = {stat.endpoint: stat.count for stat in endpoint_stats}
 
     # Error rate and avg response time (last 30 days)
-    recent_usage = db.query(APIUsage).filter(
-        APIUsage.created_at >= now - timedelta(days=30)
+    recent_usage = db.query(ApiKeyUsage).filter(
+        ApiKeyUsage.created_at >= now - timedelta(days=30)
     ).all()
 
     stats = _calculate_usage_stats(recent_usage)
