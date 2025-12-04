@@ -192,6 +192,10 @@ export const statsAPI = {
 export const analyticsAPI = {
   getHeatmap: async (params = {}) => {
     const response = await api.get('/analytics/heatmap', { params });
+    return response.data;
+  },
+};
+
 // Gamification endpoints
 export const gamificationAPI = {
   getLeaderboard: async (limit = 100, offset = 0, userId = null) => {

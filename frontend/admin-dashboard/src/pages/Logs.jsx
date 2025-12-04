@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { logsAPI } from '../services/api';
 import Header from '../components/Layout/Header';
-import { Search, Filter, Download, RefreshCw } from 'lucide-react';
+import { Search, Filter, RefreshCw } from 'lucide-react';
 
 const Logs = () => {
   const [logs, setLogs] = useState([]);
@@ -25,7 +25,7 @@ const Logs = () => {
     try {
       setLoading(true);
       const params = Object.fromEntries(
-        Object.entries(filters).filter(([_, v]) => v && v !== 'all')
+        Object.entries(filters).filter(([, v]) => v && v !== 'all')
       );
       const data = await logsAPI.getAll(params);
       setLogs(data);
