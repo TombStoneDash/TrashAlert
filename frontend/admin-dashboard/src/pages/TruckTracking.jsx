@@ -14,7 +14,7 @@ L.Icon.Default.mergeOptions({
 });
 
 // Create custom truck icon
-const createTruckIcon = (status, vehicleType) => {
+const createTruckIcon = (status) => {
   const colors = {
     active: '#10b981',
     inactive: '#6b7280',

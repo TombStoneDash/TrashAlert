@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { addressesAPI } from '../services/api';
 import Header from '../components/Layout/Header';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import { Search, Map as MapIcon, List, Filter } from 'lucide-react';
+import { Search, Map as MapIcon, List } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 
 const Addresses = () => {
@@ -11,7 +11,7 @@ const Addresses = () => {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('list');
-  const [filters, setFilters] = useState({
+  const [filters] = useState({
     city: '',
     source: '',
   });

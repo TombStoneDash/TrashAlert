@@ -9,9 +9,8 @@ import {
   FileText,
   Truck,
   LogOut,
-  Flame
+  Flame,
   Trophy,
-  LogOut
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 

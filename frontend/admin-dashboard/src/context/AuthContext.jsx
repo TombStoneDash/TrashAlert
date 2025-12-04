@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState } from 'react';
 import { authAPI } from '../services/api';
 
 const AuthContext = createContext(null);
@@ -6,26 +6,22 @@ const AuthContext = createContext(null);
 // DEV MODE: Set to true to bypass authentication during development
 const DEV_MODE = import.meta.env.DEV && import.meta.env.VITE_DEV_AUTH_BYPASS === 'true';
 
+// Helper function to get initial user state
+const getInitialUser = () => {
+  if (DEV_MODE) {
+    return { username: 'admin', id: 1, email: 'admin@trashalert.com' };
+  }
+  const token = localStorage.getItem('token');
+  const storedUser = localStorage.getItem('user');
+  if (token && storedUser) {
+    return JSON.parse(storedUser);
+  }
+  return null;
+};
+
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Development mode bypass
-    if (DEV_MODE) {
-      setUser({ username: 'admin', id: 1, email: 'admin@trashalert.com' });
-      setLoading(false);
-      return;
-    }
-
-    const token = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
-
-    if (token && storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setLoading(false);
-  }, []);
+  const [user, setUser] = useState(getInitialUser);
+  const [loading] = useState(false);
 
   const login = async (username, password) => {
     try {

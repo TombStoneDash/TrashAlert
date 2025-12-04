@@ -1869,10 +1869,60 @@ async def predict(
     Args:
         request_data: Prediction request with type and parameters
     """
-    # TODO: Implement prediction endpoint
+    prediction_service = PredictionService(db)
+
+    if request_data.prediction_type == "delay":
+        if request_data.address_id is None:
+            return PredictResponse(
+                prediction_type="delay",
+                delay=DelayPrediction(
+                    success=False,
+                    message="address_id is required for delay predictions"
+                )
+            )
+
+        result = prediction_service.predict_delay(request_data.address_id)
+        return PredictResponse(
+            prediction_type="delay",
+            delay=DelayPrediction(
+                success=result.get('success', False),
+                address_id=result.get('address_id'),
+                delay_likely=result.get('delay_likely'),
+                delay_probability=result.get('delay_probability'),
+                confidence=result.get('confidence'),
+                message=result.get('message')
+            )
+        )
+
+    elif request_data.prediction_type == "seasonal":
+        weeks = request_data.weeks_ahead or 4
+        result = prediction_service.predict_seasonal_volume(weeks_ahead=weeks)
+
+        seasonal_predictions = None
+        if result.get('success') and result.get('predictions'):
+            seasonal_predictions = [
+                SeasonalPrediction(
+                    week=p['week'],
+                    month=p['month'],
+                    date=p['date'],
+                    predicted_reports=p['predicted_reports']
+                )
+                for p in result['predictions']
+            ]
+
+        return PredictResponse(
+            prediction_type="seasonal",
+            seasonal=SeasonalPredictionResponse(
+                success=result.get('success', False),
+                predictions=seasonal_predictions,
+                message=result.get('message')
+            )
+        )
+
     return PredictResponse(
         prediction_type=request_data.prediction_type,
-        predictions=[]
+        delay=None,
+        seasonal=None
     )
 
 
