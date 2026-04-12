@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TrashAlert Zone Map</title>
+
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css" rel="stylesheet" />
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js"></script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; }
+    #map { width: 100vw; height: 100vh; }
+
+    /* Compact legend */
+    .legend {
+      position: absolute; bottom: 8px; left: 8px; z-index: 10;
+      background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(6px);
+      border-radius: 8px; padding: 8px 12px; color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 11px; display: flex; gap: 10px; align-items: center;
+    }
+    .legend-item { display: flex; align-items: center; gap: 4px; }
+    .legend-swatch {
+      width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
+    }
+
+    /* Branding link */
+    .branding {
+      position: absolute; top: 8px; right: 8px; z-index: 10;
+      background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(6px);
+      border-radius: 6px; padding: 4px 10px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 11px;
+    }
+    .branding a {
+      color: #38bdf8; text-decoration: none; font-weight: 600;
+    }
+    .branding a:hover { text-decoration: underline; }
+
+    .zone-popup h4 { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+    .zone-popup p { font-size: 12px; color: #475569; }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-swatch" style="background:#3b82f6"></div>Mon</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#22c55e"></div>Tue</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#f59e0b"></div>Wed</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#a855f7"></div>Thu</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#ef4444"></div>Fri</div>
+</div>
+
+<div class="branding">
+  <a href="https://trashalert.io/map" target="_blank" rel="noopener">TrashAlert</a>
+</div>
+
+<script>
+  const MAPBOX_TOKEN = '{{MAPBOX_TOKEN}}';
+  const API_BASE = window.TRASHALERT_API || '';
+  const DEFAULT_CITY = 'san_diego';
+
+  const DAY_COLORS = {
+    Monday: '#3b82f6', Tuesday: '#22c55e', Wednesday: '#f59e0b',
+    Thursday: '#a855f7', Friday: '#ef4444',
+  };
+
+  // Allow parent page to pass city and center via URL params
+  const params = new URLSearchParams(window.location.search);
+  const city = params.get('city') || DEFAULT_CITY;
+  const centerLng = parseFloat(params.get('lng') || '-117.16');
+  const centerLat = parseFloat(params.get('lat') || '32.72');
+  const zoom = parseFloat(params.get('zoom') || '11');
+
+  mapboxgl.accessToken = MAPBOX_TOKEN;
+
+  const map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/dark-v11',
+    center: [centerLng, centerLat],
+    zoom: zoom,
+    attributionControl: false,
+    interactive: true,
+  });
+
+  // Minimal controls for embed
+  map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-right');
+  map.addControl(new mapboxgl.AttributionControl({ compact: true }));
+
+  map.on('load', async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/zones/${city}`);
+      if (!res.ok) return;
+      const geojson = await res.json();
+
+      const colorExpr = ['match', ['get', 'pickup_day']];
+      for (const [day, color] of Object.entries(DAY_COLORS)) {
+        colorExpr.push(day, color);
+      }
+      colorExpr.push('#64748b');
+
+      map.addSource('zones', { type: 'geojson', data: geojson });
+
+      map.addLayer({
+        id: 'zone-fill',
+        type: 'fill',
+        source: 'zones',
+        paint: { 'fill-color': colorExpr, 'fill-opacity': 0.55 },
+      });
+
+      map.addLayer({
+        id: 'zone-outline',
+        type: 'line',
+        source: 'zones',
+        paint: { 'line-color': '#e2e8f0', 'line-width': 1, 'line-opacity': 0.3 },
+      });
+
+      map.on('click', 'zone-fill', (e) => {
+        const props = e.features[0].properties;
+        new mapboxgl.Popup({ offset: 10, closeButton: false })
+          .setLngLat(e.lngLat)
+          .setHTML(`<div class="zone-popup"><h4>${props.pickup_day}</h4><p>${props.address_count} addresses</p></div>`)
+          .addTo(map);
+      });
+
+      map.on('mouseenter', 'zone-fill', () => { map.getCanvas().style.cursor = 'pointer'; });
+      map.on('mouseleave', 'zone-fill', () => { map.getCanvas().style.cursor = ''; });
+    } catch (err) {
+      console.error('Failed to load zones:', err);
+    }
+  });
+</script>
+</body>
+</html>
