@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TrashAlert Zone Map</title>
+  <meta name="description" content="Interactive pickup zone map — see your trash collection day by neighborhood." />
+
+  <!-- Mapbox GL JS -->
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css" rel="stylesheet" />
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js"></script>
+
+  <!-- Mapbox Geocoder -->
+  <link href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.2/mapbox-gl-geocoder.css" rel="stylesheet" />
+  <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.2/mapbox-gl-geocoder.min.js"></script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+
+    #map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+
+    /* Header bar */
+    .header {
+      position: absolute; top: 0; left: 0; right: 0; z-index: 10;
+      background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(8px);
+      padding: 12px 20px; display: flex; align-items: center; gap: 16px;
+    }
+    .header h1 {
+      font-size: 18px; font-weight: 700; color: #fff; white-space: nowrap;
+    }
+    .header h1 span { color: #38bdf8; }
+
+    /* Legend */
+    .legend {
+      position: absolute; bottom: 32px; left: 16px; z-index: 10;
+      background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(8px);
+      border-radius: 10px; padding: 14px 18px; color: #e2e8f0;
+      font-size: 13px; min-width: 160px;
+    }
+    .legend h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 10px; }
+    .legend-item { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+    .legend-swatch {
+      width: 18px; height: 18px; border-radius: 4px; flex-shrink: 0;
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+
+    /* Info popup (on hex click) */
+    .zone-popup h4 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .zone-popup p { font-size: 13px; color: #475569; margin: 2px 0; }
+
+    /* Loading overlay */
+    .loading {
+      position: absolute; inset: 0; z-index: 20;
+      background: #0f172a; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; color: #e2e8f0;
+      transition: opacity 0.4s;
+    }
+    .loading.hidden { opacity: 0; pointer-events: none; }
+    .spinner {
+      width: 40px; height: 40px; border: 3px solid #334155;
+      border-top-color: #38bdf8; border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin-bottom: 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Geocoder override — place in header */
+    .mapboxgl-ctrl-geocoder {
+      min-width: 280px; max-width: 420px; font-size: 14px;
+      box-shadow: none !important; border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="header">
+  <h1><span>TrashAlert</span> Zone Map</h1>
+  <div id="geocoder-container"></div>
+</div>
+
+<div class="legend" id="legend">
+  <h3>Pickup Day</h3>
+  <div class="legend-item"><div class="legend-swatch" style="background:#3b82f6"></div> Monday</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#22c55e"></div> Tuesday</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#f59e0b"></div> Wednesday</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#a855f7"></div> Thursday</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#ef4444"></div> Friday</div>
+</div>
+
+<div class="loading" id="loading">
+  <div class="spinner"></div>
+  <div>Loading zone data&hellip;</div>
+</div>
+
+<script>
+  // --- Config ---
+  const MAPBOX_TOKEN = '{{MAPBOX_TOKEN}}';
+  const API_BASE = window.TRASHALERT_API || '';
+  const DEFAULT_CITY = 'san_diego';
+
+  // Day -> color
+  const DAY_COLORS = {
+    Monday:    '#3b82f6',
+    Tuesday:   '#22c55e',
+    Wednesday: '#f59e0b',
+    Thursday:  '#a855f7',
+    Friday:    '#ef4444',
+  };
+
+  // --- Map init ---
+  mapboxgl.accessToken = MAPBOX_TOKEN;
+
+  const map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/dark-v11',
+    center: [-117.16, 32.72],  // San Diego
+    zoom: 11,
+    pitch: 0,
+    attributionControl: true,
+  });
+
+  map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
+
+  // --- Geocoder (address search) ---
+  const geocoder = new MapboxGeocoder({
+    accessToken: MAPBOX_TOKEN,
+    mapboxgl: mapboxgl,
+    placeholder: 'Search an address\u2026',
+    bbox: [-117.40, 32.53, -116.85, 33.12],  // San Diego bounding box
+    proximity: { longitude: -117.16, latitude: 32.72 },
+    marker: false,
+  });
+
+  document.getElementById('geocoder-container').appendChild(geocoder.onAdd(map));
+
+  // Fly to result and highlight zone
+  geocoder.on('result', (e) => {
+    const [lng, lat] = e.result.center;
+    map.flyTo({ center: [lng, lat], zoom: 14, duration: 1500 });
+
+    // Find which hex contains this point
+    const point = map.project([lng, lat]);
+    const features = map.queryRenderedFeatures(point, { layers: ['zone-fill'] });
+
+    // Reset previous highlight
+    map.setPaintProperty('zone-fill', 'fill-opacity', [
+      'case',
+      ['boolean', ['feature-state', 'highlighted'], false],
+      0.7,
+      0.55,
+    ]);
+
+    if (features.length > 0) {
+      const hexId = features[0].properties.h3_index;
+
+      // Pulse the matched hex
+      map.setPaintProperty('zone-fill', 'fill-opacity', [
+        'case',
+        ['==', ['get', 'h3_index'], hexId], 0.85,
+        0.35,
+      ]);
+
+      // Show popup
+      new mapboxgl.Popup({ offset: 12, closeButton: true })
+        .setLngLat([lng, lat])
+        .setHTML(`
+          <div class="zone-popup">
+            <h4>${features[0].properties.pickup_day} Pickup</h4>
+            <p>${features[0].properties.address_count} addresses in zone</p>
+            <p style="font-size:11px;color:#94a3b8">Hex ${hexId.slice(0,8)}&hellip;</p>
+          </div>
+        `)
+        .addTo(map);
+    }
+  });
+
+  // --- Load zone data ---
+  map.on('load', async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/zones/${DEFAULT_CITY}`);
+      if (!res.ok) throw new Error(`API returned ${res.status}`);
+      const geojson = await res.json();
+
+      // Build color expression: match pickup_day -> color
+      const colorExpr = ['match', ['get', 'pickup_day']];
+      for (const [day, color] of Object.entries(DAY_COLORS)) {
+        colorExpr.push(day, color);
+      }
+      colorExpr.push('#64748b'); // fallback
+
+      map.addSource('zones', { type: 'geojson', data: geojson });
+
+      map.addLayer({
+        id: 'zone-fill',
+        type: 'fill',
+        source: 'zones',
+        paint: {
+          'fill-color': colorExpr,
+          'fill-opacity': 0.55,
+        },
+      });
+
+      map.addLayer({
+        id: 'zone-outline',
+        type: 'line',
+        source: 'zones',
+        paint: {
+          'line-color': '#e2e8f0',
+          'line-width': 1,
+          'line-opacity': 0.4,
+        },
+      });
+
+      // Click -> popup
+      map.on('click', 'zone-fill', (e) => {
+        const props = e.features[0].properties;
+        new mapboxgl.Popup({ offset: 12 })
+          .setLngLat(e.lngLat)
+          .setHTML(`
+            <div class="zone-popup">
+              <h4>${props.pickup_day} Pickup</h4>
+              <p>${props.address_count} addresses in zone</p>
+            </div>
+          `)
+          .addTo(map);
+      });
+
+      // Hover cursor
+      map.on('mouseenter', 'zone-fill', () => { map.getCanvas().style.cursor = 'pointer'; });
+      map.on('mouseleave', 'zone-fill', () => { map.getCanvas().style.cursor = ''; });
+
+    } catch (err) {
+      console.error('Failed to load zones:', err);
+    } finally {
+      document.getElementById('loading').classList.add('hidden');
+    }
+  });
+</script>
+</body>
+</html>

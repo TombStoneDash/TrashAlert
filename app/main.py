@@ -91,6 +91,7 @@ from app.admin_routes import router as admin_router
 from app.auth import get_optional_current_user, require_authenticated
 from app.routers import auth, admin
 from app.routers.zones import router as zones_router
+from app.routers.map_pages import router as map_pages_router
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -231,6 +232,9 @@ app.include_router(gps_router)
 
 # Include zone map router
 app.include_router(zones_router)
+
+# Include map page routes (/map, /map/embed)
+app.include_router(map_pages_router)
 
 app_logger.info("TrashAlert API started")
 
