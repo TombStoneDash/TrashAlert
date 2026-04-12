@@ -20,6 +20,7 @@ redis>=5.0.0
 pandas>=2.0.0
 geopandas>=0.14.0
 shapely>=2.0.0
+h3>=4.0.0
 geopy==2.4.1
 
 # Routing optimization

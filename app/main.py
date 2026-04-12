@@ -90,6 +90,7 @@ from app.mobile import router as mobile_router
 from app.admin_routes import router as admin_router
 from app.auth import get_optional_current_user, require_authenticated
 from app.routers import auth, admin
+from app.routers.zones import router as zones_router
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -227,6 +228,9 @@ app.include_router(admin_router)
 
 # Include GPS tracking router
 app.include_router(gps_router)
+
+# Include zone map router
+app.include_router(zones_router)
 
 app_logger.info("TrashAlert API started")
 
