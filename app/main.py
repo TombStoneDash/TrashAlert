@@ -94,6 +94,7 @@ from app.routers.zones import router as zones_router
 from app.routers.map_pages import router as map_pages_router
 from app.routers.narpm_pages import router as narpm_pages_router
 from app.routers.lookup_api import router as lookup_api_router
+from app.routers.schedule_api import router as schedule_api_router
 from app.routers.city_pages import router as city_pages_router
 from app.routers.sitemap import router as sitemap_router
 
@@ -245,6 +246,9 @@ app.include_router(narpm_pages_router)
 
 # Include public lookup API (/api/lookup)
 app.include_router(lookup_api_router)
+
+# Include v1 schedule & bulk API (/api/v1/schedule, /api/v1/bulk)
+app.include_router(schedule_api_router)
 
 # Sitemap
 app.include_router(sitemap_router)
