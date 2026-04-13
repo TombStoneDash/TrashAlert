@@ -37,6 +37,11 @@ def _load_city_addresses(city_slug: str) -> list[dict]:
         "calexico": "Calexico",
         "holtville": "Holtville",
         "imperial": "Imperial",
+        "houston": "Houston",
+        "phoenix": "Phoenix",
+        "austin": "Austin",
+        "boston": "Boston",
+        "denver": "Denver",
     }
     target_name = slug_to_name.get(city_slug.lower(), city_slug.replace("-", " ").replace("_", " ").title())
 
@@ -57,18 +62,21 @@ def _load_city_addresses(city_slug: str) -> list[dict]:
     return addresses
 
 
-def _assign_day(h3_index: str) -> str:
+def _assign_day(h3_index: str, lon_min: float, lon_max: float) -> str:
     """Deterministically assign a pickup day based on H3 index.
 
     Uses the hex center longitude to divide the city into 5 east-to-west
     stripes, each mapped to a weekday.  This produces a realistic pattern
     where adjacent zones share a day and the schedule sweeps across the city.
+
+    ``lon_min`` / ``lon_max`` are the extent of the city's address data so
+    the bucketing adapts to any city, not just San Diego.
     """
-    lat, lon = h3.cell_to_latlng(h3_index)
-    # San Diego roughly spans -117.28 to -116.90 longitude
-    # Normalize to [0, 1] across the city extent and bucket into 5 days
-    lon_min, lon_max = -117.35, -116.85
-    t = max(0.0, min(1.0, (lon - lon_min) / (lon_max - lon_min)))
+    _lat, lon = h3.cell_to_latlng(h3_index)
+    span = lon_max - lon_min
+    if span == 0:
+        return DAYS[0]
+    t = max(0.0, min(1.0, (lon - lon_min) / span))
     day_idx = min(4, int(t * 5))
     return DAYS[day_idx]
 
@@ -78,6 +86,11 @@ def _build_geojson(city_slug: str) -> dict:
     addresses = _load_city_addresses(city_slug)
     if not addresses:
         raise HTTPException(status_code=404, detail=f"No address data for city: {city_slug}")
+
+    # Compute longitude extent for day-assignment bucketing
+    lons = [a["lon"] for a in addresses]
+    lon_min = min(lons) - 0.02  # small buffer
+    lon_max = max(lons) + 0.02
 
     # Index every address into an H3 cell
     hex_addresses: dict[str, list[dict]] = {}
@@ -93,7 +106,7 @@ def _build_geojson(city_slug: str) -> dict:
         ring = [[lng, lat] for lat, lng in boundary]
         ring.append(ring[0])  # close the ring
 
-        day = _assign_day(h3_index)
+        day = _assign_day(h3_index, lon_min, lon_max)
 
         features.append({
             "type": "Feature",

@@ -40,6 +40,11 @@ def _load_city_addresses(city_slug: str) -> list[dict]:
         "calexico": "Calexico",
         "holtville": "Holtville",
         "imperial": "Imperial",
+        "houston": "Houston",
+        "phoenix": "Phoenix",
+        "austin": "Austin",
+        "boston": "Boston",
+        "denver": "Denver",
     }
     target_name = slug_to_name.get(
         city_slug.lower(),
@@ -65,11 +70,13 @@ def _load_city_addresses(city_slug: str) -> list[dict]:
     return addresses
 
 
-def _assign_day(h3_index: str) -> str:
+def _assign_day(h3_index: str, lon_min: float, lon_max: float) -> str:
     """Deterministically assign a pickup day based on H3 index longitude."""
     _lat, lon = h3.cell_to_latlng(h3_index)
-    lon_min, lon_max = -117.35, -116.85
-    t = max(0.0, min(1.0, (lon - lon_min) / (lon_max - lon_min)))
+    span = lon_max - lon_min
+    if span == 0:
+        return DAYS[0]
+    t = max(0.0, min(1.0, (lon - lon_min) / span))
     day_idx = min(4, int(t * 5))
     return DAYS[day_idx]
 
@@ -168,9 +175,14 @@ async def api_lookup(
             detail=f"Address not found: {address} in {city}",
         )
 
+    # Compute city longitude extent for day bucketing
+    lons = [a["lon"] for a in addresses]
+    lon_min = min(lons) - 0.02
+    lon_max = max(lons) + 0.02
+
     # Determine zone via H3
     h3_index = h3.latlng_to_cell(matched["lat"], matched["lon"], H3_RESOLUTION)
-    day = _assign_day(h3_index)
+    day = _assign_day(h3_index, lon_min, lon_max)
     zone = _zone_label(h3_index)
 
     return {

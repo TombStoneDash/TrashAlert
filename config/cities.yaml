@@ -72,6 +72,20 @@ cities:
     pickup_zone_data_source: "Not available - will use OSM boundaries"
     notes: "Small agricultural town in Imperial County"
 
+  - city_id: tx_houston
+    name: Houston
+    state: Texas
+    state_abbr: TX
+    country: USA
+    has_official_pickup_zones: true
+    pickup_zone_data_source: "https://www.houstontx.gov/solidwaste/"
+    notes: "Fourth-largest US city, zone-based weekly collection"
+    bounding_box: [-95.55, 29.62, -95.20, 29.90]
+    population: 2300000
+    region: "Gulf Coast Texas"
+    timezone: "America/Chicago"
+    onboarding_status: "COMPLETE"
+
   - city_id: ca_fresno
     name: Fresno
     state: California
