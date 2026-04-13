@@ -100,6 +100,20 @@ cities:
     timezone: "America/Phoenix"
     onboarding_status: "COMPLETE"
 
+  - city_id: tx_austin
+    name: Austin
+    state: Texas
+    state_abbr: TX
+    country: USA
+    has_official_pickup_zones: true
+    pickup_zone_data_source: "https://www.austintexas.gov/department/austin-resource-recovery"
+    notes: "Texas capital, zone-based curbside collection"
+    bounding_box: [-97.85, 30.15, -97.62, 30.40]
+    population: 960000
+    region: "Central Texas"
+    timezone: "America/Chicago"
+    onboarding_status: "COMPLETE"
+
   - city_id: ca_fresno
     name: Fresno
     state: California
