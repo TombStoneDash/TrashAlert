@@ -21,6 +21,10 @@ STATIC_PAGES = [
     "/map",
     "/narpm",
     "/narpm/print",
+    "/pricing",
+    "/about",
+    "/for/property-managers",
+    "/for/municipalities",
 ]
 
 

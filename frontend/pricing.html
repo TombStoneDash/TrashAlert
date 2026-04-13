@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pricing | TrashAlert</title>
+  <meta name="description" content="TrashAlert pricing for property managers. Starter $29/mo, Portfolio $99/mo unlimited properties, Enterprise custom." />
+
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8;
+      --accent: #38bdf8; --green: #22c55e; --border: rgba(255,255,255,0.08);
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 16px 32px; border-bottom: 1px solid var(--border); }
+    .logo { font-size: 20px; font-weight: 800; color: #fff; text-decoration: none; }
+    .logo span { color: var(--accent); }
+    nav a.nl { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500; margin-left: 24px; }
+    nav a.nl:hover { color: #fff; }
+
+    .hero { max-width: 720px; margin: 0 auto; padding: 72px 32px 24px; text-align: center; }
+    .hero h1 { font-size: clamp(28px, 4vw, 44px); font-weight: 800; color: #fff; margin-bottom: 16px; }
+    .hero p { font-size: 18px; color: var(--muted); }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; max-width: 960px; margin: 48px auto; padding: 0 24px; }
+
+    .plan { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 36px 28px; display: flex; flex-direction: column; }
+    .plan.featured { border-color: var(--accent); position: relative; }
+    .plan.featured::before { content: "Most Popular"; position: absolute; top: -13px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #0f172a; font-size: 12px; font-weight: 700; padding: 4px 14px; border-radius: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .plan .tier { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent); margin-bottom: 8px; }
+    .plan .price { font-size: 48px; font-weight: 800; color: #fff; line-height: 1; }
+    .plan .price .per { font-size: 18px; font-weight: 400; color: var(--muted); }
+    .plan .desc { font-size: 15px; color: var(--muted); margin: 16px 0 24px; }
+    .plan ul { list-style: none; flex: 1; margin-bottom: 28px; }
+    .plan ul li { padding: 8px 0; font-size: 15px; color: var(--text); border-bottom: 1px solid var(--border); }
+    .plan ul li::before { content: "\2713"; color: var(--green); font-weight: 700; margin-right: 10px; }
+    .plan .cta { display: block; text-align: center; padding: 14px; border-radius: 10px; font-size: 16px; font-weight: 700; text-decoration: none; transition: background 0.2s; }
+    .plan .cta-primary { background: var(--green); color: #fff; }
+    .plan .cta-primary:hover { background: #16a34a; }
+    .plan .cta-outline { background: transparent; color: var(--accent); border: 2px solid var(--accent); }
+    .plan .cta-outline:hover { background: rgba(56,189,248,0.1); }
+
+    /* FAQ */
+    .faq { max-width: 720px; margin: 64px auto; padding: 0 32px 80px; }
+    .faq h2 { font-size: 28px; font-weight: 700; color: #fff; text-align: center; margin-bottom: 36px; }
+    .faq-item { border-bottom: 1px solid var(--border); }
+    .faq-q { display: flex; justify-content: space-between; align-items: center; padding: 20px 0; cursor: pointer; font-size: 16px; font-weight: 600; color: #fff; }
+    .faq-q::after { content: "+"; font-size: 20px; color: var(--muted); transition: transform 0.2s; }
+    .faq-item.open .faq-q::after { transform: rotate(45deg); }
+    .faq-a { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+    .faq-item.open .faq-a { max-height: 200px; }
+    .faq-a p { padding: 0 0 20px; font-size: 15px; color: var(--muted); line-height: 1.6; }
+
+    footer { text-align: center; padding: 32px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+
+    @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+
+  <!-- JSON-LD FAQ Schema -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "How many properties can I add?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Starter supports 1 property. Portfolio supports unlimited properties. Enterprise has no limits and includes custom integrations."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Where does the pickup schedule data come from?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "We aggregate data from municipal open data portals, waste hauler APIs, and crowdsourced community reports. All data is verified through our consensus algorithm."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I embed the schedule in my tenant portal?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Portfolio and Enterprise plans include an embeddable widget and iframe that you can drop into any tenant portal, including AppFolio, Buildium, and custom portals."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is there a free trial?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. All plans include a free 14-day trial with full access. No credit card required to start."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Do you support bulk address lookups?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Portfolio and Enterprise plans include the bulk API endpoint. Upload a CSV or POST an array of addresses and get schedules for all of them in one call."
+        }
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="logo"><span>TrashAlert</span></a>
+  <div>
+    <a href="/map" class="nl">Zone Map</a>
+    <a href="/narpm" class="nl">For PMs</a>
+    <a href="/about" class="nl">About</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <h1>Simple pricing. No surprises.</h1>
+  <p>Start free for 14 days. Scale to any portfolio size.</p>
+</section>
+
+<div class="grid">
+  <!-- Starter -->
+  <div class="plan">
+    <div class="tier">Starter</div>
+    <div class="price">$29<span class="per">/mo</span></div>
+    <p class="desc">Perfect for single-property landlords.</p>
+    <ul>
+      <li>1 property</li>
+      <li>Address schedule lookup</li>
+      <li>Weekly email reminders</li>
+      <li>Zone map access</li>
+      <li>Basic API access (100 req/day)</li>
+    </ul>
+    <a href="/narpm" class="cta cta-outline">Start free trial</a>
+  </div>
+
+  <!-- Portfolio -->
+  <div class="plan featured">
+    <div class="tier">Portfolio</div>
+    <div class="price">$99<span class="per">/mo</span></div>
+    <p class="desc">Built for property management companies.</p>
+    <ul>
+      <li>Unlimited properties</li>
+      <li>Bulk address upload (CSV)</li>
+      <li>Embeddable tenant widget</li>
+      <li>REST API (10k req/day)</li>
+      <li>Bulk schedule endpoint</li>
+      <li>Branded move-in packets</li>
+      <li>Slack &amp; email alerts</li>
+    </ul>
+    <a href="/narpm" class="cta cta-primary">Start free trial</a>
+  </div>
+
+  <!-- Enterprise -->
+  <div class="plan">
+    <div class="tier">Enterprise</div>
+    <div class="price">Custom</div>
+    <p class="desc">For municipalities and large portfolios.</p>
+    <ul>
+      <li>Everything in Portfolio</li>
+      <li>Unlimited API requests</li>
+      <li>Custom data integrations</li>
+      <li>Dedicated account manager</li>
+      <li>SLA guarantee (99.9%)</li>
+      <li>SSO / SAML authentication</li>
+      <li>Priority data onboarding</li>
+    </ul>
+    <a href="mailto:enterprise@trashalert.io" class="cta cta-outline">Contact sales</a>
+  </div>
+</div>
+
+<section class="faq">
+  <h2>Frequently Asked Questions</h2>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">How many properties can I add?</div>
+    <div class="faq-a"><p>Starter supports 1 property. Portfolio supports unlimited properties. Enterprise has no limits and includes custom integrations.</p></div>
+  </div>
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">Where does the pickup schedule data come from?</div>
+    <div class="faq-a"><p>We aggregate data from municipal open data portals, waste hauler APIs, and crowdsourced community reports. All data is verified through our consensus algorithm.</p></div>
+  </div>
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">Can I embed the schedule in my tenant portal?</div>
+    <div class="faq-a"><p>Yes. Portfolio and Enterprise plans include an embeddable widget and iframe that you can drop into any tenant portal, including AppFolio, Buildium, and custom portals.</p></div>
+  </div>
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">Is there a free trial?</div>
+    <div class="faq-a"><p>Yes. All plans include a free 14-day trial with full access. No credit card required to start.</p></div>
+  </div>
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">Do you support bulk address lookups?</div>
+    <div class="faq-a"><p>Portfolio and Enterprise plans include the bulk API endpoint. Upload a CSV or POST an array of addresses and get schedules for all of them in one call.</p></div>
+  </div>
+</section>
+
+<footer>&copy; 2026 TrashAlert</footer>
+
+</body>
+</html>
