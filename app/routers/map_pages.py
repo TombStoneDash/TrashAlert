@@ -21,8 +21,14 @@ def _inject_token(html: str) -> str:
 
 @router.get("/map", response_class=HTMLResponse)
 async def zone_map():
-    """Serve the interactive zone map page."""
-    return _inject_token((MAP_DIR / "index.html").read_text(encoding="utf-8"))
+    """Serve the interactive zone map page.
+
+    Uses Mapbox GL if MAPBOX_TOKEN is set, otherwise falls back to
+    Leaflet + OSM tiles (no API key required).
+    """
+    if MAPBOX_TOKEN:
+        return _inject_token((MAP_DIR / "index.html").read_text(encoding="utf-8"))
+    return (MAP_DIR / "leaflet.html").read_text(encoding="utf-8")
 
 
 @router.get("/map/embed", response_class=HTMLResponse)

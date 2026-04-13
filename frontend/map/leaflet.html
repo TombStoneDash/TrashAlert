@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TrashAlert Zone Map</title>
+  <meta name="description" content="Interactive trash pickup zone map. Click any zone to see the collection day." />
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    #map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+
+    .header {
+      position: absolute; top: 0; left: 0; right: 0; z-index: 1000;
+      background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(8px);
+      padding: 12px 20px; display: flex; align-items: center; gap: 16px;
+    }
+    .header h1 { font-size: 18px; font-weight: 700; color: #fff; white-space: nowrap; }
+    .header h1 span { color: #38bdf8; }
+
+    .search-box {
+      flex: 1; max-width: 380px;
+      padding: 8px 14px; border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.08);
+      color: #fff; font-size: 14px; outline: none;
+    }
+    .search-box::placeholder { color: #94a3b8; }
+    .search-box:focus { border-color: #38bdf8; }
+
+    .legend {
+      position: absolute; bottom: 32px; left: 16px; z-index: 1000;
+      background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(8px);
+      border-radius: 10px; padding: 14px 18px; color: #e2e8f0;
+      font-size: 13px; min-width: 160px;
+    }
+    .legend h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 10px; }
+    .legend-item { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+    .legend-swatch { width: 18px; height: 18px; border-radius: 4px; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.15); }
+
+    .loading {
+      position: absolute; inset: 0; z-index: 2000;
+      background: #0f172a; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; color: #e2e8f0;
+      transition: opacity 0.4s;
+    }
+    .loading.hidden { opacity: 0; pointer-events: none; }
+    .spinner {
+      width: 40px; height: 40px; border: 3px solid #334155;
+      border-top-color: #38bdf8; border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin-bottom: 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .leaflet-popup-content h4 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .leaflet-popup-content p { font-size: 13px; color: #475569; margin: 2px 0; }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="header">
+  <h1><span>TrashAlert</span> Zone Map</h1>
+  <input type="text" class="search-box" id="search" placeholder="Search an address..." />
+</div>
+
+<div class="legend">
+  <h3>Pickup Day</h3>
+  <div class="legend-item"><div class="legend-swatch" style="background:#3b82f6"></div> Monday</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#22c55e"></div> Tuesday</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#f59e0b"></div> Wednesday</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#a855f7"></div> Thursday</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#ef4444"></div> Friday</div>
+</div>
+
+<div class="loading" id="loading">
+  <div class="spinner"></div>
+  <div>Loading zone data&hellip;</div>
+</div>
+
+<script>
+  const API_BASE = window.TRASHALERT_API || '';
+  const DEFAULT_CITY = 'san_diego';
+
+  const DAY_COLORS = {
+    Monday: '#3b82f6', Tuesday: '#22c55e', Wednesday: '#f59e0b',
+    Thursday: '#a855f7', Friday: '#ef4444',
+  };
+
+  // Init Leaflet map with OSM tiles (no API key needed)
+  const map = L.map('map', { zoomControl: false }).setView([32.72, -117.16], 11);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 19,
+  }).addTo(map);
+
+  L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+  // Load zones
+  fetch(`${API_BASE}/api/zones/${DEFAULT_CITY}`)
+    .then(r => r.json())
+    .then(geojson => {
+      const zoneLayer = L.geoJSON(geojson, {
+        style: feature => ({
+          fillColor: DAY_COLORS[feature.properties.pickup_day] || '#64748b',
+          fillOpacity: 0.55,
+          color: '#e2e8f0',
+          weight: 1,
+          opacity: 0.4,
+        }),
+        onEachFeature: (feature, layer) => {
+          const p = feature.properties;
+          layer.bindPopup(`<h4>${p.pickup_day} Pickup</h4><p>${p.address_count} addresses in zone</p>`);
+          layer.on('mouseover', () => layer.setStyle({ fillOpacity: 0.8 }));
+          layer.on('mouseout', () => layer.setStyle({ fillOpacity: 0.55 }));
+        },
+      }).addTo(map);
+
+      // Fit to zone bounds
+      if (zoneLayer.getBounds().isValid()) {
+        map.fitBounds(zoneLayer.getBounds(), { padding: [20, 20] });
+      }
+
+      // Address search — geocode via Nominatim (free, no key)
+      document.getElementById('search').addEventListener('keydown', async (e) => {
+        if (e.key !== 'Enter') return;
+        const q = e.target.value.trim();
+        if (!q) return;
+
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`);
+          const data = await res.json();
+          if (data.length > 0) {
+            const { lat, lon } = data[0];
+            const latlng = L.latLng(parseFloat(lat), parseFloat(lon));
+            map.flyTo(latlng, 15, { duration: 1.5 });
+
+            // Find zone under point
+            let found = false;
+            zoneLayer.eachLayer(layer => {
+              if (found) return;
+              if (layer.getBounds && layer.getBounds().contains(latlng)) {
+                layer.openPopup(latlng);
+                layer.setStyle({ fillOpacity: 0.85 });
+                setTimeout(() => layer.setStyle({ fillOpacity: 0.55 }), 3000);
+                found = true;
+              }
+            });
+
+            // Drop a marker
+            L.marker(latlng).addTo(map)
+              .bindPopup(`<strong>${q}</strong>`)
+              .openPopup();
+          }
+        } catch (err) {
+          console.error('Search failed:', err);
+        }
+      });
+    })
+    .catch(err => console.error('Failed to load zones:', err))
+    .finally(() => document.getElementById('loading').classList.add('hidden'));
+</script>
+</body>
+</html>
