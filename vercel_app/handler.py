@@ -206,15 +206,9 @@ async def schedule_city_page(city_slug: str):
     return _render_city(slug)
 
 
-@app.get("/{city_slug}", response_class=HTMLResponse)
-async def city_page_redirect(city_slug: str):
-    """Redirect bare /{city} to /schedule/{city} (canonical URL)."""
-    slug = _normalize_slug(city_slug)
-    if slug is None:
-        raise HTTPException(status_code=404, detail=f"City not found: {city_slug}")
-    # Use hyphenated form for the canonical URL
-    hyphenated = slug.replace("_", "-")
-    return RedirectResponse(url=f"/schedule/{hyphenated}", status_code=301)
+# NOTE: /{city_slug} catch-all is registered LAST in this file (after all
+# explicit routes like /narpm, /pricing, /about, /api/*, etc.) to avoid
+# shadowing them.  See bottom of file.
 
 
 # ---------------------------------------------------------------------------
@@ -337,3 +331,19 @@ async def sitemap():
 @app.get("/robots.txt")
 async def robots():
     return Response(content="User-agent: *\nAllow: /\nSitemap: https://trashalert.io/sitemap.xml\n", media_type="text/plain")
+
+
+# ---------------------------------------------------------------------------
+# CATCH-ALL: /{city_slug} redirect — MUST be last route registered
+# ---------------------------------------------------------------------------
+# This must come after ALL explicit routes (/narpm, /pricing, /about,
+# /api/*, /map, /embed, etc.) or it will shadow them and return 404.
+
+@app.get("/{city_slug}", response_class=HTMLResponse)
+async def city_page_redirect(city_slug: str):
+    """Redirect bare /{city} to /schedule/{city} (canonical URL)."""
+    slug = _normalize_slug(city_slug)
+    if slug is None:
+        raise HTTPException(status_code=404, detail=f"Not found: {city_slug}")
+    hyphenated = slug.replace("_", "-")
+    return RedirectResponse(url=f"/schedule/{hyphenated}", status_code=301)
