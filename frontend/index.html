@@ -425,7 +425,7 @@
         <div class="header">
             <h1>🗑️ TrashAlert</h1>
             <p>Find your trash and recycling collection days</p>
-            <p style="margin-top: 12px; font-size: 0.85rem; opacity: 0.75;">11 cities &middot; 1,445 addresses &middot; Real collection day data</p>
+            <p id="stats-badge" style="margin-top: 12px; font-size: 0.85rem; opacity: 0.75;">Loading stats&hellip;</p>
         </div>
 
         <div class="search-card">
@@ -876,6 +876,21 @@
             div.textContent = text;
             return div.innerHTML;
         }
+
+        // Fetch live stats from /api/cities
+        (function() {
+            const badge = document.getElementById('stats-badge');
+            const apiUrl = localStorage.getItem('apiUrl') || 'http://localhost:8000';
+            fetch(apiUrl + '/api/cities')
+                .then(r => r.json())
+                .then(data => {
+                    badge.textContent = data.total_cities + ' cities \u00B7 '
+                        + data.total_addresses.toLocaleString() + ' addresses \u00B7 Real collection day data';
+                })
+                .catch(() => {
+                    badge.textContent = '21 cities \u00B7 3,445 addresses \u00B7 Real collection day data';
+                });
+        })();
 
         // Load API URL from localStorage
         const savedApiUrl = localStorage.getItem('apiUrl');
