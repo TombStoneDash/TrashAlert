@@ -27,6 +27,16 @@ CITY_META = {
     "brawley":    {"name": "Brawley",    "state": "California",    "state_abbr": "CA", "center_lat": "32.98", "center_lng": "-115.53", "zoom": "13", "sample": "1115 Imperial Ave"},
     "imperial":   {"name": "Imperial",   "state": "California",    "state_abbr": "CA", "center_lat": "32.85", "center_lng": "-115.57", "zoom": "13", "sample": "200 Imperial Ave"},
     "holtville":  {"name": "Holtville",  "state": "California",    "state_abbr": "CA", "center_lat": "32.81", "center_lng": "-115.38", "zoom": "14", "sample": "100 5th St"},
+    "new_york":       {"name": "New York",       "state": "New York",       "state_abbr": "NY", "center_lat": "40.71", "center_lng": "-73.99", "zoom": "11", "sample": "350 5th Ave"},
+    "los_angeles":    {"name": "Los Angeles",    "state": "California",     "state_abbr": "CA", "center_lat": "34.05", "center_lng": "-118.24", "zoom": "11", "sample": "600 Wilshire Blvd"},
+    "philadelphia":   {"name": "Philadelphia",   "state": "Pennsylvania",   "state_abbr": "PA", "center_lat": "39.95", "center_lng": "-75.17", "zoom": "12", "sample": "1500 Market St"},
+    "san_antonio":    {"name": "San Antonio",    "state": "Texas",          "state_abbr": "TX", "center_lat": "29.42", "center_lng": "-98.49", "zoom": "11", "sample": "300 Alamo St"},
+    "dallas":         {"name": "Dallas",         "state": "Texas",          "state_abbr": "TX", "center_lat": "32.78", "center_lng": "-96.80", "zoom": "11", "sample": "500 Main St"},
+    "oklahoma_city":  {"name": "Oklahoma City",  "state": "Oklahoma",       "state_abbr": "OK", "center_lat": "35.47", "center_lng": "-97.52", "zoom": "11", "sample": "200 Robinson Ave"},
+    "charlotte":      {"name": "Charlotte",      "state": "North Carolina", "state_abbr": "NC", "center_lat": "35.23", "center_lng": "-80.84", "zoom": "11", "sample": "100 Tryon St"},
+    "columbus":       {"name": "Columbus",       "state": "Ohio",           "state_abbr": "OH", "center_lat": "39.96", "center_lng": "-82.99", "zoom": "12", "sample": "100 High St"},
+    "chicago":        {"name": "Chicago",        "state": "Illinois",       "state_abbr": "IL", "center_lat": "41.88", "center_lng": "-87.63", "zoom": "11", "sample": "233 Michigan Ave"},
+    "seattle":        {"name": "Seattle",        "state": "Washington",     "state_abbr": "WA", "center_lat": "47.61", "center_lng": "-122.33", "zoom": "12", "sample": "400 Pike St"},
 }
 
 

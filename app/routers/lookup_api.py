@@ -45,6 +45,20 @@ def _load_city_addresses(city_slug: str) -> list[dict]:
         "austin": "Austin",
         "boston": "Boston",
         "denver": "Denver",
+        "new_york": "New York",
+        "new-york": "New York",
+        "los_angeles": "Los Angeles",
+        "los-angeles": "Los Angeles",
+        "philadelphia": "Philadelphia",
+        "san_antonio": "San Antonio",
+        "san-antonio": "San Antonio",
+        "dallas": "Dallas",
+        "oklahoma_city": "Oklahoma City",
+        "oklahoma-city": "Oklahoma City",
+        "charlotte": "Charlotte",
+        "columbus": "Columbus",
+        "chicago": "Chicago",
+        "seattle": "Seattle",
     }
     target_name = slug_to_name.get(
         city_slug.lower(),
@@ -210,6 +224,16 @@ _CITY_DISPLAY = {
     "brawley":    {"name": "Brawley",    "state": "CA", "slug": "brawley"},
     "imperial":   {"name": "Imperial",   "state": "CA", "slug": "imperial"},
     "holtville":  {"name": "Holtville",  "state": "CA", "slug": "holtville"},
+    "new_york":       {"name": "New York",       "state": "NY", "slug": "new_york"},
+    "los_angeles":    {"name": "Los Angeles",    "state": "CA", "slug": "los_angeles"},
+    "philadelphia":   {"name": "Philadelphia",   "state": "PA", "slug": "philadelphia"},
+    "san_antonio":    {"name": "San Antonio",    "state": "TX", "slug": "san_antonio"},
+    "dallas":         {"name": "Dallas",         "state": "TX", "slug": "dallas"},
+    "oklahoma_city":  {"name": "Oklahoma City",  "state": "OK", "slug": "oklahoma_city"},
+    "charlotte":      {"name": "Charlotte",      "state": "NC", "slug": "charlotte"},
+    "columbus":       {"name": "Columbus",       "state": "OH", "slug": "columbus"},
+    "chicago":        {"name": "Chicago",        "state": "IL", "slug": "chicago"},
+    "seattle":        {"name": "Seattle",        "state": "WA", "slug": "seattle"},
 }
 
 # Cache for city counts

@@ -11,6 +11,8 @@ BASE_URL = "https://trashalert.io"
 CITY_SLUGS = [
     "san_diego", "houston", "phoenix", "austin", "boston", "denver",
     "el_centro", "calexico", "brawley", "imperial", "holtville",
+    "new_york", "los_angeles", "philadelphia", "san_antonio", "dallas",
+    "oklahoma_city", "charlotte", "columbus", "chicago", "seattle",
 ]
 
 # Static pages

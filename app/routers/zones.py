@@ -42,6 +42,20 @@ def _load_city_addresses(city_slug: str) -> list[dict]:
         "austin": "Austin",
         "boston": "Boston",
         "denver": "Denver",
+        "new_york": "New York",
+        "new-york": "New York",
+        "los_angeles": "Los Angeles",
+        "los-angeles": "Los Angeles",
+        "philadelphia": "Philadelphia",
+        "san_antonio": "San Antonio",
+        "san-antonio": "San Antonio",
+        "dallas": "Dallas",
+        "oklahoma_city": "Oklahoma City",
+        "oklahoma-city": "Oklahoma City",
+        "charlotte": "Charlotte",
+        "columbus": "Columbus",
+        "chicago": "Chicago",
+        "seattle": "Seattle",
     }
     target_name = slug_to_name.get(city_slug.lower(), city_slug.replace("-", " ").replace("_", " ").title())
 

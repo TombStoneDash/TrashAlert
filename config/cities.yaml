@@ -142,6 +142,146 @@ cities:
     timezone: "America/Denver"
     onboarding_status: "COMPLETE"
 
+  - city_id: ny_new_york
+    name: New York
+    state: New York
+    state_abbr: NY
+    country: USA
+    has_official_pickup_zones: true
+    pickup_zone_data_source: "https://www.nyc.gov/assets/dsny/site/services/collections"
+    notes: "Largest US city, borough-based collection zones"
+    bounding_box: [-74.05, 40.56, -73.75, 40.88]
+    population: 8300000
+    region: "Northeast"
+    timezone: "America/New_York"
+    onboarding_status: "COMPLETE"
+
+  - city_id: ca_los_angeles
+    name: Los Angeles
+    state: California
+    state_abbr: CA
+    country: USA
+    has_official_pickup_zones: true
+    pickup_zone_data_source: "https://www.lacitysan.org/san/faces/home"
+    notes: "Second-largest US city, zone-based collection"
+    bounding_box: [-118.50, 33.90, -118.15, 34.15]
+    population: 3900000
+    region: "Southern California"
+    timezone: "America/Los_Angeles"
+    onboarding_status: "COMPLETE"
+
+  - city_id: pa_philadelphia
+    name: Philadelphia
+    state: Pennsylvania
+    state_abbr: PA
+    country: USA
+    has_official_pickup_zones: true
+    pickup_zone_data_source: "https://www.phila.gov/services/trash-recycling-outdoor-maintenance/"
+    notes: "Sixth-largest US city, grid-based sanitation districts"
+    bounding_box: [-75.25, 39.88, -75.10, 40.08]
+    population: 1600000
+    region: "Mid-Atlantic"
+    timezone: "America/New_York"
+    onboarding_status: "COMPLETE"
+
+  - city_id: tx_san_antonio
+    name: San Antonio
+    state: Texas
+    state_abbr: TX
+    country: USA
+    has_official_pickup_zones: true
+    pickup_zone_data_source: "https://www.sanantonio.gov/swmd"
+    notes: "Seventh-largest US city, weekly curbside collection"
+    bounding_box: [-98.60, 29.32, -98.38, 29.58]
+    population: 1430000
+    region: "South Texas"
+    timezone: "America/Chicago"
+    onboarding_status: "COMPLETE"
+
+  - city_id: tx_dallas
+    name: Dallas
+    state: Texas
+    state_abbr: TX
+    country: USA
+    has_official_pickup_zones: true
+    pickup_zone_data_source: "https://dallascityhall.com/departments/sanitation/Pages/default.aspx"
+    notes: "Ninth-largest US city, sector-based collection"
+    bounding_box: [-96.90, 32.68, -96.65, 32.92]
+    population: 1300000
+    region: "North Texas"
+    timezone: "America/Chicago"
+    onboarding_status: "COMPLETE"
+
+  - city_id: ok_oklahoma_city
+    name: Oklahoma City
+    state: Oklahoma
+    state_abbr: OK
+    country: USA
+    has_official_pickup_zones: true
+    pickup_zone_data_source: "https://www.okc.gov/departments/utilities/trash-recycling"
+    notes: "Oklahoma capital, zone-based weekly collection"
+    bounding_box: [-97.62, 35.38, -97.42, 35.58]
+    population: 680000
+    region: "Southern Plains"
+    timezone: "America/Chicago"
+    onboarding_status: "COMPLETE"
+
+  - city_id: nc_charlotte
+    name: Charlotte
+    state: North Carolina
+    state_abbr: NC
+    country: USA
+    has_official_pickup_zones: true
+    pickup_zone_data_source: "https://charlottenc.gov/SWS"
+    notes: "Largest NC city, route-based collection"
+    bounding_box: [-80.92, 35.15, -80.75, 35.35]
+    population: 880000
+    region: "Piedmont"
+    timezone: "America/New_York"
+    onboarding_status: "COMPLETE"
+
+  - city_id: oh_columbus
+    name: Columbus
+    state: Ohio
+    state_abbr: OH
+    country: USA
+    has_official_pickup_zones: true
+    pickup_zone_data_source: "https://www.columbus.gov/services/recycling-and-trash/"
+    notes: "Ohio capital, zone-based weekly collection"
+    bounding_box: [-83.10, 39.90, -82.87, 40.08]
+    population: 906000
+    region: "Midwest"
+    timezone: "America/New_York"
+    onboarding_status: "COMPLETE"
+
+  - city_id: il_chicago
+    name: Chicago
+    state: Illinois
+    state_abbr: IL
+    country: USA
+    has_official_pickup_zones: true
+    pickup_zone_data_source: "https://www.chicago.gov/city/en/depts/streets/provdrs/streets_san.html"
+    notes: "Third-largest US city, ward-based collection"
+    bounding_box: [-87.78, 41.72, -87.58, 41.98]
+    population: 2700000
+    region: "Great Lakes"
+    timezone: "America/Chicago"
+    onboarding_status: "COMPLETE"
+
+  - city_id: wa_seattle
+    name: Seattle
+    state: Washington
+    state_abbr: WA
+    country: USA
+    has_official_pickup_zones: true
+    pickup_zone_data_source: "https://www.seattle.gov/utilities/your-services/collection-and-disposal"
+    notes: "Pacific Northwest hub, route-based collection"
+    bounding_box: [-122.42, 47.50, -122.25, 47.72]
+    population: 740000
+    region: "Pacific Northwest"
+    timezone: "America/Los_Angeles"
+    onboarding_status: "COMPLETE"
+
   - city_id: ca_fresno
     name: Fresno
     state: California
