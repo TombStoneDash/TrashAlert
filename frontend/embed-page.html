@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Embed Widget | TrashAlert</title>
+  <meta name="description" content="Embed TrashAlert's pickup schedule lookup in your tenant portal with two lines of HTML." />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8; --green: #22c55e; --border: rgba(255,255,255,0.08); }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 16px 32px; border-bottom: 1px solid var(--border); }
+    .logo { font-size: 20px; font-weight: 800; color: #fff; text-decoration: none; } .logo span { color: var(--accent); }
+    nav a.nl { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500; margin-left: 24px; } nav a.nl:hover { color: #fff; }
+
+    .content { max-width: 720px; margin: 0 auto; padding: 64px 32px 80px; }
+    .content h1 { font-size: 36px; font-weight: 800; color: #fff; margin-bottom: 16px; }
+    .content p { font-size: 17px; color: var(--muted); margin-bottom: 20px; }
+    .content h2 { font-size: 22px; font-weight: 700; color: #fff; margin: 40px 0 12px; }
+
+    .code { background: #0d1117; border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin: 16px 0 24px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 14px; color: #c9d1d9; overflow-x: auto; line-height: 1.6; position: relative; }
+    .code .copy { position: absolute; top: 12px; right: 12px; padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); color: var(--muted); font-size: 12px; cursor: pointer; font-family: inherit; }
+    .code .copy:hover { color: #fff; }
+
+    .preview { margin: 32px 0; padding: 32px; background: #fff; border-radius: 12px; }
+
+    .options { margin: 24px 0; }
+    .options table { width: 100%; border-collapse: collapse; }
+    .options th, .options td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 14px; }
+    .options th { color: var(--accent); font-weight: 600; }
+    .options td:first-child { font-family: monospace; color: var(--green); }
+
+    footer { text-align: center; padding: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+<nav><a href="/" class="logo"><span>TrashAlert</span></a><div><a href="/pricing" class="nl">Pricing</a><a href="/for/property-managers" class="nl">For PMs</a></div></nav>
+
+<div class="content">
+  <h1>Embed Widget</h1>
+  <p>Add TrashAlert to your tenant portal with two lines of HTML. Works with any website, CMS, or property management system.</p>
+
+  <h2>Quick Start</h2>
+  <div class="code">
+    <button class="copy" onclick="navigator.clipboard.writeText(this.nextElementSibling.textContent)">Copy</button>
+    <pre>&lt;div id="trashalert-widget" data-city="san_diego"&gt;&lt;/div&gt;
+&lt;script src="https://trashalert.io/embed.js"&gt;&lt;/script&gt;</pre>
+  </div>
+
+  <h2>Live Preview</h2>
+  <div class="preview">
+    <div id="trashalert-widget" data-city="san_diego" data-theme="light" data-api-base=""></div>
+  </div>
+
+  <h2>Options</h2>
+  <div class="options">
+    <table>
+      <tr><th>Attribute</th><th>Default</th><th>Description</th></tr>
+      <tr><td>data-city</td><td>san_diego</td><td>City slug (e.g. houston, new_york, chicago)</td></tr>
+      <tr><td>data-theme</td><td>light</td><td>"light" or "dark"</td></tr>
+      <tr><td>data-api-base</td><td>trashalert.io</td><td>Override API base URL for self-hosted</td></tr>
+    </table>
+  </div>
+
+  <h2>Dark Theme</h2>
+  <div class="code">
+    <button class="copy" onclick="navigator.clipboard.writeText(this.nextElementSibling.textContent)">Copy</button>
+    <pre>&lt;div id="trashalert-widget" data-city="houston" data-theme="dark"&gt;&lt;/div&gt;
+&lt;script src="https://trashalert.io/embed.js"&gt;&lt;/script&gt;</pre>
+  </div>
+</div>
+
+<footer>&copy; 2026 TrashAlert</footer>
+
+<script src="/embed.js"></script>
+</body>
+</html>

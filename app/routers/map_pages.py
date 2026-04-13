@@ -1,14 +1,15 @@
-"""Serve the zone map HTML pages (/map and /map/embed)."""
+"""Serve the zone map HTML pages (/map, /map/embed) and embed widget."""
 
 import os
 from pathlib import Path
 
 from fastapi import APIRouter
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 
 router = APIRouter(tags=["map"])
 
-MAP_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "map"
+FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend"
+MAP_DIR = FRONTEND_DIR / "map"
 
 MAPBOX_TOKEN = os.getenv("MAPBOX_TOKEN", "")
 
@@ -31,3 +32,16 @@ async def zone_map_embed():
     if embed_path.exists():
         return _inject_token(embed_path.read_text(encoding="utf-8"))
     return _inject_token((MAP_DIR / "index.html").read_text(encoding="utf-8"))
+
+
+@router.get("/embed.js", response_class=Response)
+async def embed_js():
+    """Serve the embeddable widget JavaScript."""
+    js = (FRONTEND_DIR / "embed.js").read_text(encoding="utf-8")
+    return Response(content=js, media_type="application/javascript")
+
+
+@router.get("/embed", response_class=HTMLResponse)
+async def embed_page():
+    """Serve the embed widget documentation / preview page."""
+    return (FRONTEND_DIR / "embed-page.html").read_text(encoding="utf-8")
