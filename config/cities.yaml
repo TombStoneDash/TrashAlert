@@ -128,6 +128,20 @@ cities:
     timezone: "America/New_York"
     onboarding_status: "COMPLETE"
 
+  - city_id: co_denver
+    name: Denver
+    state: Colorado
+    state_abbr: CO
+    country: USA
+    has_official_pickup_zones: true
+    pickup_zone_data_source: "https://www.denvergov.org/Government/Agencies-Departments-Offices/Recycle-Compost-Trash"
+    notes: "Mile High City, sector-based collection zones"
+    bounding_box: [-105.10, 39.63, -104.85, 39.82]
+    population: 715000
+    region: "Front Range Colorado"
+    timezone: "America/Denver"
+    onboarding_status: "COMPLETE"
+
   - city_id: ca_fresno
     name: Fresno
     state: California
