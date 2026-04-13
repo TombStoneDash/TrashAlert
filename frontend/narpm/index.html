@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TrashAlert for Property Managers | NARPM</title>
+  <meta name="description" content="TrashAlert gives every address its exact pickup schedule. Embed it in your tenant portal. 41 cities, 4.5M+ addresses." />
+
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-dark: #0f172a;
+      --bg-card: #1e293b;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --green: #22c55e;
+      --border: rgba(255,255,255,0.08);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ---- Nav ---- */
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 32px;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo {
+      font-size: 20px; font-weight: 800; color: #fff;
+      text-decoration: none; display: flex; align-items: center; gap: 8px;
+    }
+    .logo span { color: var(--accent); }
+    nav a.nav-link {
+      color: var(--text-muted); text-decoration: none; font-size: 14px;
+      font-weight: 500; margin-left: 24px;
+    }
+    nav a.nav-link:hover { color: #fff; }
+
+    /* ---- Hero ---- */
+    .hero {
+      max-width: 960px; margin: 0 auto;
+      padding: 80px 32px 48px;
+      text-align: center;
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(56, 189, 248, 0.12);
+      color: var(--accent);
+      font-size: 12px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 1.5px;
+      padding: 6px 16px; border-radius: 20px;
+      margin-bottom: 24px;
+    }
+    .hero h1 {
+      font-size: clamp(32px, 5vw, 52px);
+      font-weight: 800;
+      line-height: 1.15;
+      color: #fff;
+      margin-bottom: 20px;
+    }
+    .hero .subhead {
+      font-size: 20px;
+      color: var(--text-muted);
+      max-width: 640px;
+      margin: 0 auto 40px;
+    }
+
+    /* ---- CTA Form ---- */
+    .cta-form {
+      display: flex; gap: 12px;
+      max-width: 480px; margin: 0 auto 24px;
+    }
+    .cta-form input[type="email"] {
+      flex: 1;
+      padding: 14px 18px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: #fff;
+      font-size: 16px;
+      outline: none;
+    }
+    .cta-form input[type="email"]::placeholder { color: var(--text-muted); }
+    .cta-form input[type="email"]:focus { border-color: var(--accent); }
+    .cta-form button {
+      padding: 14px 28px;
+      border-radius: 10px;
+      border: none;
+      background: var(--green);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.2s;
+    }
+    .cta-form button:hover { background: #16a34a; }
+
+    .cta-note {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* ---- Stats ---- */
+    .stats {
+      display: flex; justify-content: center; gap: 48px;
+      padding: 48px 32px;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      margin: 48px auto;
+      max-width: 720px;
+    }
+    .stat { text-align: center; }
+    .stat .number {
+      font-size: 36px; font-weight: 800; color: #fff;
+    }
+    .stat .label {
+      font-size: 14px; color: var(--text-muted); margin-top: 4px;
+    }
+
+    /* ---- Map Demo ---- */
+    .map-section {
+      max-width: 1080px; margin: 0 auto;
+      padding: 0 32px 64px;
+    }
+    .map-section h2 {
+      font-size: 28px; font-weight: 700; color: #fff;
+      text-align: center; margin-bottom: 12px;
+    }
+    .map-section .map-sub {
+      text-align: center; color: var(--text-muted);
+      font-size: 16px; margin-bottom: 32px;
+    }
+    .map-frame {
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    }
+    .map-frame iframe {
+      display: block; width: 100%; height: 500px; border: none;
+    }
+
+    /* ---- How It Works ---- */
+    .how {
+      max-width: 960px; margin: 0 auto;
+      padding: 64px 32px;
+    }
+    .how h2 {
+      font-size: 28px; font-weight: 700; color: #fff;
+      text-align: center; margin-bottom: 48px;
+    }
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 32px;
+    }
+    .step {
+      background: var(--bg-card);
+      border-radius: 14px;
+      padding: 32px 24px;
+      border: 1px solid var(--border);
+    }
+    .step-num {
+      width: 36px; height: 36px;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 16px;
+      margin-bottom: 16px;
+    }
+    .step h3 {
+      font-size: 18px; font-weight: 700; color: #fff;
+      margin-bottom: 8px;
+    }
+    .step p { font-size: 14px; color: var(--text-muted); }
+
+    /* ---- API Preview ---- */
+    .api-preview {
+      max-width: 720px; margin: 0 auto;
+      padding: 0 32px 64px;
+    }
+    .api-preview h2 {
+      font-size: 28px; font-weight: 700; color: #fff;
+      text-align: center; margin-bottom: 12px;
+    }
+    .api-preview .api-sub {
+      text-align: center; color: var(--text-muted);
+      font-size: 16px; margin-bottom: 32px;
+    }
+    .code-block {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 14px;
+      color: #c9d1d9;
+      overflow-x: auto;
+      line-height: 1.7;
+    }
+    .code-block .comment { color: #8b949e; }
+    .code-block .key { color: #79c0ff; }
+    .code-block .string { color: #a5d6ff; }
+
+    /* ---- Pricing ---- */
+    .pricing {
+      max-width: 480px; margin: 0 auto;
+      padding: 0 32px 80px;
+      text-align: center;
+    }
+    .price-card {
+      background: var(--bg-card);
+      border: 2px solid var(--accent);
+      border-radius: 16px;
+      padding: 40px 32px;
+    }
+    .price-card .tier {
+      font-size: 13px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 1.5px;
+      color: var(--accent); margin-bottom: 8px;
+    }
+    .price-card .price {
+      font-size: 48px; font-weight: 800; color: #fff;
+    }
+    .price-card .price span { font-size: 18px; font-weight: 400; color: var(--text-muted); }
+    .price-card .includes {
+      margin-top: 24px;
+      text-align: left;
+      font-size: 15px;
+      color: var(--text-muted);
+    }
+    .price-card .includes li {
+      list-style: none;
+      padding: 6px 0;
+    }
+    .price-card .includes li::before {
+      content: "\2713";
+      color: var(--green);
+      font-weight: 700;
+      margin-right: 10px;
+    }
+
+    /* ---- Footer ---- */
+    footer {
+      text-align: center;
+      padding: 32px;
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    /* ---- Responsive ---- */
+    @media (max-width: 600px) {
+      .cta-form { flex-direction: column; }
+      .stats { flex-direction: column; gap: 24px; }
+      .map-frame iframe { height: 350px; }
+    }
+  </style>
+
+  <!-- JSON-LD LocalBusiness Schema -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    "name": "TrashAlert",
+    "description": "Trash pickup schedule API and tenant portal integration for property managers. Real collection day data for 41 cities and 4.5M+ addresses.",
+    "url": "https://trashalert.io/narpm",
+    "logo": "https://trashalert.io/static/img/logo.svg",
+    "sameAs": [],
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "San Diego",
+      "addressRegion": "CA",
+      "addressCountry": "US"
+    },
+    "areaServed": {
+      "@type": "Country",
+      "name": "US"
+    },
+    "priceRange": "$$",
+    "knowsAbout": ["trash collection schedules", "waste management", "property management software", "tenant portals"],
+    "offers": {
+      "@type": "Offer",
+      "name": "Portfolio Tier",
+      "price": "99",
+      "priceCurrency": "USD",
+      "billingDuration": "P1M",
+      "description": "Unlimited properties, API access, tenant portal embed"
+    }
+  }
+  </script>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="logo"><span>TrashAlert</span></a>
+  <div>
+    <a href="/map" class="nav-link">Zone Map</a>
+    <a href="/docs" class="nav-link">API Docs</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="badge">For Property Managers</div>
+  <h1>Stop Fielding Tenant Trash Complaints</h1>
+  <p class="subhead">TrashAlert gives every address its exact pickup schedule. Embed it in your tenant portal.</p>
+
+  <form class="cta-form" id="signup-form" onsubmit="handleSignup(event)">
+    <input type="email" id="signup-email" placeholder="you@management.com" required autocomplete="email" />
+    <button type="submit">Start free</button>
+  </form>
+  <p class="cta-note">Start free &mdash; add your properties. No credit card required.</p>
+</section>
+
+<div class="stats">
+  <div class="stat">
+    <div class="number">41</div>
+    <div class="label">Cities covered</div>
+  </div>
+  <div class="stat">
+    <div class="number">4.5M+</div>
+    <div class="label">Addresses</div>
+  </div>
+  <div class="stat">
+    <div class="number">Real-time</div>
+    <div class="label">Collection day data</div>
+  </div>
+</div>
+
+<section class="map-section">
+  <h2>Live Zone Map</h2>
+  <p class="map-sub">Every hex is a pickup zone. Click to see the collection day. Search any address.</p>
+  <div class="map-frame">
+    <iframe src="/map/embed?city=san_diego" title="TrashAlert Zone Map" loading="lazy" allow="geolocation"></iframe>
+  </div>
+</section>
+
+<section class="how">
+  <h2>How It Works</h2>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <h3>Add Properties</h3>
+      <p>Upload your portfolio addresses or enter them one by one. We match each to its collection zone instantly.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <h3>Embed or Integrate</h3>
+      <p>Drop our widget into your tenant portal, or call the REST API directly from your property management system.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <h3>Tenants Self-Serve</h3>
+      <p>Tenants see their exact pickup day. No more calls, no more missed bins, no more violation fines.</p>
+    </div>
+  </div>
+</section>
+
+<section class="api-preview">
+  <h2>Simple API</h2>
+  <p class="api-sub">One call. Exact schedule. Every address.</p>
+  <div class="code-block">
+    <span class="comment">GET /api/lookup?address=123+Main+St&amp;city=san_diego</span><br><br>
+    {<br>
+    &nbsp;&nbsp;<span class="key">"address"</span>: <span class="string">"123 MAIN ST, San Diego, CA"</span>,<br>
+    &nbsp;&nbsp;<span class="key">"pickup_day"</span>: <span class="string">"Tuesday"</span>,<br>
+    &nbsp;&nbsp;<span class="key">"zone"</span>: <span class="string">"Zone 3"</span>,<br>
+    &nbsp;&nbsp;<span class="key">"next_pickup"</span>: <span class="string">"2026-04-14"</span><br>
+    }
+  </div>
+</section>
+
+<section class="pricing">
+  <div class="price-card">
+    <div class="tier">Portfolio Tier</div>
+    <div class="price">$99<span>/mo</span></div>
+    <ul class="includes">
+      <li>Unlimited properties</li>
+      <li>REST API access</li>
+      <li>Embeddable zone map widget</li>
+      <li>Tenant-facing schedule lookup</li>
+      <li>Email &amp; Slack alerts for schedule changes</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  &copy; 2026 TrashAlert &mdash; Real trash pickup data for real properties.
+</footer>
+
+<script>
+function handleSignup(e) {
+  e.preventDefault();
+  const email = document.getElementById('signup-email').value;
+  // Store lead — in production, POST to /api/leads
+  const btn = e.target.querySelector('button');
+  btn.textContent = 'Got it!';
+  btn.style.background = '#38bdf8';
+  setTimeout(() => {
+    btn.textContent = 'Start free';
+    btn.style.background = '';
+  }, 2000);
+  console.log('NARPM lead:', email);
+}
+</script>
+
+</body>
+</html>

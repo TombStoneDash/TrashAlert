@@ -92,6 +92,7 @@ from app.auth import get_optional_current_user, require_authenticated
 from app.routers import auth, admin
 from app.routers.zones import router as zones_router
 from app.routers.map_pages import router as map_pages_router
+from app.routers.narpm_pages import router as narpm_pages_router
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -235,6 +236,9 @@ app.include_router(zones_router)
 
 # Include map page routes (/map, /map/embed)
 app.include_router(map_pages_router)
+
+# Include NARPM landing pages (/narpm, /narpm/print)
+app.include_router(narpm_pages_router)
 
 app_logger.info("TrashAlert API started")
 
