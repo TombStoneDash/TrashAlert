@@ -282,6 +282,76 @@ cities:
     timezone: "America/Los_Angeles"
     onboarding_status: "COMPLETE"
 
+  - city_id: or_portland
+    name: Portland
+    state: Oregon
+    state_abbr: OR
+    country: USA
+    has_official_pickup_zones: true
+    pickup_zone_data_source: "https://www.portland.gov/bps/garbage-recycling"
+    notes: "Pacific Northwest, route-based weekly collection"
+    bounding_box: [-122.78, 45.46, -122.58, 45.60]
+    population: 650000
+    region: "Pacific Northwest"
+    timezone: "America/Los_Angeles"
+    onboarding_status: "COMPLETE"
+
+  - city_id: mn_minneapolis
+    name: Minneapolis
+    state: Minnesota
+    state_abbr: MN
+    country: USA
+    has_official_pickup_zones: true
+    pickup_zone_data_source: "https://www.minneapolismn.gov/government/programs-initiatives/solid-waste/"
+    notes: "Twin Cities, zone-based weekly collection"
+    bounding_box: [-93.35, 44.89, -93.20, 45.05]
+    population: 430000
+    region: "Upper Midwest"
+    timezone: "America/Chicago"
+    onboarding_status: "COMPLETE"
+
+  - city_id: mi_detroit
+    name: Detroit
+    state: Michigan
+    state_abbr: MI
+    country: USA
+    has_official_pickup_zones: true
+    pickup_zone_data_source: "https://detroitmi.gov/departments/department-public-works"
+    notes: "Motor City, district-based collection"
+    bounding_box: [-83.20, 42.29, -82.95, 42.45]
+    population: 640000
+    region: "Great Lakes"
+    timezone: "America/Detroit"
+    onboarding_status: "COMPLETE"
+
+  - city_id: ga_atlanta
+    name: Atlanta
+    state: Georgia
+    state_abbr: GA
+    country: USA
+    has_official_pickup_zones: true
+    pickup_zone_data_source: "https://www.atlantaga.gov/government/departments/public-works"
+    notes: "Southeast hub, zone-based curbside collection"
+    bounding_box: [-84.45, 33.70, -84.33, 33.85]
+    population: 500000
+    region: "Southeast"
+    timezone: "America/New_York"
+    onboarding_status: "COMPLETE"
+
+  - city_id: fl_miami
+    name: Miami
+    state: Florida
+    state_abbr: FL
+    country: USA
+    has_official_pickup_zones: true
+    pickup_zone_data_source: "https://www.miamigov.com/My-Government/Departments/Solid-Waste"
+    notes: "South Florida, twice-weekly collection in some zones"
+    bounding_box: [-80.28, 25.72, -80.14, 25.86]
+    population: 440000
+    region: "South Florida"
+    timezone: "America/New_York"
+    onboarding_status: "COMPLETE"
+
   - city_id: ca_fresno
     name: Fresno
     state: California

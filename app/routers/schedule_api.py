@@ -29,6 +29,8 @@ SLUG_TO_NAME = {
     "dallas": "Dallas", "oklahoma_city": "Oklahoma City",
     "charlotte": "Charlotte", "columbus": "Columbus",
     "chicago": "Chicago", "seattle": "Seattle",
+    "portland": "Portland", "minneapolis": "Minneapolis",
+    "detroit": "Detroit", "atlanta": "Atlanta", "miami": "Miami",
     "el_centro": "El Centro", "calexico": "Calexico",
     "brawley": "Brawley", "imperial": "Imperial", "holtville": "Holtville",
 }

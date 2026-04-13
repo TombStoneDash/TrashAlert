@@ -56,6 +56,11 @@ def _load_city_addresses(city_slug: str) -> list[dict]:
         "columbus": "Columbus",
         "chicago": "Chicago",
         "seattle": "Seattle",
+        "portland": "Portland",
+        "minneapolis": "Minneapolis",
+        "detroit": "Detroit",
+        "atlanta": "Atlanta",
+        "miami": "Miami",
     }
     target_name = slug_to_name.get(city_slug.lower(), city_slug.replace("-", " ").replace("_", " ").title())
 

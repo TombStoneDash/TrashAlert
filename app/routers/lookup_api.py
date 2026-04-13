@@ -59,6 +59,11 @@ def _load_city_addresses(city_slug: str) -> list[dict]:
         "columbus": "Columbus",
         "chicago": "Chicago",
         "seattle": "Seattle",
+        "portland": "Portland",
+        "minneapolis": "Minneapolis",
+        "detroit": "Detroit",
+        "atlanta": "Atlanta",
+        "miami": "Miami",
     }
     target_name = slug_to_name.get(
         city_slug.lower(),
@@ -234,6 +239,11 @@ _CITY_DISPLAY = {
     "columbus":       {"name": "Columbus",       "state": "OH", "slug": "columbus"},
     "chicago":        {"name": "Chicago",        "state": "IL", "slug": "chicago"},
     "seattle":        {"name": "Seattle",        "state": "WA", "slug": "seattle"},
+    "portland":       {"name": "Portland",       "state": "OR", "slug": "portland"},
+    "minneapolis":    {"name": "Minneapolis",    "state": "MN", "slug": "minneapolis"},
+    "detroit":        {"name": "Detroit",         "state": "MI", "slug": "detroit"},
+    "atlanta":        {"name": "Atlanta",         "state": "GA", "slug": "atlanta"},
+    "miami":          {"name": "Miami",           "state": "FL", "slug": "miami"},
 }
 
 # Cache for city counts

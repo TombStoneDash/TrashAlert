@@ -27,6 +27,11 @@
     { "src": "/charlotte",  "status": 301, "headers": { "Location": "/schedule/charlotte" } },
     { "src": "/columbus",   "status": 301, "headers": { "Location": "/schedule/columbus" } },
     { "src": "/oklahoma_city","status": 301, "headers": { "Location": "/schedule/oklahoma-city" } },
+    { "src": "/portland",   "status": 301, "headers": { "Location": "/schedule/portland" } },
+    { "src": "/minneapolis","status": 301, "headers": { "Location": "/schedule/minneapolis" } },
+    { "src": "/detroit",    "status": 301, "headers": { "Location": "/schedule/detroit" } },
+    { "src": "/atlanta",    "status": 301, "headers": { "Location": "/schedule/atlanta" } },
+    { "src": "/miami",      "status": 301, "headers": { "Location": "/schedule/miami" } },
     { "src": "/(.*)", "dest": "/vercel_app/handler.py" }
   ],
   "installCommand": "pip install -r vercel_app/requirements.txt"

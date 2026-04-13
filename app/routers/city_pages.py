@@ -37,6 +37,11 @@ CITY_META = {
     "columbus":       {"name": "Columbus",       "state": "Ohio",           "state_abbr": "OH", "center_lat": "39.96", "center_lng": "-82.99", "zoom": "12", "sample": "100 High St"},
     "chicago":        {"name": "Chicago",        "state": "Illinois",       "state_abbr": "IL", "center_lat": "41.88", "center_lng": "-87.63", "zoom": "11", "sample": "233 Michigan Ave"},
     "seattle":        {"name": "Seattle",        "state": "Washington",     "state_abbr": "WA", "center_lat": "47.61", "center_lng": "-122.33", "zoom": "12", "sample": "400 Pike St"},
+    "portland":       {"name": "Portland",       "state": "Oregon",         "state_abbr": "OR", "center_lat": "45.52", "center_lng": "-122.68", "zoom": "12", "sample": "500 Burnside St"},
+    "minneapolis":    {"name": "Minneapolis",    "state": "Minnesota",      "state_abbr": "MN", "center_lat": "44.98", "center_lng": "-93.27", "zoom": "12", "sample": "300 Hennepin Ave"},
+    "detroit":        {"name": "Detroit",         "state": "Michigan",       "state_abbr": "MI", "center_lat": "42.33", "center_lng": "-83.05", "zoom": "12", "sample": "1000 Woodward Ave"},
+    "atlanta":        {"name": "Atlanta",         "state": "Georgia",        "state_abbr": "GA", "center_lat": "33.75", "center_lng": "-84.39", "zoom": "12", "sample": "200 Peachtree St"},
+    "miami":          {"name": "Miami",           "state": "Florida",        "state_abbr": "FL", "center_lat": "25.76", "center_lng": "-80.19", "zoom": "12", "sample": "100 Biscayne Blvd"},
 }
 
 

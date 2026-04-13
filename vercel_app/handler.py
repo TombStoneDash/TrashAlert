@@ -57,6 +57,11 @@ CITY_META = {
     "brawley":        {"name": "Brawley",         "state": "California",     "abbr": "CA", "lat": "32.98",  "lng": "-115.53", "zoom": "13", "sample": "1115 Imperial Ave"},
     "imperial":       {"name": "Imperial",        "state": "California",     "abbr": "CA", "lat": "32.85",  "lng": "-115.57", "zoom": "13", "sample": "200 Imperial Ave"},
     "holtville":      {"name": "Holtville",       "state": "California",     "abbr": "CA", "lat": "32.81",  "lng": "-115.38", "zoom": "14", "sample": "100 5th St"},
+    "portland":       {"name": "Portland",        "state": "Oregon",         "abbr": "OR", "lat": "45.52",  "lng": "-122.68", "zoom": "12", "sample": "500 Burnside St"},
+    "minneapolis":    {"name": "Minneapolis",     "state": "Minnesota",      "abbr": "MN", "lat": "44.98",  "lng": "-93.27",  "zoom": "12", "sample": "300 Hennepin Ave"},
+    "detroit":        {"name": "Detroit",          "state": "Michigan",       "abbr": "MI", "lat": "42.33",  "lng": "-83.05",  "zoom": "12", "sample": "1000 Woodward Ave"},
+    "atlanta":        {"name": "Atlanta",          "state": "Georgia",        "abbr": "GA", "lat": "33.75",  "lng": "-84.39",  "zoom": "12", "sample": "200 Peachtree St"},
+    "miami":          {"name": "Miami",            "state": "Florida",        "abbr": "FL", "lat": "25.76",  "lng": "-80.19",  "zoom": "12", "sample": "100 Biscayne Blvd"},
 }
 
 NAME_TO_SLUG = {m["name"]: slug for slug, m in CITY_META.items()}

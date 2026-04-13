@@ -13,6 +13,7 @@ CITY_SLUGS = [
     "el_centro", "calexico", "brawley", "imperial", "holtville",
     "new_york", "los_angeles", "philadelphia", "san_antonio", "dallas",
     "oklahoma_city", "charlotte", "columbus", "chicago", "seattle",
+    "portland", "minneapolis", "detroit", "atlanta", "miami",
 ]
 
 # Static pages
