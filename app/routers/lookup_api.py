@@ -274,6 +274,8 @@ async def list_cities():
                     "name": meta["name"],
                     "state": meta["state"],
                     "address_count": count,
+                    "addressCount": count,
+                    "providers": ["Municipal"],
                 })
         cities.sort(key=lambda c: c["address_count"], reverse=True)
         _cities_cache = {

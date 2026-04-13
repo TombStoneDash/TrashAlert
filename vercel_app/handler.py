@@ -253,7 +253,14 @@ async def list_cities():
     for slug, meta in CITY_META.items():
         cnt = counts.get(meta["name"], 0)
         if cnt > 0:
-            cities.append({"slug": slug, "name": meta["name"], "state": meta["abbr"], "address_count": cnt})
+            cities.append({
+                "slug": slug,
+                "name": meta["name"],
+                "state": meta["abbr"],
+                "address_count": cnt,
+                "addressCount": cnt,
+                "providers": ["Municipal"],
+            })
     cities.sort(key=lambda c: c["address_count"], reverse=True)
     return {"total_cities": len(cities), "total_addresses": sum(c["address_count"] for c in cities), "cities": cities}
 
