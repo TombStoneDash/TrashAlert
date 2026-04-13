@@ -149,7 +149,7 @@
       <li>Zone map access</li>
       <li>Basic API access (100 req/day)</li>
     </ul>
-    <a href="/narpm" class="cta cta-outline">Start free trial</a>
+    <a href="#" class="cta cta-outline" onclick="startCheckout('starter')">Start free trial</a>
   </div>
 
   <!-- Portfolio -->
@@ -166,7 +166,7 @@
       <li>Branded move-in packets</li>
       <li>Slack &amp; email alerts</li>
     </ul>
-    <a href="/narpm" class="cta cta-primary">Start free trial</a>
+    <a href="#" class="cta cta-primary" onclick="startCheckout('portfolio')">Start free trial</a>
   </div>
 
   <!-- Enterprise -->
@@ -213,6 +213,57 @@
 </section>
 
 <footer>&copy; 2026 TrashAlert</footer>
+
+<!-- Stripe Checkout integration -->
+<div id="checkout-status" style="display:none;position:fixed;top:0;left:0;right:0;padding:16px;text-align:center;font-weight:600;font-size:15px;z-index:9999;"></div>
+
+<script>
+// Show success/cancel banner from URL params
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var status = params.get('status');
+  var banner = document.getElementById('checkout-status');
+  if (status === 'success') {
+    banner.style.display = 'block';
+    banner.style.background = '#22c55e';
+    banner.style.color = '#fff';
+    banner.textContent = 'Welcome to TrashAlert! Your subscription is active.';
+    setTimeout(function() { banner.style.display = 'none'; }, 8000);
+  } else if (status === 'cancelled') {
+    banner.style.display = 'block';
+    banner.style.background = '#f59e0b';
+    banner.style.color = '#0f172a';
+    banner.textContent = 'Checkout cancelled. No charge was made.';
+    setTimeout(function() { banner.style.display = 'none'; }, 5000);
+  }
+})();
+
+function startCheckout(plan) {
+  var btn = event.target;
+  var origText = btn.textContent;
+  btn.textContent = 'Redirecting...';
+  btn.style.opacity = '0.7';
+
+  fetch('/api/stripe/checkout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ plan: plan }),
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.checkout_url) {
+        window.location.href = data.checkout_url;
+      } else {
+        throw new Error(data.detail || 'Checkout failed');
+      }
+    })
+    .catch(function(err) {
+      btn.textContent = origText;
+      btn.style.opacity = '1';
+      alert('Could not start checkout: ' + err.message);
+    });
+}
+</script>
 
 </body>
 </html>
