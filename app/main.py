@@ -225,7 +225,9 @@ app.middleware("http")(validate_request_security)
 api_key_rate_limiter = APIKeyRateLimiter()
 
 # Add middleware in reverse order (last added = first executed)
-# Order: Request logging -> Usage tracking -> API key auth -> Application
+# Order: Analytics -> Request logging -> Usage tracking -> API key auth -> Application
+from app.analytics import PlausibleMiddleware
+app.add_middleware(PlausibleMiddleware)
 app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(APIUsageTrackingMiddleware)
 app.add_middleware(APIKeyAuthMiddleware, rate_limiter=api_key_rate_limiter)
