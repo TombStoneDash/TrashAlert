@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TrashAlert for Property Managers</title>
+  <meta name="description" content="Stop fielding tenant trash complaints. TrashAlert gives every address its exact pickup schedule with embeddable widgets and API access." />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8; --green: #22c55e; --border: rgba(255,255,255,0.08); }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 16px 32px; border-bottom: 1px solid var(--border); }
+    .logo { font-size: 20px; font-weight: 800; color: #fff; text-decoration: none; } .logo span { color: var(--accent); }
+    nav a.nl { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500; margin-left: 24px; } nav a.nl:hover { color: #fff; }
+
+    .hero { max-width: 800px; margin: 0 auto; padding: 72px 32px 48px; text-align: center; }
+    .hero h1 { font-size: clamp(28px, 4vw, 44px); font-weight: 800; color: #fff; margin-bottom: 16px; }
+    .hero p { font-size: 18px; color: var(--muted); max-width: 600px; margin: 0 auto; }
+
+    .pain-points { max-width: 800px; margin: 0 auto; padding: 0 32px 64px; }
+    .pain-points h2 { font-size: 28px; font-weight: 700; color: #fff; text-align: center; margin-bottom: 40px; }
+    .pain { display: flex; gap: 20px; margin-bottom: 28px; align-items: flex-start; }
+    .pain .icon { flex-shrink: 0; width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; background: rgba(239,68,68,0.15); }
+    .pain h3 { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+    .pain p { font-size: 15px; color: var(--muted); }
+
+    .solution { max-width: 800px; margin: 0 auto; padding: 0 32px 64px; }
+    .solution h2 { font-size: 28px; font-weight: 700; color: #fff; text-align: center; margin-bottom: 40px; }
+    .sol-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; }
+    .sol-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 28px 20px; }
+    .sol-card .si { font-size: 28px; margin-bottom: 12px; }
+    .sol-card h3 { font-size: 17px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+    .sol-card p { font-size: 14px; color: var(--muted); }
+
+    /* ROI Calculator */
+    .roi { max-width: 600px; margin: 0 auto; padding: 0 32px 80px; }
+    .roi h2 { font-size: 28px; font-weight: 700; color: #fff; text-align: center; margin-bottom: 12px; }
+    .roi .sub { text-align: center; color: var(--muted); font-size: 16px; margin-bottom: 32px; }
+    .roi-box { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 32px; }
+    .roi-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .roi-row label { font-size: 15px; color: var(--text); }
+    .roi-row input { width: 100px; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: #fff; font-size: 16px; text-align: right; }
+    .roi-result { border-top: 1px solid var(--border); padding-top: 20px; margin-top: 8px; text-align: center; }
+    .roi-result .savings { font-size: 36px; font-weight: 800; color: var(--green); }
+    .roi-result .note { font-size: 14px; color: var(--muted); margin-top: 4px; }
+
+    .cta-section { text-align: center; padding: 48px 32px; border-top: 1px solid var(--border); }
+    .cta-section h2 { font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 16px; }
+    .cta-section a { display: inline-block; padding: 16px 40px; border-radius: 10px; background: var(--green); color: #fff; font-size: 18px; font-weight: 700; text-decoration: none; margin: 8px; }
+    .cta-section a:hover { background: #16a34a; }
+    .cta-section a.sec { background: transparent; border: 2px solid var(--accent); color: var(--accent); }
+    .cta-section a.sec:hover { background: rgba(56,189,248,0.1); }
+
+    footer { text-align: center; padding: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+    @media (max-width: 600px) { .pain { flex-direction: column; } .sol-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<nav><a href="/" class="logo"><span>TrashAlert</span></a><div><a href="/pricing" class="nl">Pricing</a><a href="/map" class="nl">Zone Map</a></div></nav>
+
+<section class="hero">
+  <h1>Your tenants shouldn't have to call you about trash day.</h1>
+  <p>TrashAlert automates pickup schedule delivery so your team can focus on what matters.</p>
+</section>
+
+<section class="pain-points">
+  <h2>5 Problems We Solve</h2>
+  <div class="pain">
+    <div class="icon">&#x1F4DE;</div>
+    <div><h3>Constant "What day is trash?" calls</h3><p>Tenants call your office for information that should be self-service. Every call costs you $5-15 in staff time.</p></div>
+  </div>
+  <div class="pain">
+    <div class="icon">&#x1F6AE;</div>
+    <div><h3>Overflowing bins and HOA fines</h3><p>Missed pickups lead to overflowing dumpsters, pest problems, and $200+ violation fines per incident.</p></div>
+  </div>
+  <div class="pain">
+    <div class="icon">&#x1F504;</div>
+    <div><h3>Move-in confusion at every turnover</h3><p>New tenants don't know the schedule. Move-in packets go unread. Trash piles up for weeks.</p></div>
+  </div>
+  <div class="pain">
+    <div class="icon">&#x1F5FA;</div>
+    <div><h3>Different schedules per property</h3><p>Managing 50+ properties across 3 cities means 15 different pickup schedules to track manually.</p></div>
+  </div>
+  <div class="pain">
+    <div class="icon">&#x23F0;</div>
+    <div><h3>Schedule changes catch everyone off guard</h3><p>Holidays, weather events, and route changes mean missed pickups and angry tenant calls.</p></div>
+  </div>
+</section>
+
+<section class="solution">
+  <h2>How TrashAlert Solves It</h2>
+  <div class="sol-grid">
+    <div class="sol-card"><div class="si">&#x1F50C;</div><h3>Embed in your portal</h3><p>One script tag adds schedule lookup to AppFolio, Buildium, or your custom portal.</p></div>
+    <div class="sol-card"><div class="si">&#x1F4E7;</div><h3>Weekly reminders</h3><p>Tenants sign up for email reminders. They never miss a pickup again.</p></div>
+    <div class="sol-card"><div class="si">&#x1F4CA;</div><h3>Bulk upload</h3><p>CSV upload all your properties. Get every schedule in seconds.</p></div>
+    <div class="sol-card"><div class="si">&#x1F5FA;</div><h3>Interactive map</h3><p>Zone map shows pickup days by neighborhood. Drop into any page.</p></div>
+    <div class="sol-card"><div class="si">&#x1F527;</div><h3>REST API</h3><p>Integrate directly into your property management system.</p></div>
+    <div class="sol-card"><div class="si">&#x1F4C4;</div><h3>Move-in packets</h3><p>Auto-generated, branded PDFs with the address-specific schedule.</p></div>
+  </div>
+</section>
+
+<section class="roi">
+  <h2>ROI Calculator</h2>
+  <p class="sub">See how much TrashAlert saves your team per month.</p>
+  <div class="roi-box">
+    <div class="roi-row">
+      <label>Properties managed</label>
+      <input type="number" id="props" value="50" min="1" oninput="calcROI()" />
+    </div>
+    <div class="roi-row">
+      <label>Trash calls per property/month</label>
+      <input type="number" id="calls" value="3" min="0" oninput="calcROI()" />
+    </div>
+    <div class="roi-row">
+      <label>Cost per call ($)</label>
+      <input type="number" id="cost" value="8" min="0" oninput="calcROI()" />
+    </div>
+    <div class="roi-result">
+      <div class="savings" id="savings">$1,200</div>
+      <div class="note">Estimated monthly savings vs. $99/mo TrashAlert Portfolio</div>
+      <div class="note" id="net" style="margin-top:8px;color:#22c55e;font-weight:700">Net savings: $1,101/mo</div>
+    </div>
+  </div>
+</section>
+
+<section class="cta-section">
+  <h2>Ready to stop fielding trash calls?</h2>
+  <a href="/narpm">Start free trial</a>
+  <a href="/pricing" class="sec">See pricing</a>
+</section>
+
+<footer>&copy; 2026 TrashAlert</footer>
+
+<script>
+function calcROI() {
+  const props = parseInt(document.getElementById('props').value) || 0;
+  const calls = parseInt(document.getElementById('calls').value) || 0;
+  const cost = parseInt(document.getElementById('cost').value) || 0;
+  const total = props * calls * cost;
+  document.getElementById('savings').textContent = '$' + total.toLocaleString();
+  document.getElementById('net').textContent = 'Net savings: $' + Math.max(0, total - 99).toLocaleString() + '/mo';
+}
+calcROI();
+</script>
+</body>
+</html>
