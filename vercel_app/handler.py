@@ -15,7 +15,7 @@ from typing import Optional
 
 import h3
 from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 # ---------------------------------------------------------------------------
 # App
@@ -165,17 +165,17 @@ def _template(name: str) -> str:
 # ---------------------------------------------------------------------------
 # Routes — City pages
 # ---------------------------------------------------------------------------
+# Production URL pattern: /schedule/{city-slug} (hyphenated)
+# Also support: /{city_slug} → 301 redirect to /schedule/{city-slug}
 
-@app.get("/{city_slug}", response_class=HTMLResponse)
-async def city_page(city_slug: str):
-    slug = city_slug.lower().replace("-", "_")
-    if slug not in CITY_META:
-        raise HTTPException(status_code=404, detail=f"City not found: {city_slug}")
+
+def _render_city(slug: str) -> str:
+    """Render a city page from the template."""
     meta = CITY_META[slug]
     counts = _city_counts()
     addr_count = counts.get(meta["name"], 0)
     html = _template("city_page.html")
-    html = (
+    return (
         html
         .replace("{{CITY_NAME}}", meta["name"])
         .replace("{{STATE}}", meta["state"])
@@ -187,7 +187,34 @@ async def city_page(city_slug: str):
         .replace("{{ZOOM}}", meta["zoom"])
         .replace("{{SAMPLE_ADDRESS}}", meta["sample"])
     )
-    return html
+
+
+def _normalize_slug(raw: str) -> str | None:
+    """Normalize a city slug (hyphens or underscores) and return the canonical form."""
+    slug = raw.lower().replace("-", "_")
+    if slug in CITY_META:
+        return slug
+    return None
+
+
+@app.get("/schedule/{city_slug}", response_class=HTMLResponse)
+async def schedule_city_page(city_slug: str):
+    """Primary city page route — matches production /schedule/{city} URL pattern."""
+    slug = _normalize_slug(city_slug)
+    if slug is None:
+        raise HTTPException(status_code=404, detail=f"City not found: {city_slug}")
+    return _render_city(slug)
+
+
+@app.get("/{city_slug}", response_class=HTMLResponse)
+async def city_page_redirect(city_slug: str):
+    """Redirect bare /{city} to /schedule/{city} (canonical URL)."""
+    slug = _normalize_slug(city_slug)
+    if slug is None:
+        raise HTTPException(status_code=404, detail=f"City not found: {city_slug}")
+    # Use hyphenated form for the canonical URL
+    hyphenated = slug.replace("_", "-")
+    return RedirectResponse(url=f"/schedule/{hyphenated}", status_code=301)
 
 
 # ---------------------------------------------------------------------------

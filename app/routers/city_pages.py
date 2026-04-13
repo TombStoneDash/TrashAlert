@@ -1,11 +1,11 @@
-"""Dynamic city pages — serves /{city_slug} for every city with address data."""
+"""Dynamic city pages — serves /schedule/{city} and redirects /{city}."""
 
 import csv
 import logging
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 logger = logging.getLogger(__name__)
 
@@ -65,22 +65,18 @@ def _get_template() -> str:
     return _template_cache
 
 
-@router.get("/{city_slug}", response_class=HTMLResponse)
-async def city_page(city_slug: str):
-    """Serve a dynamic city page with zone map and address lookup."""
-    # Normalize slug
-    slug = city_slug.lower().replace("-", "_")
+def _normalize_slug(raw: str) -> str | None:
+    """Normalize a city slug and return the canonical underscore form."""
+    slug = raw.lower().replace("-", "_")
+    return slug if slug in CITY_META else None
 
-    if slug not in CITY_META:
-        raise HTTPException(status_code=404, detail=f"City not found: {city_slug}")
 
+def _render_city(slug: str) -> str:
+    """Render a city page from the template."""
     meta = CITY_META[slug]
     addr_count = _count_addresses(meta["name"])
-
-    # Show the page even with 0 addresses — the map and lookup still
-    # work against the API, and a "0 addresses" count is better than a 404.
     html = _get_template()
-    html = (
+    return (
         html
         .replace("{{CITY_NAME}}", meta["name"])
         .replace("{{STATE}}", meta["state"])
@@ -92,4 +88,21 @@ async def city_page(city_slug: str):
         .replace("{{ZOOM}}", meta["zoom"])
         .replace("{{SAMPLE_ADDRESS}}", meta["sample"])
     )
-    return html
+
+
+@router.get("/schedule/{city_slug}", response_class=HTMLResponse)
+async def schedule_city_page(city_slug: str):
+    """Primary city page at /schedule/{city} — matches production URL pattern."""
+    slug = _normalize_slug(city_slug)
+    if slug is None:
+        raise HTTPException(status_code=404, detail=f"City not found: {city_slug}")
+    return _render_city(slug)
+
+
+@router.get("/{city_slug}", response_class=HTMLResponse)
+async def city_page_redirect(city_slug: str):
+    """Redirect /{city} → /schedule/{city} (canonical URL)."""
+    slug = _normalize_slug(city_slug)
+    if slug is None:
+        raise HTTPException(status_code=404, detail=f"City not found: {city_slug}")
+    return RedirectResponse(url=f"/schedule/{slug.replace('_', '-')}", status_code=301)

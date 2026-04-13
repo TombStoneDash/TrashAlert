@@ -42,9 +42,11 @@ def _build_sitemap() -> str:
         )
 
     for slug in CITY_SLUGS:
+        # Use hyphenated form matching production URL pattern: /schedule/{city}
+        hyphenated = slug.replace("_", "-")
         urls.append(
             f"  <url>\n"
-            f"    <loc>{BASE_URL}/{slug}</loc>\n"
+            f"    <loc>{BASE_URL}/schedule/{hyphenated}</loc>\n"
             f"    <changefreq>weekly</changefreq>\n"
             f"    <priority>0.7</priority>\n"
             f"  </url>"
