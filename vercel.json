@@ -5,7 +5,8 @@
       "src": "vercel_app/handler.py",
       "use": "@vercel/python",
       "config": {
-        "maxLambdaSize": "50mb"
+        "maxLambdaSize": "50mb",
+        "includeFiles": "frontend/**,data/addresses_normalized.csv"
       }
     }
   ],
