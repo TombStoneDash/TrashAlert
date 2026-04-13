@@ -8,14 +8,19 @@ It reads directly from addresses_normalized.csv and the HTML templates.
 """
 
 import csv
+import json
+import logging
 import os
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
 import h3
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
+from pydantic import BaseModel, Field
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # App
@@ -336,6 +341,134 @@ async def sitemap():
 @app.get("/robots.txt")
 async def robots():
     return Response(content="User-agent: *\nAllow: /\nSitemap: https://trashalert.io/sitemap.xml\n", media_type="text/plain")
+
+
+# ---------------------------------------------------------------------------
+# Routes — Stripe Billing
+# ---------------------------------------------------------------------------
+
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
+STRIPE_BASE_URL = os.getenv("BASE_URL", "https://trashalert.io")
+
+STRIPE_PLANS = {
+    "starter": {
+        "name": "Starter", "price_id": os.getenv("STRIPE_PRICE_STARTER", "price_starter_placeholder"),
+        "amount": 2900, "display": "$29/mo", "properties": "1",
+        "features": ["1 property", "Schedule lookup", "Weekly email reminders", "Zone map", "Basic API (100 req/day)"],
+    },
+    "portfolio": {
+        "name": "Portfolio", "price_id": os.getenv("STRIPE_PRICE_PORTFOLIO", "price_portfolio_placeholder"),
+        "amount": 9900, "display": "$99/mo", "properties": "Unlimited",
+        "features": ["Unlimited properties", "Bulk CSV upload", "Embeddable widget", "REST API (10k req/day)", "Move-in packets", "Slack & email alerts"],
+    },
+}
+
+SUBS_PATH = DATA_DIR / "stripe_subscriptions.json"
+
+def _load_subs() -> dict:
+    if SUBS_PATH.exists():
+        return json.loads(SUBS_PATH.read_text(encoding="utf-8"))
+    return {}
+
+def _save_subs(subs: dict):
+    SUBS_PATH.write_text(json.dumps(subs, indent=2), encoding="utf-8")
+
+
+class CheckoutReq(BaseModel):
+    plan: str = Field(...)
+    email: Optional[str] = None
+
+
+@app.get("/api/stripe/plans")
+async def stripe_plans():
+    plans = [{"slug": k, "name": v["name"], "amount": v["amount"], "display_price": v["display"],
+              "properties": v["properties"], "features": v["features"]} for k, v in STRIPE_PLANS.items()]
+    return {"publishable_key": STRIPE_PUBLISHABLE_KEY, "plans": plans}
+
+
+@app.post("/api/stripe/checkout")
+async def stripe_checkout(req: CheckoutReq):
+    if not STRIPE_SECRET_KEY:
+        raise HTTPException(503, detail="STRIPE_SECRET_KEY not configured")
+    if req.plan not in STRIPE_PLANS:
+        raise HTTPException(400, detail=f"Invalid plan: {req.plan}")
+    try:
+        import stripe
+        stripe.api_key = STRIPE_SECRET_KEY
+        session = stripe.checkout.Session.create(
+            mode="subscription",
+            payment_method_types=["card"],
+            line_items=[{"price": STRIPE_PLANS[req.plan]["price_id"], "quantity": 1}],
+            customer_email=req.email,
+            success_url=f"{STRIPE_BASE_URL}/pricing?session_id={{CHECKOUT_SESSION_ID}}&status=success",
+            cancel_url=f"{STRIPE_BASE_URL}/pricing?status=cancelled",
+            metadata={"plan": req.plan, "product": "trashalert"},
+            subscription_data={"metadata": {"plan": req.plan}},
+        )
+        return {"checkout_url": session.url, "session_id": session.id}
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
+
+
+@app.post("/api/stripe/webhook")
+async def stripe_webhook(request: Request):
+    payload = await request.body()
+    sig = request.headers.get("stripe-signature", "")
+    if STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET:
+        try:
+            import stripe
+            stripe.api_key = STRIPE_SECRET_KEY
+            event = stripe.Webhook.construct_event(payload, sig, STRIPE_WEBHOOK_SECRET)
+        except Exception as e:
+            raise HTTPException(400, detail=f"Webhook error: {e}")
+    else:
+        event = json.loads(payload)
+
+    etype = event.get("type", "")
+    obj = event.get("data", {}).get("object", {})
+    subs = _load_subs()
+
+    if etype == "checkout.session.completed":
+        cid = obj.get("customer", "")
+        subs[cid] = {"subscription_id": obj.get("subscription", ""), "email": obj.get("customer_email", ""),
+                      "plan": obj.get("metadata", {}).get("plan", ""), "status": "active",
+                      "updated_at": datetime.utcnow().isoformat()}
+        _save_subs(subs)
+    elif etype == "customer.subscription.deleted":
+        cid = obj.get("customer", "")
+        if cid in subs:
+            subs[cid]["status"] = "canceled"
+            subs[cid]["updated_at"] = datetime.utcnow().isoformat()
+            _save_subs(subs)
+
+    return JSONResponse({"received": True})
+
+
+@app.get("/api/stripe/portal")
+async def stripe_portal(customer_id: str):
+    if not STRIPE_SECRET_KEY:
+        raise HTTPException(503, detail="STRIPE_SECRET_KEY not configured")
+    try:
+        import stripe
+        stripe.api_key = STRIPE_SECRET_KEY
+        session = stripe.billing_portal.Session.create(customer=customer_id, return_url=f"{STRIPE_BASE_URL}/pricing")
+        return {"portal_url": session.url}
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
+
+
+@app.get("/api/stripe/status")
+async def stripe_status(email: Optional[str] = None, customer_id: Optional[str] = None):
+    subs = _load_subs()
+    if customer_id and customer_id in subs:
+        return subs[customer_id]
+    if email:
+        for cid, sub in subs.items():
+            if sub.get("email", "").lower() == email.lower():
+                return {"customer_id": cid, **sub}
+    return {"status": "none"}
 
 
 # ---------------------------------------------------------------------------
