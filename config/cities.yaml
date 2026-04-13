@@ -114,6 +114,20 @@ cities:
     timezone: "America/Chicago"
     onboarding_status: "COMPLETE"
 
+  - city_id: ma_boston
+    name: Boston
+    state: Massachusetts
+    state_abbr: MA
+    country: USA
+    has_official_pickup_zones: true
+    pickup_zone_data_source: "https://www.boston.gov/trash-and-recycling"
+    notes: "Northeast hub, neighborhood-based collection zones"
+    bounding_box: [-71.18, 42.23, -70.99, 42.40]
+    population: 675000
+    region: "New England"
+    timezone: "America/New_York"
+    onboarding_status: "COMPLETE"
+
   - city_id: ca_fresno
     name: Fresno
     state: California
