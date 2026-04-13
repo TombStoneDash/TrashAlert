@@ -95,6 +95,7 @@ from app.routers.map_pages import router as map_pages_router
 from app.routers.narpm_pages import router as narpm_pages_router
 from app.routers.lookup_api import router as lookup_api_router
 from app.routers.city_pages import router as city_pages_router
+from app.routers.sitemap import router as sitemap_router
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -244,6 +245,9 @@ app.include_router(narpm_pages_router)
 
 # Include public lookup API (/api/lookup)
 app.include_router(lookup_api_router)
+
+# Sitemap
+app.include_router(sitemap_router)
 
 # Dynamic city pages (/{city_slug}) — must be last (catch-all pattern)
 app.include_router(city_pages_router)
