@@ -77,9 +77,8 @@ async def city_page(city_slug: str):
     meta = CITY_META[slug]
     addr_count = _count_addresses(meta["name"])
 
-    if addr_count == 0:
-        raise HTTPException(status_code=404, detail=f"No address data for: {meta['name']}")
-
+    # Show the page even with 0 addresses — the map and lookup still
+    # work against the API, and a "0 addresses" count is better than a 404.
     html = _get_template()
     html = (
         html
