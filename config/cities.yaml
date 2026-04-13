@@ -86,6 +86,20 @@ cities:
     timezone: "America/Chicago"
     onboarding_status: "COMPLETE"
 
+  - city_id: az_phoenix
+    name: Phoenix
+    state: Arizona
+    state_abbr: AZ
+    country: USA
+    has_official_pickup_zones: true
+    pickup_zone_data_source: "https://www.phoenix.gov/publicworks/garbage"
+    notes: "Fifth-largest US city, grid-based pickup zones"
+    bounding_box: [-112.25, 33.33, -111.93, 33.60]
+    population: 1600000
+    region: "Central Arizona"
+    timezone: "America/Phoenix"
+    onboarding_status: "COMPLETE"
+
   - city_id: ca_fresno
     name: Fresno
     state: California
