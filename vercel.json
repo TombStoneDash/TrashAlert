@@ -3,44 +3,14 @@
   "builds": [
     {
       "src": "vercel_app/handler.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "50mb"
+      }
     }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "/vercel_app/handler.py" },
-    { "src": "/houston", "dest": "/vercel_app/handler.py" },
-    { "src": "/phoenix", "dest": "/vercel_app/handler.py" },
-    { "src": "/austin", "dest": "/vercel_app/handler.py" },
-    { "src": "/boston", "dest": "/vercel_app/handler.py" },
-    { "src": "/denver", "dest": "/vercel_app/handler.py" },
-    { "src": "/san_diego", "dest": "/vercel_app/handler.py" },
-    { "src": "/san-diego", "dest": "/vercel_app/handler.py" },
-    { "src": "/new_york", "dest": "/vercel_app/handler.py" },
-    { "src": "/new-york", "dest": "/vercel_app/handler.py" },
-    { "src": "/los_angeles", "dest": "/vercel_app/handler.py" },
-    { "src": "/los-angeles", "dest": "/vercel_app/handler.py" },
-    { "src": "/philadelphia", "dest": "/vercel_app/handler.py" },
-    { "src": "/san_antonio", "dest": "/vercel_app/handler.py" },
-    { "src": "/san-antonio", "dest": "/vercel_app/handler.py" },
-    { "src": "/dallas", "dest": "/vercel_app/handler.py" },
-    { "src": "/oklahoma_city", "dest": "/vercel_app/handler.py" },
-    { "src": "/oklahoma-city", "dest": "/vercel_app/handler.py" },
-    { "src": "/charlotte", "dest": "/vercel_app/handler.py" },
-    { "src": "/columbus", "dest": "/vercel_app/handler.py" },
-    { "src": "/chicago", "dest": "/vercel_app/handler.py" },
-    { "src": "/seattle", "dest": "/vercel_app/handler.py" },
-    { "src": "/el_centro", "dest": "/vercel_app/handler.py" },
-    { "src": "/calexico", "dest": "/vercel_app/handler.py" },
-    { "src": "/brawley", "dest": "/vercel_app/handler.py" },
-    { "src": "/imperial", "dest": "/vercel_app/handler.py" },
-    { "src": "/holtville", "dest": "/vercel_app/handler.py" },
-    { "src": "/map(.*)", "dest": "/vercel_app/handler.py" },
-    { "src": "/narpm(.*)", "dest": "/vercel_app/handler.py" },
-    { "src": "/pricing", "dest": "/vercel_app/handler.py" },
-    { "src": "/about", "dest": "/vercel_app/handler.py" },
-    { "src": "/for/(.*)", "dest": "/vercel_app/handler.py" },
-    { "src": "/embed(.*)", "dest": "/vercel_app/handler.py" },
-    { "src": "/sitemap.xml", "dest": "/vercel_app/handler.py" },
-    { "src": "/robots.txt", "dest": "/vercel_app/handler.py" }
-  ]
+    { "src": "/(.*)", "dest": "/vercel_app/handler.py" }
+  ],
+  "installCommand": "pip install -r vercel_app/requirements.txt"
 }
