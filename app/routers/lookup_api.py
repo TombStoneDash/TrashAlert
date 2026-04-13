@@ -191,3 +191,70 @@ async def api_lookup(
         "zone": zone,
         "next_pickup": _next_pickup(day),
     }
+
+
+# ---------------------------------------------------------------------------
+# Cities list endpoint
+# ---------------------------------------------------------------------------
+
+# Slug -> display metadata for the cities list
+_CITY_DISPLAY = {
+    "san_diego":  {"name": "San Diego",  "state": "CA", "slug": "san_diego"},
+    "houston":    {"name": "Houston",    "state": "TX", "slug": "houston"},
+    "phoenix":    {"name": "Phoenix",    "state": "AZ", "slug": "phoenix"},
+    "austin":     {"name": "Austin",     "state": "TX", "slug": "austin"},
+    "boston":      {"name": "Boston",     "state": "MA", "slug": "boston"},
+    "denver":     {"name": "Denver",     "state": "CO", "slug": "denver"},
+    "el_centro":  {"name": "El Centro",  "state": "CA", "slug": "el_centro"},
+    "calexico":   {"name": "Calexico",   "state": "CA", "slug": "calexico"},
+    "brawley":    {"name": "Brawley",    "state": "CA", "slug": "brawley"},
+    "imperial":   {"name": "Imperial",   "state": "CA", "slug": "imperial"},
+    "holtville":  {"name": "Holtville",  "state": "CA", "slug": "holtville"},
+}
+
+# Cache for city counts
+_cities_cache: dict | None = None
+
+
+def _load_all_city_counts() -> dict[str, int]:
+    """Count addresses per city_name from the CSV."""
+    csv_path = DATA_DIR / "addresses_normalized.csv"
+    counts: dict[str, int] = {}
+    if not csv_path.exists():
+        return counts
+    with open(csv_path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            name = row.get("city_name", "").strip()
+            if name:
+                counts[name] = counts.get(name, 0) + 1
+    return counts
+
+
+@router.get("/cities")
+async def list_cities():
+    """Return all available cities with address counts.
+
+    Response includes each city's slug, display name, state, and the
+    number of addresses in the dataset.
+    """
+    global _cities_cache
+    if _cities_cache is None:
+        counts = _load_all_city_counts()
+        cities = []
+        for meta in _CITY_DISPLAY.values():
+            count = counts.get(meta["name"], 0)
+            if count > 0:
+                cities.append({
+                    "slug": meta["slug"],
+                    "name": meta["name"],
+                    "state": meta["state"],
+                    "address_count": count,
+                })
+        cities.sort(key=lambda c: c["address_count"], reverse=True)
+        _cities_cache = {
+            "total_cities": len(cities),
+            "total_addresses": sum(c["address_count"] for c in cities),
+            "cities": cities,
+        }
+    return _cities_cache
