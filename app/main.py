@@ -98,6 +98,7 @@ from app.routers.schedule_api import router as schedule_api_router
 from app.routers.notifications import router as notifications_router
 from app.routers.city_pages import router as city_pages_router
 from app.routers.sitemap import router as sitemap_router
+from app.routers.robots import router as robots_router
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -256,8 +257,9 @@ app.include_router(schedule_api_router)
 # Include notification signup API (/api/notifications/signup)
 app.include_router(notifications_router)
 
-# Sitemap
+# Sitemap and robots.txt
 app.include_router(sitemap_router)
+app.include_router(robots_router)
 
 # Dynamic city pages (/{city_slug}) — must be last (catch-all pattern)
 app.include_router(city_pages_router)
