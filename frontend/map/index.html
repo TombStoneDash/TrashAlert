@@ -3,60 +3,103 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>TrashAlert Zone Map</title>
-  <meta name="description" content="Interactive pickup zone map — see your trash collection day by neighborhood." />
+  <title>TrashAlert Zone Map - San Diego</title>
+  <meta name="description" content="Interactive trash pickup zone map for San Diego. Click any zone to see your collection day and next pickup date." />
 
-  <!-- Mapbox GL JS -->
-  <link href="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css" rel="stylesheet" />
-  <script src="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js"></script>
-
-  <!-- Mapbox Geocoder -->
-  <link href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.2/mapbox-gl-geocoder.css" rel="stylesheet" />
-  <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-geocoder/v5.0.2/mapbox-gl-geocoder.min.js"></script>
+  <!-- Leaflet CSS & JS (free, no API key) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; width: 100%; overflow: hidden; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
 
-    #map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+    #map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
 
     /* Header bar */
     .header {
-      position: absolute; top: 0; left: 0; right: 0; z-index: 10;
-      background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(8px);
-      padding: 12px 20px; display: flex; align-items: center; gap: 16px;
+      position: absolute; top: 0; left: 0; right: 0; z-index: 1000;
+      background: rgba(15, 23, 42, 0.94); backdrop-filter: blur(8px);
+      padding: 10px 16px; display: flex; align-items: center; gap: 12px;
+      flex-wrap: wrap;
+    }
+    .header-left {
+      display: flex; align-items: center; gap: 12px; flex-shrink: 0;
     }
     .header h1 {
       font-size: 18px; font-weight: 700; color: #fff; white-space: nowrap;
     }
     .header h1 span { color: #38bdf8; }
+    .header .home-link {
+      color: #94a3b8; text-decoration: none; font-size: 13px; font-weight: 500;
+    }
+    .header .home-link:hover { color: #fff; }
+
+    /* Search box */
+    .search-wrapper {
+      flex: 1; min-width: 200px; max-width: 420px; position: relative;
+    }
+    .search-box {
+      width: 100%; padding: 9px 14px 9px 36px; border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.08);
+      color: #fff; font-size: 14px; outline: none;
+    }
+    .search-box::placeholder { color: #94a3b8; }
+    .search-box:focus { border-color: #38bdf8; background: rgba(255,255,255,0.12); }
+    .search-icon {
+      position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+      color: #94a3b8; font-size: 14px; pointer-events: none;
+    }
+    .search-hint {
+      display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+      background: #1e293b; border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #94a3b8;
+      z-index: 1001;
+    }
+    .search-box:focus ~ .search-hint { display: block; }
 
     /* Legend */
     .legend {
-      position: absolute; bottom: 32px; left: 16px; z-index: 10;
-      background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(8px);
+      position: absolute; bottom: 32px; left: 16px; z-index: 1000;
+      background: rgba(15, 23, 42, 0.94); backdrop-filter: blur(8px);
       border-radius: 10px; padding: 14px 18px; color: #e2e8f0;
       font-size: 13px; min-width: 160px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     }
-    .legend h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #94a3b8; margin-bottom: 10px; }
-    .legend-item { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+    .legend h3 {
+      font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px;
+      color: #94a3b8; margin-bottom: 10px;
+    }
+    .legend-item { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
     .legend-swatch {
-      width: 18px; height: 18px; border-radius: 4px; flex-shrink: 0;
-      border: 1px solid rgba(255,255,255,0.15);
+      width: 16px; height: 16px; border-radius: 3px; flex-shrink: 0;
+      border: 1px solid rgba(255,255,255,0.12);
     }
 
-    /* Info popup (on hex click) */
-    .zone-popup h4 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
-    .zone-popup p { font-size: 13px; color: #475569; margin: 2px 0; }
+    /* Popup styles */
+    .zone-popup { min-width: 180px; }
+    .zone-popup h4 {
+      font-size: 16px; font-weight: 700; margin-bottom: 6px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .zone-popup .day-dot {
+      width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+    }
+    .zone-popup p { font-size: 13px; color: #475569; margin: 3px 0; line-height: 1.4; }
+    .zone-popup .next-date { font-weight: 600; color: #0f172a; }
 
     /* Loading overlay */
-    .loading {
-      position: absolute; inset: 0; z-index: 20;
+    .loading-overlay {
+      position: absolute; inset: 0; z-index: 2000;
       background: #0f172a; display: flex; flex-direction: column;
       align-items: center; justify-content: center; color: #e2e8f0;
-      transition: opacity 0.4s;
+      transition: opacity 0.5s ease;
     }
-    .loading.hidden { opacity: 0; pointer-events: none; }
+    .loading-overlay.hidden { opacity: 0; pointer-events: none; }
     .spinner {
       width: 40px; height: 40px; border: 3px solid #334155;
       border-top-color: #38bdf8; border-radius: 50%;
@@ -64,10 +107,25 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Geocoder override — place in header */
-    .mapboxgl-ctrl-geocoder {
-      min-width: 280px; max-width: 420px; font-size: 14px;
-      box-shadow: none !important; border-radius: 8px;
+    /* Search marker pulse */
+    .search-marker {
+      background: #38bdf8; width: 14px; height: 14px; border-radius: 50%;
+      border: 3px solid #fff; box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.4);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.4); }
+      50% { box-shadow: 0 0 0 8px rgba(56, 189, 248, 0.1); }
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .header { padding: 8px 12px; gap: 8px; }
+      .header h1 { font-size: 15px; }
+      .header .home-link { display: none; }
+      .search-wrapper { min-width: 140px; }
+      .legend { bottom: 16px; left: 8px; padding: 10px 14px; font-size: 12px; }
+      .legend-swatch { width: 14px; height: 14px; }
     }
   </style>
 </head>
@@ -76,8 +134,15 @@
 <div id="map"></div>
 
 <div class="header">
-  <h1><span>TrashAlert</span> Zone Map</h1>
-  <div id="geocoder-container"></div>
+  <div class="header-left">
+    <h1><a href="/" style="color:inherit;text-decoration:none"><span>TrashAlert</span></a> Zone Map</h1>
+    <a href="/" class="home-link">Home</a>
+  </div>
+  <div class="search-wrapper">
+    <span class="search-icon">&#128269;</span>
+    <input type="text" class="search-box" id="search" placeholder="Search an address in San Diego..." autocomplete="off" />
+    <div class="search-hint">Press Enter to search. Try: "4500 Park Blvd, San Diego"</div>
+  </div>
 </div>
 
 <div class="legend" id="legend">
@@ -89,154 +154,420 @@
   <div class="legend-item"><div class="legend-swatch" style="background:#ef4444"></div> Friday</div>
 </div>
 
-<div class="loading" id="loading">
+<div class="loading-overlay" id="loading">
   <div class="spinner"></div>
-  <div>Loading zone data&hellip;</div>
+  <div>Loading San Diego zone map&hellip;</div>
 </div>
 
 <script>
-  // --- Config ---
-  const MAPBOX_TOKEN = '{{MAPBOX_TOKEN}}';
-  const API_BASE = window.TRASHALERT_API || '';
-  const DEFAULT_CITY = 'san_diego';
+// ---------------------------------------------------------------------------
+// Configuration
+// ---------------------------------------------------------------------------
+const DAY_COLORS = {
+  Monday:    '#3b82f6',
+  Tuesday:   '#22c55e',
+  Wednesday: '#f59e0b',
+  Thursday:  '#a855f7',
+  Friday:    '#ef4444',
+};
 
-  // Day -> color
-  const DAY_COLORS = {
-    Monday:    '#3b82f6',
-    Tuesday:   '#22c55e',
-    Wednesday: '#f59e0b',
-    Thursday:  '#a855f7',
-    Friday:    '#ef4444',
-  };
+const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
-  // --- Map init ---
-  mapboxgl.accessToken = MAPBOX_TOKEN;
+// ---------------------------------------------------------------------------
+// San Diego zone polygon data (mock GeoJSON)
+// Zones roughly divide the city into pickup day regions west-to-east
+// ---------------------------------------------------------------------------
+const SD_ZONES = {
+  type: 'FeatureCollection',
+  features: [
+    {
+      type: 'Feature',
+      properties: { zone: 'Zone 1 - Ocean Beach / Point Loma', pickup_day: 'Monday' },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-117.256, 32.755], [-117.256, 32.690], [-117.215, 32.690],
+        [-117.215, 32.720], [-117.230, 32.740], [-117.230, 32.755],
+        [-117.256, 32.755]
+      ]]}
+    },
+    {
+      type: 'Feature',
+      properties: { zone: 'Zone 2 - Mission Bay / Pacific Beach', pickup_day: 'Monday' },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-117.260, 32.810], [-117.260, 32.755], [-117.215, 32.755],
+        [-117.215, 32.780], [-117.235, 32.800], [-117.235, 32.810],
+        [-117.260, 32.810]
+      ]]}
+    },
+    {
+      type: 'Feature',
+      properties: { zone: 'Zone 3 - La Jolla', pickup_day: 'Monday' },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-117.280, 32.870], [-117.280, 32.830], [-117.245, 32.810],
+        [-117.235, 32.810], [-117.235, 32.845], [-117.250, 32.870],
+        [-117.280, 32.870]
+      ]]}
+    },
+    {
+      type: 'Feature',
+      properties: { zone: 'Zone 4 - Hillcrest / Mission Hills', pickup_day: 'Tuesday' },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-117.215, 32.755], [-117.215, 32.720], [-117.160, 32.720],
+        [-117.160, 32.755], [-117.215, 32.755]
+      ]]}
+    },
+    {
+      type: 'Feature',
+      properties: { zone: 'Zone 5 - North Park / University Heights', pickup_day: 'Tuesday' },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-117.160, 32.755], [-117.160, 32.720], [-117.110, 32.720],
+        [-117.110, 32.755], [-117.160, 32.755]
+      ]]}
+    },
+    {
+      type: 'Feature',
+      properties: { zone: 'Zone 6 - Clairemont / Bay Park', pickup_day: 'Tuesday' },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-117.215, 32.810], [-117.215, 32.755], [-117.160, 32.755],
+        [-117.160, 32.810], [-117.215, 32.810]
+      ]]}
+    },
+    {
+      type: 'Feature',
+      properties: { zone: 'Zone 7 - Downtown / East Village', pickup_day: 'Wednesday' },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-117.175, 32.720], [-117.175, 32.700], [-117.140, 32.700],
+        [-117.140, 32.720], [-117.175, 32.720]
+      ]]}
+    },
+    {
+      type: 'Feature',
+      properties: { zone: 'Zone 8 - Barrio Logan / Logan Heights', pickup_day: 'Wednesday' },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-117.140, 32.720], [-117.140, 32.690], [-117.100, 32.690],
+        [-117.100, 32.720], [-117.140, 32.720]
+      ]]}
+    },
+    {
+      type: 'Feature',
+      properties: { zone: 'Zone 9 - Golden Hill / South Park', pickup_day: 'Wednesday' },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-117.140, 32.730], [-117.140, 32.700], [-117.110, 32.700],
+        [-117.110, 32.730], [-117.140, 32.730]
+      ]]}
+    },
+    {
+      type: 'Feature',
+      properties: { zone: 'Zone 10 - Kearny Mesa / Serra Mesa', pickup_day: 'Thursday' },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-117.160, 32.810], [-117.160, 32.770], [-117.100, 32.770],
+        [-117.100, 32.810], [-117.160, 32.810]
+      ]]}
+    },
+    {
+      type: 'Feature',
+      properties: { zone: 'Zone 11 - Tierrasanta / Allied Gardens', pickup_day: 'Thursday' },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-117.100, 32.810], [-117.100, 32.770], [-117.050, 32.770],
+        [-117.050, 32.810], [-117.100, 32.810]
+      ]]}
+    },
+    {
+      type: 'Feature',
+      properties: { zone: 'Zone 12 - Mira Mesa / Scripps Ranch', pickup_day: 'Thursday' },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-117.160, 32.870], [-117.160, 32.810], [-117.090, 32.810],
+        [-117.090, 32.870], [-117.160, 32.870]
+      ]]}
+    },
+    {
+      type: 'Feature',
+      properties: { zone: 'Zone 13 - City Heights / College Area', pickup_day: 'Friday' },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-117.110, 32.770], [-117.110, 32.720], [-117.050, 32.720],
+        [-117.050, 32.770], [-117.110, 32.770]
+      ]]}
+    },
+    {
+      type: 'Feature',
+      properties: { zone: 'Zone 14 - Encanto / Paradise Hills', pickup_day: 'Friday' },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-117.100, 32.720], [-117.100, 32.680], [-117.040, 32.680],
+        [-117.040, 32.720], [-117.100, 32.720]
+      ]]}
+    },
+    {
+      type: 'Feature',
+      properties: { zone: 'Zone 15 - San Ysidro / Otay Mesa', pickup_day: 'Friday' },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-117.100, 32.680], [-117.100, 32.540], [-117.010, 32.540],
+        [-117.010, 32.680], [-117.100, 32.680]
+      ]]}
+    },
+    {
+      type: 'Feature',
+      properties: { zone: 'Zone 16 - University City / UTC', pickup_day: 'Tuesday' },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-117.235, 32.870], [-117.235, 32.845], [-117.215, 32.830],
+        [-117.215, 32.810], [-117.160, 32.810], [-117.160, 32.870],
+        [-117.235, 32.870]
+      ]]}
+    },
+    {
+      type: 'Feature',
+      properties: { zone: 'Zone 17 - Rancho Bernardo / Rancho Penasquitos', pickup_day: 'Thursday' },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-117.160, 32.960], [-117.160, 32.870], [-117.090, 32.870],
+        [-117.090, 32.960], [-117.160, 32.960]
+      ]]}
+    },
+    {
+      type: 'Feature',
+      properties: { zone: 'Zone 18 - Carmel Mountain / Sabre Springs', pickup_day: 'Wednesday' },
+      geometry: { type: 'Polygon', coordinates: [[
+        [-117.090, 32.960], [-117.090, 32.870], [-117.020, 32.870],
+        [-117.020, 32.960], [-117.090, 32.960]
+      ]]}
+    },
+  ]
+};
 
-  const map = new mapboxgl.Map({
-    container: 'map',
-    style: 'mapbox://styles/mapbox/dark-v11',
-    center: [-117.16, 32.72],  // San Diego
-    zoom: 11,
-    pitch: 0,
-    attributionControl: true,
-  });
+// ---------------------------------------------------------------------------
+// Utility: compute next pickup date for a given day name
+// ---------------------------------------------------------------------------
+function nextPickupDate(dayName) {
+  const dayIndex = DAYS.indexOf(dayName);
+  if (dayIndex < 0) return 'N/A';
+  const today = new Date();
+  const todayDay = today.getDay(); // 0=Sun, 1=Mon...
+  // Convert: Monday=1 in JS getDay, our index Monday=0
+  const targetJS = dayIndex + 1;
+  let ahead = targetJS - todayDay;
+  if (ahead <= 0) ahead += 7;
+  const next = new Date(today);
+  next.setDate(today.getDate() + ahead);
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const weekdays = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  return `${weekdays[next.getDay()]}, ${months[next.getMonth()]} ${next.getDate()}, ${next.getFullYear()}`;
+}
 
-  map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
+// ---------------------------------------------------------------------------
+// Initialize Leaflet map
+// ---------------------------------------------------------------------------
+const map = L.map('map', {
+  zoomControl: false,
+  attributionControl: true,
+}).setView([32.78, -117.15], 11);
 
-  // --- Geocoder (address search) ---
-  const geocoder = new MapboxGeocoder({
-    accessToken: MAPBOX_TOKEN,
-    mapboxgl: mapboxgl,
-    placeholder: 'Search an address\u2026',
-    bbox: [-117.40, 32.53, -116.85, 33.12],  // San Diego bounding box
-    proximity: { longitude: -117.16, latitude: 32.72 },
-    marker: false,
-  });
+// OpenStreetMap tiles (free, no API key)
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | TrashAlert',
+  maxZoom: 19,
+}).addTo(map);
 
-  document.getElementById('geocoder-container').appendChild(geocoder.onAdd(map));
+L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-  // Fly to result and highlight zone
-  geocoder.on('result', (e) => {
-    const [lng, lat] = e.result.center;
-    map.flyTo({ center: [lng, lat], zoom: 14, duration: 1500 });
+// ---------------------------------------------------------------------------
+// Add zone polygons
+// ---------------------------------------------------------------------------
+let activeLayer = null;
+let searchMarker = null;
 
-    // Find which hex contains this point
-    const point = map.project([lng, lat]);
-    const features = map.queryRenderedFeatures(point, { layers: ['zone-fill'] });
+const zoneLayer = L.geoJSON(SD_ZONES, {
+  style: function(feature) {
+    return {
+      fillColor: DAY_COLORS[feature.properties.pickup_day] || '#64748b',
+      fillOpacity: 0.45,
+      color: '#fff',
+      weight: 2,
+      opacity: 0.6,
+    };
+  },
+  onEachFeature: function(feature, layer) {
+    const p = feature.properties;
+    const dayColor = DAY_COLORS[p.pickup_day] || '#64748b';
+    const nextDate = nextPickupDate(p.pickup_day);
 
-    // Reset previous highlight
-    map.setPaintProperty('zone-fill', 'fill-opacity', [
-      'case',
-      ['boolean', ['feature-state', 'highlighted'], false],
-      0.7,
-      0.55,
-    ]);
+    layer.bindPopup(`
+      <div class="zone-popup">
+        <h4><span class="day-dot" style="background:${dayColor}"></span> ${p.pickup_day} Pickup</h4>
+        <p><strong>${p.zone}</strong></p>
+        <p class="next-date">Next pickup: ${nextDate}</p>
+      </div>
+    `, { maxWidth: 280 });
 
-    if (features.length > 0) {
-      const hexId = features[0].properties.h3_index;
-
-      // Pulse the matched hex
-      map.setPaintProperty('zone-fill', 'fill-opacity', [
-        'case',
-        ['==', ['get', 'h3_index'], hexId], 0.85,
-        0.35,
-      ]);
-
-      // Show popup
-      new mapboxgl.Popup({ offset: 12, closeButton: true })
-        .setLngLat([lng, lat])
-        .setHTML(`
-          <div class="zone-popup">
-            <h4>${features[0].properties.pickup_day} Pickup</h4>
-            <p>${features[0].properties.address_count} addresses in zone</p>
-            <p style="font-size:11px;color:#94a3b8">Hex ${hexId.slice(0,8)}&hellip;</p>
-          </div>
-        `)
-        .addTo(map);
-    }
-  });
-
-  // --- Load zone data ---
-  map.on('load', async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/zones/${DEFAULT_CITY}`);
-      if (!res.ok) throw new Error(`API returned ${res.status}`);
-      const geojson = await res.json();
-
-      // Build color expression: match pickup_day -> color
-      const colorExpr = ['match', ['get', 'pickup_day']];
-      for (const [day, color] of Object.entries(DAY_COLORS)) {
-        colorExpr.push(day, color);
+    layer.on('mouseover', function() {
+      if (activeLayer !== layer) {
+        layer.setStyle({ fillOpacity: 0.7, weight: 3 });
       }
-      colorExpr.push('#64748b'); // fallback
+      layer.bringToFront();
+    });
 
-      map.addSource('zones', { type: 'geojson', data: geojson });
+    layer.on('mouseout', function() {
+      if (activeLayer !== layer) {
+        layer.setStyle({ fillOpacity: 0.45, weight: 2 });
+      }
+    });
 
-      map.addLayer({
-        id: 'zone-fill',
-        type: 'fill',
-        source: 'zones',
-        paint: {
-          'fill-color': colorExpr,
-          'fill-opacity': 0.55,
-        },
-      });
+    layer.on('click', function() {
+      // Reset previous active
+      if (activeLayer && activeLayer !== layer) {
+        zoneLayer.resetStyle(activeLayer);
+      }
+      activeLayer = layer;
+      layer.setStyle({ fillOpacity: 0.75, weight: 3 });
+    });
+  }
+}).addTo(map);
 
-      map.addLayer({
-        id: 'zone-outline',
-        type: 'line',
-        source: 'zones',
-        paint: {
-          'line-color': '#e2e8f0',
-          'line-width': 1,
-          'line-opacity': 0.4,
-        },
-      });
+// Fit map to zone bounds
+if (zoneLayer.getBounds().isValid()) {
+  map.fitBounds(zoneLayer.getBounds(), { padding: [60, 30] });
+}
 
-      // Click -> popup
-      map.on('click', 'zone-fill', (e) => {
-        const props = e.features[0].properties;
-        new mapboxgl.Popup({ offset: 12 })
-          .setLngLat(e.lngLat)
-          .setHTML(`
-            <div class="zone-popup">
-              <h4>${props.pickup_day} Pickup</h4>
-              <p>${props.address_count} addresses in zone</p>
-            </div>
-          `)
-          .addTo(map);
-      });
+// Close popup -> reset highlight
+map.on('popupclose', function() {
+  if (activeLayer) {
+    zoneLayer.resetStyle(activeLayer);
+    activeLayer = null;
+  }
+});
 
-      // Hover cursor
-      map.on('mouseenter', 'zone-fill', () => { map.getCanvas().style.cursor = 'pointer'; });
-      map.on('mouseleave', 'zone-fill', () => { map.getCanvas().style.cursor = ''; });
+// ---------------------------------------------------------------------------
+// Address search (Nominatim geocoder - free, no API key)
+// ---------------------------------------------------------------------------
+const searchInput = document.getElementById('search');
 
-    } catch (err) {
-      console.error('Failed to load zones:', err);
-    } finally {
-      document.getElementById('loading').classList.add('hidden');
+searchInput.addEventListener('keydown', async function(e) {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+
+  const query = searchInput.value.trim();
+  if (!query) return;
+
+  // Append "San Diego, CA" if not already included
+  const fullQuery = /san\s*diego/i.test(query) ? query : query + ', San Diego, CA';
+
+  searchInput.style.borderColor = '#f59e0b';
+
+  try {
+    const url = 'https://nominatim.openstreetmap.org/search'
+      + '?format=json'
+      + '&q=' + encodeURIComponent(fullQuery)
+      + '&limit=1'
+      + '&viewbox=-117.40,32.53,-116.85,33.12'
+      + '&bounded=1';
+
+    const res = await fetch(url, {
+      headers: { 'Accept': 'application/json' }
+    });
+    const data = await res.json();
+
+    if (data.length === 0) {
+      searchInput.style.borderColor = '#ef4444';
+      alert('Address not found. Try a different search term.');
+      return;
     }
-  });
+
+    const lat = parseFloat(data[0].lat);
+    const lng = parseFloat(data[0].lon);
+    const latlng = L.latLng(lat, lng);
+
+    // Remove old search marker
+    if (searchMarker) {
+      map.removeLayer(searchMarker);
+    }
+
+    // Fly to location
+    map.flyTo(latlng, 15, { duration: 1.2 });
+
+    // Add pulsing marker
+    const markerIcon = L.divIcon({
+      className: 'search-marker',
+      iconSize: [14, 14],
+      iconAnchor: [7, 7],
+    });
+    searchMarker = L.marker(latlng, { icon: markerIcon }).addTo(map);
+
+    // Find the zone containing this point
+    let foundZone = false;
+    zoneLayer.eachLayer(function(layer) {
+      if (foundZone) return;
+
+      // Check if point is inside polygon bounds (rough check)
+      if (layer.getBounds && layer.getBounds().contains(latlng)) {
+        // More precise check using ray casting
+        const coords = layer.feature.geometry.coordinates[0];
+        if (pointInPolygon(lat, lng, coords)) {
+          foundZone = true;
+
+          // Reset previous
+          if (activeLayer) zoneLayer.resetStyle(activeLayer);
+          activeLayer = layer;
+
+          // Highlight the zone
+          layer.setStyle({ fillOpacity: 0.8, weight: 4, color: '#fff' });
+          layer.bringToFront();
+
+          // Open popup at search location
+          const p = layer.feature.properties;
+          const dayColor = DAY_COLORS[p.pickup_day] || '#64748b';
+          const nextDate = nextPickupDate(p.pickup_day);
+
+          L.popup({ maxWidth: 280 })
+            .setLatLng(latlng)
+            .setContent(`
+              <div class="zone-popup">
+                <h4><span class="day-dot" style="background:${dayColor}"></span> ${p.pickup_day} Pickup</h4>
+                <p><strong>${p.zone}</strong></p>
+                <p class="next-date">Next pickup: ${nextDate}</p>
+                <p style="color:#94a3b8;font-size:11px;margin-top:6px">${data[0].display_name}</p>
+              </div>
+            `)
+            .openOn(map);
+        }
+      }
+    });
+
+    if (!foundZone) {
+      // Show marker popup even if not in a zone
+      searchMarker.bindPopup(`
+        <div class="zone-popup">
+          <h4>Location Found</h4>
+          <p>${data[0].display_name}</p>
+          <p style="color:#94a3b8;font-size:12px;margin-top:4px">This location is outside the mapped pickup zones.</p>
+        </div>
+      `).openPopup();
+    }
+
+    searchInput.style.borderColor = '#22c55e';
+    setTimeout(() => { searchInput.style.borderColor = ''; }, 2000);
+
+  } catch (err) {
+    console.error('Search failed:', err);
+    searchInput.style.borderColor = '#ef4444';
+    setTimeout(() => { searchInput.style.borderColor = ''; }, 2000);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Point-in-polygon (ray casting algorithm)
+// ---------------------------------------------------------------------------
+function pointInPolygon(lat, lng, polygon) {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i][1], yi = polygon[i][0]; // GeoJSON is [lng, lat]
+    const xj = polygon[j][1], yj = polygon[j][0];
+    const intersect = ((yi > lng) !== (yj > lng))
+      && (lat < (xj - xi) * (lng - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+// ---------------------------------------------------------------------------
+// Hide loading overlay
+// ---------------------------------------------------------------------------
+document.getElementById('loading').classList.add('hidden');
 </script>
 </body>
 </html>

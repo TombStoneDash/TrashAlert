@@ -388,18 +388,16 @@ async def embed_js():
 
 
 # ---------------------------------------------------------------------------
-# Routes — Map (inject Mapbox token)
+# Routes — Map
 # ---------------------------------------------------------------------------
-
-MAPBOX_TOKEN = os.getenv("MAPBOX_TOKEN", "")
 
 @app.get("/map", response_class=HTMLResponse)
 async def zone_map():
-    return _template("map/index.html").replace("{{MAPBOX_TOKEN}}", MAPBOX_TOKEN)
+    return _template("map/index.html")
 
 @app.get("/map/embed", response_class=HTMLResponse)
 async def zone_map_embed():
-    return _template("map/embed.html").replace("{{MAPBOX_TOKEN}}", MAPBOX_TOKEN)
+    return _template("map/embed.html")
 
 
 # ---------------------------------------------------------------------------

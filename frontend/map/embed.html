@@ -5,42 +5,38 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>TrashAlert Zone Map</title>
 
-  <link href="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css" rel="stylesheet" />
-  <script src="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { overflow: hidden; }
     #map { width: 100vw; height: 100vh; }
 
-    /* Compact legend */
     .legend {
-      position: absolute; bottom: 8px; left: 8px; z-index: 10;
+      position: absolute; bottom: 8px; left: 8px; z-index: 1000;
       background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(6px);
       border-radius: 8px; padding: 8px 12px; color: #e2e8f0;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       font-size: 11px; display: flex; gap: 10px; align-items: center;
     }
     .legend-item { display: flex; align-items: center; gap: 4px; }
-    .legend-swatch {
-      width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
-    }
+    .legend-swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
 
-    /* Branding link */
     .branding {
-      position: absolute; top: 8px; right: 8px; z-index: 10;
+      position: absolute; top: 8px; right: 8px; z-index: 1000;
       background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(6px);
       border-radius: 6px; padding: 4px 10px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       font-size: 11px;
     }
-    .branding a {
-      color: #38bdf8; text-decoration: none; font-weight: 600;
-    }
+    .branding a { color: #38bdf8; text-decoration: none; font-weight: 600; }
     .branding a:hover { text-decoration: underline; }
 
-    .zone-popup h4 { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
-    .zone-popup p { font-size: 12px; color: #475569; }
+    .leaflet-popup-content h4 { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+    .leaflet-popup-content p { font-size: 12px; color: #475569; }
   </style>
 </head>
 <body>
@@ -56,83 +52,84 @@
 </div>
 
 <div class="branding">
-  <a href="https://trashalert.io/map" target="_blank" rel="noopener">TrashAlert</a>
+  <a href="/map" target="_blank" rel="noopener">TrashAlert</a>
 </div>
 
 <script>
-  const MAPBOX_TOKEN = '{{MAPBOX_TOKEN}}';
-  const API_BASE = window.TRASHALERT_API || '';
-  const DEFAULT_CITY = 'san_diego';
+const DAY_COLORS = {
+  Monday: '#3b82f6', Tuesday: '#22c55e', Wednesday: '#f59e0b',
+  Thursday: '#a855f7', Friday: '#ef4444',
+};
+const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
 
-  const DAY_COLORS = {
-    Monday: '#3b82f6', Tuesday: '#22c55e', Wednesday: '#f59e0b',
-    Thursday: '#a855f7', Friday: '#ef4444',
-  };
+// URL params for center/zoom
+const params = new URLSearchParams(window.location.search);
+const centerLat = parseFloat(params.get('lat') || '32.78');
+const centerLng = parseFloat(params.get('lng') || '-117.15');
+const zoom = parseFloat(params.get('zoom') || '11');
 
-  // Allow parent page to pass city and center via URL params
-  const params = new URLSearchParams(window.location.search);
-  const city = params.get('city') || DEFAULT_CITY;
-  const centerLng = parseFloat(params.get('lng') || '-117.16');
-  const centerLat = parseFloat(params.get('lat') || '32.72');
-  const zoom = parseFloat(params.get('zoom') || '11');
+// San Diego zone data (embedded)
+const SD_ZONES = {
+  type: 'FeatureCollection',
+  features: [
+    { type:'Feature', properties:{ zone:'Zone 1 - Ocean Beach / Point Loma', pickup_day:'Monday' }, geometry:{ type:'Polygon', coordinates:[[[-117.256,32.755],[-117.256,32.690],[-117.215,32.690],[-117.215,32.720],[-117.230,32.740],[-117.230,32.755],[-117.256,32.755]]] }},
+    { type:'Feature', properties:{ zone:'Zone 2 - Mission Bay / Pacific Beach', pickup_day:'Monday' }, geometry:{ type:'Polygon', coordinates:[[[-117.260,32.810],[-117.260,32.755],[-117.215,32.755],[-117.215,32.780],[-117.235,32.800],[-117.235,32.810],[-117.260,32.810]]] }},
+    { type:'Feature', properties:{ zone:'Zone 3 - La Jolla', pickup_day:'Monday' }, geometry:{ type:'Polygon', coordinates:[[[-117.280,32.870],[-117.280,32.830],[-117.245,32.810],[-117.235,32.810],[-117.235,32.845],[-117.250,32.870],[-117.280,32.870]]] }},
+    { type:'Feature', properties:{ zone:'Zone 4 - Hillcrest / Mission Hills', pickup_day:'Tuesday' }, geometry:{ type:'Polygon', coordinates:[[[-117.215,32.755],[-117.215,32.720],[-117.160,32.720],[-117.160,32.755],[-117.215,32.755]]] }},
+    { type:'Feature', properties:{ zone:'Zone 5 - North Park / University Heights', pickup_day:'Tuesday' }, geometry:{ type:'Polygon', coordinates:[[[-117.160,32.755],[-117.160,32.720],[-117.110,32.720],[-117.110,32.755],[-117.160,32.755]]] }},
+    { type:'Feature', properties:{ zone:'Zone 6 - Clairemont / Bay Park', pickup_day:'Tuesday' }, geometry:{ type:'Polygon', coordinates:[[[-117.215,32.810],[-117.215,32.755],[-117.160,32.755],[-117.160,32.810],[-117.215,32.810]]] }},
+    { type:'Feature', properties:{ zone:'Zone 7 - Downtown / East Village', pickup_day:'Wednesday' }, geometry:{ type:'Polygon', coordinates:[[[-117.175,32.720],[-117.175,32.700],[-117.140,32.700],[-117.140,32.720],[-117.175,32.720]]] }},
+    { type:'Feature', properties:{ zone:'Zone 8 - Barrio Logan / Logan Heights', pickup_day:'Wednesday' }, geometry:{ type:'Polygon', coordinates:[[[-117.140,32.720],[-117.140,32.690],[-117.100,32.690],[-117.100,32.720],[-117.140,32.720]]] }},
+    { type:'Feature', properties:{ zone:'Zone 9 - Golden Hill / South Park', pickup_day:'Wednesday' }, geometry:{ type:'Polygon', coordinates:[[[-117.140,32.730],[-117.140,32.700],[-117.110,32.700],[-117.110,32.730],[-117.140,32.730]]] }},
+    { type:'Feature', properties:{ zone:'Zone 10 - Kearny Mesa / Serra Mesa', pickup_day:'Thursday' }, geometry:{ type:'Polygon', coordinates:[[[-117.160,32.810],[-117.160,32.770],[-117.100,32.770],[-117.100,32.810],[-117.160,32.810]]] }},
+    { type:'Feature', properties:{ zone:'Zone 11 - Tierrasanta / Allied Gardens', pickup_day:'Thursday' }, geometry:{ type:'Polygon', coordinates:[[[-117.100,32.810],[-117.100,32.770],[-117.050,32.770],[-117.050,32.810],[-117.100,32.810]]] }},
+    { type:'Feature', properties:{ zone:'Zone 12 - Mira Mesa / Scripps Ranch', pickup_day:'Thursday' }, geometry:{ type:'Polygon', coordinates:[[[-117.160,32.870],[-117.160,32.810],[-117.090,32.810],[-117.090,32.870],[-117.160,32.870]]] }},
+    { type:'Feature', properties:{ zone:'Zone 13 - City Heights / College Area', pickup_day:'Friday' }, geometry:{ type:'Polygon', coordinates:[[[-117.110,32.770],[-117.110,32.720],[-117.050,32.720],[-117.050,32.770],[-117.110,32.770]]] }},
+    { type:'Feature', properties:{ zone:'Zone 14 - Encanto / Paradise Hills', pickup_day:'Friday' }, geometry:{ type:'Polygon', coordinates:[[[-117.100,32.720],[-117.100,32.680],[-117.040,32.680],[-117.040,32.720],[-117.100,32.720]]] }},
+    { type:'Feature', properties:{ zone:'Zone 15 - San Ysidro / Otay Mesa', pickup_day:'Friday' }, geometry:{ type:'Polygon', coordinates:[[[-117.100,32.680],[-117.100,32.540],[-117.010,32.540],[-117.010,32.680],[-117.100,32.680]]] }},
+    { type:'Feature', properties:{ zone:'Zone 16 - University City / UTC', pickup_day:'Tuesday' }, geometry:{ type:'Polygon', coordinates:[[[-117.235,32.870],[-117.235,32.845],[-117.215,32.830],[-117.215,32.810],[-117.160,32.810],[-117.160,32.870],[-117.235,32.870]]] }},
+    { type:'Feature', properties:{ zone:'Zone 17 - Rancho Bernardo / Rancho Penasquitos', pickup_day:'Thursday' }, geometry:{ type:'Polygon', coordinates:[[[-117.160,32.960],[-117.160,32.870],[-117.090,32.870],[-117.090,32.960],[-117.160,32.960]]] }},
+    { type:'Feature', properties:{ zone:'Zone 18 - Carmel Mountain / Sabre Springs', pickup_day:'Wednesday' }, geometry:{ type:'Polygon', coordinates:[[[-117.090,32.960],[-117.090,32.870],[-117.020,32.870],[-117.020,32.960],[-117.090,32.960]]] }},
+  ]
+};
 
-  mapboxgl.accessToken = MAPBOX_TOKEN;
+function nextPickupDate(dayName) {
+  const dayIndex = DAYS.indexOf(dayName);
+  if (dayIndex < 0) return 'N/A';
+  const today = new Date();
+  const targetJS = dayIndex + 1;
+  let ahead = targetJS - today.getDay();
+  if (ahead <= 0) ahead += 7;
+  const next = new Date(today);
+  next.setDate(today.getDate() + ahead);
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[next.getMonth()]} ${next.getDate()}`;
+}
 
-  const map = new mapboxgl.Map({
-    container: 'map',
-    style: 'mapbox://styles/mapbox/dark-v11',
-    center: [centerLng, centerLat],
-    zoom: zoom,
-    attributionControl: false,
-    interactive: true,
-  });
+const map = L.map('map', { zoomControl: false }).setView([centerLat, centerLng], zoom);
 
-  // Minimal controls for embed
-  map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-right');
-  map.addControl(new mapboxgl.AttributionControl({ compact: true }));
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors',
+  maxZoom: 19,
+}).addTo(map);
 
-  map.on('load', async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/zones/${city}`);
-      if (!res.ok) return;
-      const geojson = await res.json();
+L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-      const colorExpr = ['match', ['get', 'pickup_day']];
-      for (const [day, color] of Object.entries(DAY_COLORS)) {
-        colorExpr.push(day, color);
-      }
-      colorExpr.push('#64748b');
-
-      map.addSource('zones', { type: 'geojson', data: geojson });
-
-      map.addLayer({
-        id: 'zone-fill',
-        type: 'fill',
-        source: 'zones',
-        paint: { 'fill-color': colorExpr, 'fill-opacity': 0.55 },
-      });
-
-      map.addLayer({
-        id: 'zone-outline',
-        type: 'line',
-        source: 'zones',
-        paint: { 'line-color': '#e2e8f0', 'line-width': 1, 'line-opacity': 0.3 },
-      });
-
-      map.on('click', 'zone-fill', (e) => {
-        const props = e.features[0].properties;
-        new mapboxgl.Popup({ offset: 10, closeButton: false })
-          .setLngLat(e.lngLat)
-          .setHTML(`<div class="zone-popup"><h4>${props.pickup_day}</h4><p>${props.address_count} addresses</p></div>`)
-          .addTo(map);
-      });
-
-      map.on('mouseenter', 'zone-fill', () => { map.getCanvas().style.cursor = 'pointer'; });
-      map.on('mouseleave', 'zone-fill', () => { map.getCanvas().style.cursor = ''; });
-    } catch (err) {
-      console.error('Failed to load zones:', err);
-    }
-  });
+const zoneLayer = L.geoJSON(SD_ZONES, {
+  style: function(feature) {
+    return {
+      fillColor: DAY_COLORS[feature.properties.pickup_day] || '#64748b',
+      fillOpacity: 0.45, color: '#fff', weight: 1.5, opacity: 0.5,
+    };
+  },
+  onEachFeature: function(feature, layer) {
+    const p = feature.properties;
+    const dayColor = DAY_COLORS[p.pickup_day] || '#64748b';
+    layer.bindPopup(`<h4 style="color:${dayColor}">${p.pickup_day}</h4><p>${p.zone}</p><p>Next: ${nextPickupDate(p.pickup_day)}</p>`);
+    layer.on('mouseover', function() { layer.setStyle({ fillOpacity: 0.7 }); });
+    layer.on('mouseout', function() { layer.setStyle({ fillOpacity: 0.45 }); });
+  }
+}).addTo(map);
 </script>
 </body>
 </html>
