@@ -36,6 +36,7 @@
     { "src": "/detroit",           "status": 301, "headers": { "Location": "/schedule/detroit" } },
     { "src": "/atlanta",           "status": 301, "headers": { "Location": "/schedule/atlanta" } },
     { "src": "/miami",             "status": 301, "headers": { "Location": "/schedule/miami" } },
+    { "src": "/portfolio",           "dest": "/vercel_app/handler.py" },
     { "src": "/map/embed",          "dest": "/vercel_app/handler.py" },
     { "src": "/map",                "dest": "/vercel_app/handler.py" },
     { "src": "/(.*)",              "dest": "/vercel_app/handler.py" }

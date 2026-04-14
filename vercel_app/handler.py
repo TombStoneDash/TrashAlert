@@ -410,7 +410,7 @@ CITY_SLUGS = list(CITY_META.keys())
 async def sitemap():
     base = "https://trashalert.io"
     urls = []
-    for p in ["/", "/map", "/narpm", "/pricing", "/about", "/for/property-managers", "/for/municipalities", "/embed"]:
+    for p in ["/", "/map", "/narpm", "/pricing", "/about", "/for/property-managers", "/for/municipalities", "/embed", "/portfolio"]:
         urls.append(f'  <url><loc>{base}{p}</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>')
     for s in CITY_SLUGS:
         urls.append(f'  <url><loc>{base}/{s}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>')
@@ -548,6 +548,114 @@ async def stripe_status(email: Optional[str] = None, customer_id: Optional[str] 
             if sub.get("email", "").lower() == email.lower():
                 return {"customer_id": cid, **sub}
     return {"status": "none"}
+
+
+# ---------------------------------------------------------------------------
+# Routes — Portfolio Dashboard
+# ---------------------------------------------------------------------------
+
+@app.get("/portfolio", response_class=HTMLResponse)
+async def portfolio_dashboard():
+    return _template("portfolio-dashboard.html")
+
+
+@app.get("/api/portfolio/properties")
+async def portfolio_properties():
+    """Return all properties across cities for the portfolio dashboard.
+
+    In production this would be scoped to the authenticated user's
+    subscription.  For now it returns a representative sample from
+    each city in the registry.
+    """
+    properties = []
+    cities_with_data = set()
+    total_with_schedule = 0
+    sample_limit = 12  # addresses per city to keep response fast
+
+    for slug, meta in CITY_META.items():
+        city_name = meta["name"]
+        rows = _city_rows(city_name)
+        if not rows:
+            continue
+
+        cities_with_data.add(city_name)
+        lons = [r["lon"] for r in rows if r.get("lon") is not None]
+        lon_min = min(lons) - 0.02 if lons else -120
+        lon_max = max(lons) + 0.02 if lons else -80
+
+        for r in rows[:sample_limit]:
+            lat = r.get("lat")
+            lon = r.get("lon")
+            if lat is None or lon is None:
+                continue
+            h3i = h3.latlng_to_cell(lat, lon, H3_RESOLUTION)
+            day = r.get("collection_day") or _assign_day(h3i, lon_min, lon_max)
+            neighborhood = r.get("neighborhood", "") or _zone_label(h3i)
+            total_with_schedule += 1
+            properties.append({
+                "address": r.get("full_address") or f"{r.get('house', '')} {r.get('street', '')}".strip(),
+                "city": city_name,
+                "neighborhood": neighborhood,
+                "pickup_day": day,
+                "hauler": "Municipal",
+                "status": "active",
+            })
+
+    total = len(properties)
+    coverage = round(total_with_schedule / total * 100) if total else 0
+
+    return {
+        "total_properties": total,
+        "coverage_pct": coverage,
+        "last_sync": date.today().isoformat(),
+        "properties": properties,
+    }
+
+
+@app.get("/api/portfolio/holidays")
+async def portfolio_holidays():
+    """Return upcoming holiday schedule changes."""
+    holidays = [
+        {"name": "New Year's Day",    "date": "2026-01-01", "note": "No collection Jan 1. Thursday/Friday routes delayed by 1 day."},
+        {"name": "MLK Day",           "date": "2026-01-19", "note": "Monday routes moved to Tuesday. All other days shift +1."},
+        {"name": "Presidents' Day",   "date": "2026-02-16", "note": "Monday routes moved to Tuesday. All other days shift +1."},
+        {"name": "Memorial Day",      "date": "2026-05-25", "note": "Monday routes moved to Tuesday. All other days shift +1."},
+        {"name": "Independence Day",  "date": "2026-07-04", "note": "Saturday collection. No change to weekday routes."},
+        {"name": "Labor Day",         "date": "2026-09-07", "note": "Monday routes moved to Tuesday. All other days shift +1."},
+        {"name": "Thanksgiving",      "date": "2026-11-26", "note": "Thursday routes moved to Wednesday. Friday routes delayed to Saturday."},
+        {"name": "Christmas Day",     "date": "2026-12-25", "note": "Friday routes moved to Saturday. No collection Dec 25."},
+    ]
+    today = date.today()
+    upcoming = []
+    for h in holidays:
+        hdate = date.fromisoformat(h["date"])
+        diff = (hdate - today).days
+        if -1 <= diff <= 30:
+            upcoming.append({**h, "days_away": diff})
+    return {"holidays": upcoming}
+
+
+@app.get("/api/portfolio/export")
+async def portfolio_export(fmt: str = Query("csv")):
+    """Export portfolio schedules as CSV."""
+    props_resp = await portfolio_properties()
+    properties = props_resp["properties"]
+
+    if fmt == "csv":
+        lines = ["Address,City,Neighborhood,Hauler,Pickup Day,Next Pickup,Status"]
+        for p in properties:
+            day = p["pickup_day"]
+            nxt = _next_pickup(day) if day in DAY_INDEX else ""
+            addr = p["address"].replace('"', '""')
+            lines.append(f'"{addr}","{p["city"]}","{p["neighborhood"]}","{p["hauler"]}",{day},{nxt},{p["status"]}')
+        csv_content = "\n".join(lines)
+        return Response(
+            content=csv_content,
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=trashalert-portfolio-{date.today().isoformat()}.csv"},
+        )
+
+    return JSONResponse({"error": "Unsupported format. Use fmt=csv."}, status_code=400)
 
 
 # ---------------------------------------------------------------------------

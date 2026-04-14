@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Portfolio Dashboard | TrashAlert</title>
+  <meta name="description" content="Manage all your properties in one place. Bulk actions, schedule exports, analytics, and tenant email previews." />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8;
+      --accent: #38bdf8; --green: #22c55e; --red: #ef4444; --amber: #f59e0b;
+      --border: rgba(255,255,255,0.08);
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 16px 32px; border-bottom: 1px solid var(--border); }
+    .logo { font-size: 20px; font-weight: 800; color: #fff; text-decoration: none; } .logo span { color: var(--accent); }
+    nav a.nl { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500; margin-left: 24px; } nav a.nl:hover { color: #fff; }
+
+    .container { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+    /* Holiday Alert Banner */
+    .holiday-banner { background: linear-gradient(90deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05)); border: 1px solid rgba(245,158,11,0.3); border-radius: 12px; padding: 16px 24px; margin: 24px auto; max-width: 1120px; display: none; align-items: center; gap: 16px; }
+    .holiday-banner .hb-icon { font-size: 24px; flex-shrink: 0; }
+    .holiday-banner .hb-text { flex: 1; }
+    .holiday-banner .hb-title { font-size: 15px; font-weight: 700; color: var(--amber); }
+    .holiday-banner .hb-desc { font-size: 13px; color: var(--muted); margin-top: 2px; }
+    .holiday-banner .hb-close { background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; padding: 4px; } .holiday-banner .hb-close:hover { color: #fff; }
+
+    /* Analytics Cards */
+    .analytics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin: 32px auto; max-width: 1120px; padding: 0 24px; }
+    .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
+    .stat-card .stat-value { font-size: 32px; font-weight: 800; color: #fff; line-height: 1.2; }
+    .stat-card .stat-value.green { color: var(--green); }
+    .stat-card .stat-value.accent { color: var(--accent); }
+    .stat-card .stat-label { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+    /* Section header */
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin: 32px 0 16px; flex-wrap: wrap; gap: 12px; }
+    .section-header h2 { font-size: 22px; font-weight: 700; color: #fff; }
+
+    /* Search / Filter bar */
+    .filter-bar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+    .filter-bar input, .filter-bar select {
+      padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--card); color: #fff; font-size: 14px; min-width: 180px;
+    }
+    .filter-bar input::placeholder { color: var(--muted); }
+    .filter-bar select { cursor: pointer; }
+    .filter-bar input:focus, .filter-bar select:focus { outline: none; border-color: var(--accent); }
+
+    /* Bulk action toolbar */
+    .bulk-toolbar { display: none; align-items: center; gap: 12px; padding: 12px 20px; background: rgba(56,189,248,0.08); border: 1px solid rgba(56,189,248,0.2); border-radius: 10px; margin-bottom: 16px; }
+    .bulk-toolbar.visible { display: flex; }
+    .bulk-toolbar .bt-count { font-size: 14px; font-weight: 600; color: var(--accent); white-space: nowrap; }
+    .bulk-toolbar .bt-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn { padding: 8px 16px; border-radius: 8px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .btn-primary { background: var(--accent); color: #0f172a; } .btn-primary:hover { background: #7dd3fc; }
+    .btn-success { background: var(--green); color: #fff; } .btn-success:hover { background: #16a34a; }
+    .btn-outline { background: transparent; color: var(--accent); border: 1px solid var(--accent); } .btn-outline:hover { background: rgba(56,189,248,0.1); }
+    .btn-danger { background: transparent; color: var(--red); border: 1px solid var(--red); } .btn-danger:hover { background: rgba(239,68,68,0.1); }
+    .btn-ghost { background: transparent; color: var(--muted); } .btn-ghost:hover { color: #fff; }
+
+    /* Property table */
+    .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    thead { background: rgba(255,255,255,0.03); }
+    th { text-align: left; padding: 14px 16px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 14px 16px; border-bottom: 1px solid var(--border); color: var(--text); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover { background: rgba(255,255,255,0.02); }
+    .cb-cell { width: 40px; }
+    .cb-cell input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; }
+    .day-badge { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+    .day-mon { background: rgba(56,189,248,0.15); color: #38bdf8; }
+    .day-tue { background: rgba(34,197,94,0.15); color: #22c55e; }
+    .day-wed { background: rgba(168,85,247,0.15); color: #a855f7; }
+    .day-thu { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .day-fri { background: rgba(239,68,68,0.15); color: #ef4444; }
+    .status-active { color: var(--green); }
+    .status-pending { color: var(--amber); }
+    .no-results { text-align: center; padding: 48px; color: var(--muted); font-size: 15px; }
+
+    /* Export buttons row */
+    .export-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    /* Email Preview Panel */
+    .email-preview-section { margin: 40px 0; }
+    .email-preview { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .ep-header { padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .ep-header h3 { font-size: 16px; font-weight: 700; color: #fff; }
+    .ep-header .ep-badge { font-size: 11px; padding: 4px 10px; border-radius: 6px; background: rgba(34,197,94,0.15); color: var(--green); font-weight: 600; }
+    .ep-body { padding: 24px; }
+    .ep-email { background: #fff; border-radius: 8px; color: #1e293b; padding: 32px; max-width: 520px; margin: 0 auto; }
+    .ep-email .ep-logo { font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 16px; }
+    .ep-email .ep-logo span { color: #0ea5e9; }
+    .ep-email h4 { font-size: 18px; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
+    .ep-email p { font-size: 14px; color: #475569; line-height: 1.6; margin-bottom: 16px; }
+    .ep-email .ep-schedule-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+    .ep-email .ep-schedule-card .ep-addr { font-size: 14px; font-weight: 600; color: #0f172a; }
+    .ep-email .ep-schedule-card .ep-day { font-size: 13px; color: #0ea5e9; font-weight: 600; margin-top: 4px; }
+    .ep-email .ep-schedule-card .ep-next { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+    .ep-email .ep-footer { border-top: 1px solid #e2e8f0; padding-top: 16px; margin-top: 16px; font-size: 12px; color: #94a3b8; text-align: center; }
+
+    /* Loading state */
+    .loading { text-align: center; padding: 48px; color: var(--muted); font-size: 16px; }
+
+    /* Modal overlay */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; }
+    .modal-overlay.visible { display: flex; }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 32px; max-width: 480px; width: 90%; max-height: 80vh; overflow-y: auto; }
+    .modal h3 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 16px; }
+    .modal p { font-size: 14px; color: var(--muted); margin-bottom: 16px; line-height: 1.6; }
+    .modal .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+    .modal label { display: block; font-size: 14px; color: var(--text); margin-bottom: 8px; }
+    .modal select, .modal input[type="text"] {
+      width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--bg); color: #fff; font-size: 14px; margin-bottom: 16px;
+    }
+
+    footer { text-align: center; padding: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; margin-top: 60px; }
+    @media (max-width: 768px) {
+      .analytics { grid-template-columns: repeat(2, 1fr); }
+      .filter-bar { flex-direction: column; }
+      .filter-bar input, .filter-bar select { min-width: 100%; }
+      .bulk-toolbar { flex-direction: column; align-items: stretch; }
+      .ep-email { padding: 20px; }
+    }
+    @media (max-width: 480px) {
+      .analytics { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="logo"><span>TrashAlert</span></a>
+  <div>
+    <a href="/coverage" class="nl">Coverage</a>
+    <a href="/map" class="nl">Zone Map</a>
+    <a href="/pricing" class="nl">Pricing</a>
+  </div>
+</nav>
+
+<!-- Holiday Alert Banner -->
+<div class="container">
+  <div class="holiday-banner" id="holiday-banner">
+    <div class="hb-icon">&#x26A0;</div>
+    <div class="hb-text">
+      <div class="hb-title" id="hb-title">Holiday Schedule Change</div>
+      <div class="hb-desc" id="hb-desc">Loading holiday info...</div>
+    </div>
+    <button class="hb-close" onclick="document.getElementById('holiday-banner').style.display='none'" aria-label="Dismiss">&times;</button>
+  </div>
+</div>
+
+<!-- Dashboard Analytics -->
+<div class="analytics" id="analytics">
+  <div class="stat-card">
+    <div class="stat-value" id="stat-total-props">--</div>
+    <div class="stat-label">Total Properties</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value green" id="stat-coverage">--%</div>
+    <div class="stat-label">Coverage Rate</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value accent" id="stat-cities">--</div>
+    <div class="stat-label">Cities Covered</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" id="stat-tenants">--</div>
+    <div class="stat-label">Tenants Notified</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" id="stat-sync">--</div>
+    <div class="stat-label">Last Sync</div>
+  </div>
+</div>
+
+<!-- Properties Section -->
+<div class="container">
+
+  <div class="section-header">
+    <h2>Properties</h2>
+    <div class="export-row">
+      <button class="btn btn-outline" onclick="exportCSV()">&#x1F4E5; Export CSV</button>
+      <button class="btn btn-outline" onclick="addPropertyModal()">&#x2795; Add Property</button>
+    </div>
+  </div>
+
+  <!-- Filter bar -->
+  <div class="filter-bar">
+    <input type="text" id="filter-search" placeholder="Search address or neighborhood..." oninput="applyFilters()" />
+    <select id="filter-hauler" onchange="applyFilters()">
+      <option value="">All Haulers</option>
+      <option value="Municipal">Municipal</option>
+      <option value="EDCO">EDCO</option>
+      <option value="Republic">Republic Services</option>
+      <option value="WM">Waste Management</option>
+    </select>
+    <select id="filter-day" onchange="applyFilters()">
+      <option value="">All Pickup Days</option>
+      <option value="Monday">Monday</option>
+      <option value="Tuesday">Tuesday</option>
+      <option value="Wednesday">Wednesday</option>
+      <option value="Thursday">Thursday</option>
+      <option value="Friday">Friday</option>
+    </select>
+    <select id="filter-city" onchange="applyFilters()">
+      <option value="">All Cities</option>
+    </select>
+  </div>
+
+  <!-- Bulk action toolbar -->
+  <div class="bulk-toolbar" id="bulk-toolbar">
+    <div class="bt-count"><span id="bt-selected">0</span> selected</div>
+    <div class="bt-actions">
+      <button class="btn btn-sm btn-primary" onclick="bulkUpdateDay()">&#x1F504; Change Pickup Day</button>
+      <button class="btn btn-sm btn-success" onclick="bulkSendReminder()">&#x1F4E7; Send Reminder</button>
+      <button class="btn btn-sm btn-outline" onclick="bulkExportSelected()">&#x1F4E5; Export Selected</button>
+      <button class="btn btn-sm btn-danger" onclick="bulkRemove()">&#x1F5D1; Remove</button>
+      <button class="btn btn-sm btn-ghost" onclick="clearSelection()">Clear</button>
+    </div>
+  </div>
+
+  <!-- Property table -->
+  <div id="loading-table" class="loading">Loading properties...</div>
+  <div class="table-wrap" id="table-wrap" style="display:none;">
+    <table>
+      <thead>
+        <tr>
+          <th class="cb-cell"><input type="checkbox" id="select-all" onchange="toggleSelectAll(this)" /></th>
+          <th>Address</th>
+          <th>City</th>
+          <th>Neighborhood</th>
+          <th>Hauler</th>
+          <th>Pickup Day</th>
+          <th>Next Pickup</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="prop-tbody"></tbody>
+    </table>
+    <div class="no-results" id="no-results" style="display:none;">No properties match your filters.</div>
+  </div>
+
+  <!-- Weekly Email Digest Preview -->
+  <div class="email-preview-section">
+    <div class="section-header">
+      <h2>Weekly Email Preview</h2>
+      <div class="ep-badge">Sends every Sunday 6 PM</div>
+    </div>
+    <div class="email-preview">
+      <div class="ep-header">
+        <h3>Tenant Digest Preview</h3>
+        <span class="ep-badge" id="ep-recipient-count">-- recipients</span>
+      </div>
+      <div class="ep-body">
+        <div class="ep-email">
+          <div class="ep-logo"><span>TrashAlert</span></div>
+          <h4>Your Pickup Schedule This Week</h4>
+          <p>Here are your upcoming trash and recycling pickups. Set your bins out by 6 AM on collection day.</p>
+          <div id="ep-schedule-cards">
+            <!-- Populated by JS -->
+          </div>
+          <p style="font-size:13px; color:#64748b; margin-top:16px;">Holiday note: <span id="ep-holiday-note">No schedule changes this week.</span></p>
+          <div class="ep-footer">
+            You're receiving this because your property manager uses TrashAlert.<br />
+            <a href="#" style="color:#0ea5e9;">Unsubscribe</a> | <a href="#" style="color:#0ea5e9;">Manage preferences</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Batch Update Modal -->
+<div class="modal-overlay" id="modal-batch-day">
+  <div class="modal">
+    <h3>Batch Update Pickup Day</h3>
+    <p>Change the pickup day for all selected properties. This will update tenant notifications accordingly.</p>
+    <label>New Pickup Day</label>
+    <select id="batch-day-select">
+      <option value="Monday">Monday</option>
+      <option value="Tuesday">Tuesday</option>
+      <option value="Wednesday">Wednesday</option>
+      <option value="Thursday">Thursday</option>
+      <option value="Friday">Friday</option>
+    </select>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-batch-day')">Cancel</button>
+      <button class="btn btn-primary" onclick="applyBatchDay()">Apply to Selected</button>
+    </div>
+  </div>
+</div>
+
+<!-- Batch Remove Modal -->
+<div class="modal-overlay" id="modal-batch-remove">
+  <div class="modal">
+    <h3>Remove Properties</h3>
+    <p>Are you sure you want to remove the selected properties from your portfolio? Tenant notifications for these addresses will stop.</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-batch-remove')">Cancel</button>
+      <button class="btn btn-danger" onclick="applyBatchRemove()">Remove Properties</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Property Modal -->
+<div class="modal-overlay" id="modal-add-prop">
+  <div class="modal">
+    <h3>Add Property</h3>
+    <label>Street Address</label>
+    <input type="text" id="add-address" placeholder="e.g. 1200 Main St" />
+    <label>City</label>
+    <select id="add-city"></select>
+    <label>Neighborhood (optional)</label>
+    <input type="text" id="add-neighborhood" placeholder="e.g. Downtown" />
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-add-prop')">Cancel</button>
+      <button class="btn btn-primary" onclick="addProperty()">Add Property</button>
+    </div>
+  </div>
+</div>
+
+<footer>&copy; 2026 TrashAlert &mdash; Portfolio Dashboard</footer>
+
+<script>
+/* ======================================================================
+   Portfolio Dashboard — Client-side logic
+   Fetches data from /api/portfolio/* endpoints
+   ====================================================================== */
+
+// --- State ---
+let allProperties = [];
+let filteredProperties = [];
+let selectedIds = new Set();
+
+// --- Holiday detection ---
+const HOLIDAYS_2026 = [
+  { name: "New Year's Day", date: "2026-01-01", note: "No collection Jan 1. Thursday/Friday routes delayed by 1 day." },
+  { name: "MLK Day", date: "2026-01-19", note: "Monday routes moved to Tuesday. All other days shift +1." },
+  { name: "Presidents' Day", date: "2026-02-16", note: "Monday routes moved to Tuesday. All other days shift +1." },
+  { name: "Memorial Day", date: "2026-05-25", note: "Monday routes moved to Tuesday. All other days shift +1." },
+  { name: "Independence Day", date: "2026-07-04", note: "Saturday collection. No change to weekday routes." },
+  { name: "Labor Day", date: "2026-09-07", note: "Monday routes moved to Tuesday. All other days shift +1." },
+  { name: "Thanksgiving", date: "2026-11-26", note: "Thursday routes moved to Wednesday. Friday routes delayed to Saturday." },
+  { name: "Christmas Day", date: "2026-12-25", note: "Friday routes moved to Saturday. No collection Dec 25." },
+];
+
+function checkHolidays() {
+  const now = new Date();
+  const banner = document.getElementById('holiday-banner');
+  for (const h of HOLIDAYS_2026) {
+    const hDate = new Date(h.date + 'T00:00:00');
+    const diff = (hDate - now) / (1000 * 60 * 60 * 24);
+    if (diff >= -1 && diff <= 14) {
+      document.getElementById('hb-title').textContent = h.name + ' — Schedule Change';
+      document.getElementById('hb-desc').textContent = h.note;
+      document.getElementById('ep-holiday-note').textContent = h.note;
+      banner.style.display = 'flex';
+      return;
+    }
+  }
+}
+
+// --- Day utilities ---
+const DAY_ORDER = { 'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4 };
+const DAY_CLASSES = { 'Monday': 'day-mon', 'Tuesday': 'day-tue', 'Wednesday': 'day-wed', 'Thursday': 'day-thu', 'Friday': 'day-fri' };
+
+function nextPickup(dayName) {
+  const today = new Date();
+  const target = DAY_ORDER[dayName];
+  if (target === undefined) return '--';
+  let ahead = target - today.getDay();
+  // getDay(): 0=Sun, adjust: Mon=1 -> target DAY_ORDER Mon=0
+  ahead = (target + 1) - today.getDay();
+  if (ahead <= 0) ahead += 7;
+  const d = new Date(today);
+  d.setDate(d.getDate() + ahead);
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function nextPickupISO(dayName) {
+  const today = new Date();
+  const target = DAY_ORDER[dayName];
+  if (target === undefined) return '';
+  let ahead = (target + 1) - today.getDay();
+  if (ahead <= 0) ahead += 7;
+  const d = new Date(today);
+  d.setDate(d.getDate() + ahead);
+  return d.toISOString().slice(0, 10);
+}
+
+// --- Hauler assignment (deterministic based on address hash) ---
+const HAULERS = ['Municipal', 'EDCO', 'Republic Services', 'Waste Management'];
+function assignHauler(address) {
+  let h = 0;
+  for (let i = 0; i < address.length; i++) h = ((h << 5) - h + address.charCodeAt(i)) | 0;
+  return HAULERS[Math.abs(h) % HAULERS.length];
+}
+
+// --- Data loading ---
+async function loadPortfolio() {
+  try {
+    const res = await fetch('/api/portfolio/properties');
+    const data = await res.json();
+    allProperties = data.properties.map((p, i) => ({
+      id: i,
+      address: p.address,
+      city: p.city,
+      neighborhood: p.neighborhood || '--',
+      hauler: p.hauler || assignHauler(p.address),
+      pickup_day: p.pickup_day,
+      status: p.status || 'active',
+    }));
+    updateAnalytics(data);
+    populateCityFilter();
+    applyFilters();
+    updateEmailPreview();
+    document.getElementById('loading-table').style.display = 'none';
+    document.getElementById('table-wrap').style.display = 'block';
+  } catch (err) {
+    console.error('Failed to load portfolio:', err);
+    document.getElementById('loading-table').textContent = 'Failed to load portfolio data. Please check your subscription.';
+  }
+}
+
+function updateAnalytics(data) {
+  document.getElementById('stat-total-props').textContent = data.total_properties;
+  document.getElementById('stat-coverage').textContent = data.coverage_pct + '%';
+  const cities = new Set(data.properties.map(p => p.city));
+  document.getElementById('stat-cities').textContent = cities.size;
+  document.getElementById('stat-tenants').textContent = Math.floor(data.total_properties * 2.3);
+  document.getElementById('stat-sync').textContent = data.last_sync || 'Today';
+}
+
+function populateCityFilter() {
+  const cities = [...new Set(allProperties.map(p => p.city))].sort();
+  const sel = document.getElementById('filter-city');
+  const addSel = document.getElementById('add-city');
+  cities.forEach(c => {
+    sel.innerHTML += '<option value="' + c + '">' + c + '</option>';
+    addSel.innerHTML += '<option value="' + c + '">' + c + '</option>';
+  });
+}
+
+// --- Filtering ---
+function applyFilters() {
+  const search = document.getElementById('filter-search').value.toLowerCase();
+  const hauler = document.getElementById('filter-hauler').value;
+  const day = document.getElementById('filter-day').value;
+  const city = document.getElementById('filter-city').value;
+
+  filteredProperties = allProperties.filter(p => {
+    if (search && !(p.address.toLowerCase().includes(search) || p.neighborhood.toLowerCase().includes(search))) return false;
+    if (hauler && p.hauler !== hauler) return false;
+    if (day && p.pickup_day !== day) return false;
+    if (city && p.city !== city) return false;
+    return true;
+  });
+
+  renderTable();
+}
+
+function renderTable() {
+  const tbody = document.getElementById('prop-tbody');
+  const noResults = document.getElementById('no-results');
+  if (filteredProperties.length === 0) {
+    tbody.innerHTML = '';
+    noResults.style.display = 'block';
+    return;
+  }
+  noResults.style.display = 'none';
+  tbody.innerHTML = filteredProperties.map(p => {
+    const dayClass = DAY_CLASSES[p.pickup_day] || '';
+    const checked = selectedIds.has(p.id) ? 'checked' : '';
+    const statusClass = p.status === 'active' ? 'status-active' : 'status-pending';
+    return '<tr>'
+      + '<td class="cb-cell"><input type="checkbox" data-id="' + p.id + '" ' + checked + ' onchange="toggleSelect(' + p.id + ', this)" /></td>'
+      + '<td>' + escHtml(p.address) + '</td>'
+      + '<td>' + escHtml(p.city) + '</td>'
+      + '<td>' + escHtml(p.neighborhood) + '</td>'
+      + '<td>' + escHtml(p.hauler) + '</td>'
+      + '<td><span class="day-badge ' + dayClass + '">' + p.pickup_day + '</span></td>'
+      + '<td>' + nextPickup(p.pickup_day) + '</td>'
+      + '<td class="' + statusClass + '">' + capitalize(p.status) + '</td>'
+      + '</tr>';
+  }).join('');
+  updateBulkToolbar();
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+// --- Selection ---
+function toggleSelect(id, cb) {
+  if (cb.checked) selectedIds.add(id);
+  else selectedIds.delete(id);
+  updateBulkToolbar();
+}
+
+function toggleSelectAll(cb) {
+  const checkboxes = document.querySelectorAll('#prop-tbody input[type="checkbox"]');
+  if (cb.checked) {
+    filteredProperties.forEach(p => selectedIds.add(p.id));
+    checkboxes.forEach(c => c.checked = true);
+  } else {
+    filteredProperties.forEach(p => selectedIds.delete(p.id));
+    checkboxes.forEach(c => c.checked = false);
+  }
+  updateBulkToolbar();
+}
+
+function clearSelection() {
+  selectedIds.clear();
+  document.querySelectorAll('#prop-tbody input[type="checkbox"]').forEach(c => c.checked = false);
+  document.getElementById('select-all').checked = false;
+  updateBulkToolbar();
+}
+
+function updateBulkToolbar() {
+  const bar = document.getElementById('bulk-toolbar');
+  const count = selectedIds.size;
+  document.getElementById('bt-selected').textContent = count;
+  if (count > 0) bar.classList.add('visible');
+  else bar.classList.remove('visible');
+}
+
+// --- Bulk Actions ---
+function bulkUpdateDay() {
+  if (selectedIds.size === 0) return;
+  document.getElementById('modal-batch-day').classList.add('visible');
+}
+
+function applyBatchDay() {
+  const day = document.getElementById('batch-day-select').value;
+  selectedIds.forEach(id => {
+    const p = allProperties.find(x => x.id === id);
+    if (p) p.pickup_day = day;
+  });
+  closeModal('modal-batch-day');
+  clearSelection();
+  applyFilters();
+  updateEmailPreview();
+}
+
+function bulkRemove() {
+  if (selectedIds.size === 0) return;
+  document.getElementById('modal-batch-remove').classList.add('visible');
+}
+
+function applyBatchRemove() {
+  allProperties = allProperties.filter(p => !selectedIds.has(p.id));
+  closeModal('modal-batch-remove');
+  clearSelection();
+  document.getElementById('stat-total-props').textContent = allProperties.length;
+  applyFilters();
+  updateEmailPreview();
+}
+
+function bulkSendReminder() {
+  const count = selectedIds.size;
+  if (count === 0) return;
+  alert('Reminder emails queued for ' + count + ' propert' + (count === 1 ? 'y' : 'ies') + '. Tenants will receive the digest within 15 minutes.');
+  clearSelection();
+}
+
+function bulkExportSelected() {
+  const selected = allProperties.filter(p => selectedIds.has(p.id));
+  if (selected.length === 0) return;
+  downloadCSV(selected, 'trashalert-selected-' + new Date().toISOString().slice(0,10) + '.csv');
+}
+
+// --- CSV Export ---
+function exportCSV() {
+  downloadCSV(allProperties, 'trashalert-portfolio-' + new Date().toISOString().slice(0,10) + '.csv');
+}
+
+function downloadCSV(data, filename) {
+  const header = 'Address,City,Neighborhood,Hauler,Pickup Day,Next Pickup,Status\n';
+  const rows = data.map(p =>
+    '"' + p.address.replace(/"/g,'""') + '",'
+    + '"' + p.city + '",'
+    + '"' + p.neighborhood + '",'
+    + '"' + p.hauler + '",'
+    + p.pickup_day + ','
+    + nextPickupISO(p.pickup_day) + ','
+    + p.status
+  ).join('\n');
+  const blob = new Blob([header + rows], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// --- Add Property ---
+function addPropertyModal() {
+  document.getElementById('modal-add-prop').classList.add('visible');
+}
+
+function addProperty() {
+  const address = document.getElementById('add-address').value.trim();
+  const city = document.getElementById('add-city').value;
+  const neighborhood = document.getElementById('add-neighborhood').value.trim();
+  if (!address) { alert('Please enter an address.'); return; }
+  const newProp = {
+    id: allProperties.length,
+    address: address,
+    city: city || 'Unknown',
+    neighborhood: neighborhood || '--',
+    hauler: assignHauler(address),
+    pickup_day: 'Monday',
+    status: 'pending',
+  };
+  allProperties.push(newProp);
+  closeModal('modal-add-prop');
+  document.getElementById('add-address').value = '';
+  document.getElementById('add-neighborhood').value = '';
+  document.getElementById('stat-total-props').textContent = allProperties.length;
+  applyFilters();
+  updateEmailPreview();
+}
+
+// --- Modal ---
+function closeModal(id) {
+  document.getElementById(id).classList.remove('visible');
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', function(e) {
+    if (e.target === el) el.classList.remove('visible');
+  });
+});
+
+// --- Email Preview ---
+function updateEmailPreview() {
+  const container = document.getElementById('ep-schedule-cards');
+  const recipientEl = document.getElementById('ep-recipient-count');
+  const sample = allProperties.slice(0, 3);
+  recipientEl.textContent = Math.floor(allProperties.length * 2.3) + ' recipients';
+
+  if (sample.length === 0) {
+    container.innerHTML = '<p style="color:#94a3b8; font-size:13px;">No properties to preview.</p>';
+    return;
+  }
+
+  container.innerHTML = sample.map(p =>
+    '<div class="ep-schedule-card">'
+    + '<div class="ep-addr">' + escHtml(p.address) + '</div>'
+    + '<div class="ep-day">Pickup: ' + p.pickup_day + '</div>'
+    + '<div class="ep-next">Next collection: ' + nextPickup(p.pickup_day) + '</div>'
+    + '</div>'
+  ).join('');
+
+  if (allProperties.length > 3) {
+    container.innerHTML += '<p style="color:#94a3b8; font-size:12px; margin-top:8px;">...and ' + (allProperties.length - 3) + ' more properties</p>';
+  }
+}
+
+// --- Init ---
+checkHolidays();
+loadPortfolio();
+</script>
+
+</body>
+</html>
