@@ -182,6 +182,33 @@
       color: var(--text-muted); font-size: 13px;
     }
 
+    /* Providers */
+    .providers-section {
+      max-width: 600px; margin: 0 auto;
+      padding: 0 32px 48px;
+    }
+    .providers-section h2 {
+      font-size: 24px; font-weight: 700; color: #fff;
+      text-align: center; margin-bottom: 20px;
+    }
+    .provider-card {
+      display: flex; gap: 16px; align-items: flex-start;
+      padding: 20px; border-radius: 12px;
+      background: var(--bg-card); border: 1px solid var(--border);
+    }
+    .provider-icon {
+      font-size: 28px; flex-shrink: 0;
+      width: 48px; height: 48px; border-radius: 10px;
+      background: rgba(56, 189, 248, 0.12);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .provider-card h3 {
+      font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 4px;
+    }
+    .provider-card p {
+      font-size: 14px; color: var(--text-muted); line-height: 1.5;
+    }
+
     @media (max-width: 600px) {
       .stats-bar { flex-direction: column; gap: 16px; }
       .lookup-form { flex-direction: column; }
@@ -240,6 +267,17 @@
   </form>
   <div class="lookup-result" id="result">
     <div id="result-content"></div>
+  </div>
+</section>
+
+<section class="providers-section">
+  <h2>{{CITY_NAME}} Service Providers</h2>
+  <div class="provider-card">
+    <div class="provider-icon">&#x1F3D7;</div>
+    <div>
+      <h3>{{CITY_NAME}} Municipal Services</h3>
+      <p>Official city waste management &mdash; trash, recycling, and yard waste collection for {{CITY_NAME}}, {{STATE_ABBR}}.</p>
+    </div>
   </div>
 </section>
 

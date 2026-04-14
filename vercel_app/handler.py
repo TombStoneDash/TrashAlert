@@ -334,15 +334,14 @@ async def list_cities():
     cities = []
     for slug, meta in CITY_META.items():
         cnt = counts.get(meta["name"], 0)
-        if cnt > 0:
-            cities.append({
-                "slug": slug,
-                "name": meta["name"],
-                "state": meta["abbr"],
-                "address_count": cnt,
-                "addressCount": cnt,
-                "providers": ["Municipal"],
-            })
+        cities.append({
+            "slug": slug,
+            "name": meta["name"],
+            "state": meta["abbr"],
+            "address_count": cnt,
+            "addressCount": cnt,
+            "providers": ["Municipal"],
+        })
     cities.sort(key=lambda c: c["address_count"], reverse=True)
     return {"total_cities": len(cities), "total_addresses": sum(c["address_count"] for c in cities), "cities": cities}
 
@@ -560,10 +559,9 @@ async def stripe_status(email: Optional[str] = None, customer_id: Optional[str] 
 # /api/*, /map, /embed, etc.) or it will shadow them and return 404.
 
 @app.get("/{city_slug}", response_class=HTMLResponse)
-async def city_page_redirect(city_slug: str):
-    """Redirect bare /{city} to /schedule/{city} (canonical URL)."""
+async def city_page_direct(city_slug: str):
+    """Serve bare /{city} directly as a city landing page (no redirect)."""
     slug = _normalize_slug(city_slug)
     if slug is None:
         raise HTTPException(status_code=404, detail=f"Not found: {city_slug}")
-    hyphenated = slug.replace("_", "-")
-    return RedirectResponse(url=f"/schedule/{hyphenated}", status_code=301)
+    return _render_city(slug)
