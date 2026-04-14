@@ -1,4 +1,9 @@
-"""Public lookup API — GET /api/lookup for property manager integrations."""
+"""Public lookup API — GET /api/lookup for property manager integrations.
+
+Data source priority:
+1. Supabase schedule_reports (3.4M+ real addresses) if configured
+2. CSV fallback (sample data) if Supabase unavailable
+"""
 
 import csv
 import logging
@@ -8,6 +13,11 @@ from typing import Optional
 
 import h3
 from fastapi import APIRouter, HTTPException, Query
+
+from app.supabase_client import (
+    fetch_city_addresses, fetch_city_count, fetch_total_count,
+    fetch_all_city_counts, is_configured as supabase_ok,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -26,44 +36,38 @@ H3_RESOLUTION = 7
 # ---------------------------------------------------------------------------
 
 def _load_city_addresses(city_slug: str) -> list[dict]:
-    """Load addresses for a city from the normalized CSV."""
+    """Load addresses for a city.
+
+    Tries Supabase first (3.4M+ real addresses). Falls back to CSV
+    if Supabase is unavailable or returns no data.
+    """
+    # --- Supabase (primary) ---
+    if supabase_ok():
+        rows = fetch_city_addresses(city_slug, limit=5000)
+        if rows:
+            return rows
+
+    # --- CSV fallback ---
     csv_path = DATA_DIR / "addresses_normalized.csv"
     if not csv_path.exists():
         return []
 
     slug_to_name = {
-        "san_diego": "San Diego",
-        "san-diego": "San Diego",
-        "brawley": "Brawley",
-        "el_centro": "El Centro",
-        "el-centro": "El Centro",
-        "calexico": "Calexico",
-        "holtville": "Holtville",
-        "imperial": "Imperial",
-        "houston": "Houston",
-        "phoenix": "Phoenix",
-        "austin": "Austin",
-        "boston": "Boston",
-        "denver": "Denver",
-        "new_york": "New York",
-        "new-york": "New York",
-        "los_angeles": "Los Angeles",
-        "los-angeles": "Los Angeles",
+        "san_diego": "San Diego", "san-diego": "San Diego",
+        "houston": "Houston", "phoenix": "Phoenix", "austin": "Austin",
+        "boston": "Boston", "denver": "Denver",
+        "new_york": "New York", "new-york": "New York",
+        "los_angeles": "Los Angeles", "los-angeles": "Los Angeles",
         "philadelphia": "Philadelphia",
-        "san_antonio": "San Antonio",
-        "san-antonio": "San Antonio",
+        "san_antonio": "San Antonio", "san-antonio": "San Antonio",
         "dallas": "Dallas",
-        "oklahoma_city": "Oklahoma City",
-        "oklahoma-city": "Oklahoma City",
-        "charlotte": "Charlotte",
-        "columbus": "Columbus",
-        "chicago": "Chicago",
-        "seattle": "Seattle",
-        "portland": "Portland",
-        "minneapolis": "Minneapolis",
-        "detroit": "Detroit",
-        "atlanta": "Atlanta",
-        "miami": "Miami",
+        "oklahoma_city": "Oklahoma City", "oklahoma-city": "Oklahoma City",
+        "charlotte": "Charlotte", "columbus": "Columbus",
+        "chicago": "Chicago", "seattle": "Seattle",
+        "portland": "Portland", "minneapolis": "Minneapolis",
+        "detroit": "Detroit", "atlanta": "Atlanta", "miami": "Miami",
+        "brawley": "Brawley", "el_centro": "El Centro", "el-centro": "El Centro",
+        "calexico": "Calexico", "holtville": "Holtville", "imperial": "Imperial",
     }
     target_name = slug_to_name.get(
         city_slug.lower(),
@@ -194,15 +198,26 @@ async def api_lookup(
             detail=f"Address not found: {address} in {city}",
         )
 
-    # Compute city longitude extent for day bucketing
-    lons = [a["lon"] for a in addresses]
-    lon_min = min(lons) - 0.02
-    lon_max = max(lons) + 0.02
+    # Use real collection_day from Supabase if available
+    real_day = (matched.get("collection_day") or "").strip().title()
+    if real_day in DAYS:
+        day = real_day
+    else:
+        # Fallback to computed day from H3 longitude bucketing
+        lons = [a["lon"] for a in addresses if a.get("lon")]
+        if lons:
+            lon_min, lon_max = min(lons) - 0.02, max(lons) + 0.02
+        else:
+            lon_min, lon_max = -120.0, -70.0
+        h3_index = h3.latlng_to_cell(matched["lat"], matched["lon"], H3_RESOLUTION)
+        day = _assign_day(h3_index, lon_min, lon_max)
 
-    # Determine zone via H3
-    h3_index = h3.latlng_to_cell(matched["lat"], matched["lon"], H3_RESOLUTION)
-    day = _assign_day(h3_index, lon_min, lon_max)
-    zone = _zone_label(h3_index)
+    # Zone label
+    if matched.get("lat") and matched.get("lon"):
+        h3_index = h3.latlng_to_cell(matched["lat"], matched["lon"], H3_RESOLUTION)
+        zone = _zone_label(h3_index)
+    else:
+        zone = matched.get("neighborhood") or "Unknown"
 
     return {
         "address": matched["full_address"],
@@ -251,7 +266,23 @@ _cities_cache: dict | None = None
 
 
 def _load_all_city_counts() -> dict[str, int]:
-    """Count addresses per city_name from the CSV."""
+    """Count addresses per city. Tries Supabase first, CSV fallback."""
+    if supabase_ok():
+        supa_counts = fetch_all_city_counts()
+        if supa_counts:
+            # Supabase returns {slug: count}; map to display names
+            result = {}
+            for slug, count in supa_counts.items():
+                # Find display name from _CITY_DISPLAY
+                norm = slug.replace("-", "_")
+                meta = _CITY_DISPLAY.get(norm)
+                if meta:
+                    result[meta["name"]] = count
+                else:
+                    result[slug.replace("-", " ").title()] = count
+            return result
+
+    # CSV fallback
     csv_path = DATA_DIR / "addresses_normalized.csv"
     counts: dict[str, int] = {}
     if not csv_path.exists():
