@@ -1,4 +1,9 @@
-"""Zone map API — returns H3-tessellated GeoJSON for pickup day visualization."""
+"""Zone map API — returns H3-tessellated GeoJSON for pickup day visualization.
+
+Data source priority:
+1. Supabase schedule_reports (3.4M+ real addresses) if configured
+2. CSV fallback (sample data) if Supabase unavailable
+"""
 
 import csv
 import logging
@@ -7,6 +12,8 @@ from typing import Optional
 
 import h3
 from fastapi import APIRouter, HTTPException, Query
+
+from app.supabase_client import fetch_city_addresses, is_configured as supabase_ok
 
 logger = logging.getLogger(__name__)
 
@@ -22,45 +29,39 @@ H3_RESOLUTION = 7
 
 
 def _load_city_addresses(city_slug: str) -> list[dict]:
-    """Load addresses for a city from the normalized CSV."""
+    """Load addresses for a city.
+
+    Tries Supabase first (3.4M+ real addresses). Falls back to CSV
+    if Supabase is unavailable or returns no data.
+    """
+    # --- Supabase (primary) ---
+    if supabase_ok():
+        supa_rows = fetch_city_addresses(city_slug, limit=5000, require_coords=True)
+        if supa_rows:
+            # Filter to rows that have valid coordinates (needed for H3)
+            return [r for r in supa_rows if r.get("lat") and r.get("lon")]
+
+    # --- CSV fallback ---
     csv_path = DATA_DIR / "addresses_normalized.csv"
     if not csv_path.exists():
         return []
 
-    # Map slug forms to the city_name column in the CSV
     slug_to_name = {
-        "san_diego": "San Diego",
-        "san-diego": "San Diego",
-        "brawley": "Brawley",
-        "el_centro": "El Centro",
-        "el-centro": "El Centro",
-        "calexico": "Calexico",
-        "holtville": "Holtville",
-        "imperial": "Imperial",
-        "houston": "Houston",
-        "phoenix": "Phoenix",
-        "austin": "Austin",
-        "boston": "Boston",
-        "denver": "Denver",
-        "new_york": "New York",
-        "new-york": "New York",
-        "los_angeles": "Los Angeles",
-        "los-angeles": "Los Angeles",
+        "san_diego": "San Diego", "san-diego": "San Diego",
+        "houston": "Houston", "phoenix": "Phoenix", "austin": "Austin",
+        "boston": "Boston", "denver": "Denver",
+        "new_york": "New York", "new-york": "New York",
+        "los_angeles": "Los Angeles", "los-angeles": "Los Angeles",
         "philadelphia": "Philadelphia",
-        "san_antonio": "San Antonio",
-        "san-antonio": "San Antonio",
+        "san_antonio": "San Antonio", "san-antonio": "San Antonio",
         "dallas": "Dallas",
-        "oklahoma_city": "Oklahoma City",
-        "oklahoma-city": "Oklahoma City",
-        "charlotte": "Charlotte",
-        "columbus": "Columbus",
-        "chicago": "Chicago",
-        "seattle": "Seattle",
-        "portland": "Portland",
-        "minneapolis": "Minneapolis",
-        "detroit": "Detroit",
-        "atlanta": "Atlanta",
-        "miami": "Miami",
+        "oklahoma_city": "Oklahoma City", "oklahoma-city": "Oklahoma City",
+        "charlotte": "Charlotte", "columbus": "Columbus",
+        "chicago": "Chicago", "seattle": "Seattle",
+        "portland": "Portland", "minneapolis": "Minneapolis",
+        "detroit": "Detroit", "atlanta": "Atlanta", "miami": "Miami",
+        "brawley": "Brawley", "el_centro": "El Centro", "el-centro": "El Centro",
+        "calexico": "Calexico", "holtville": "Holtville", "imperial": "Imperial",
     }
     target_name = slug_to_name.get(city_slug.lower(), city_slug.replace("-", " ").replace("_", " ").title())
 
@@ -125,7 +126,16 @@ def _build_geojson(city_slug: str) -> dict:
         ring = [[lng, lat] for lat, lng in boundary]
         ring.append(ring[0])  # close the ring
 
-        day = _assign_day(h3_index, lon_min, lon_max)
+        # Use real collection_day from Supabase if available, else compute
+        real_days = [a.get("collection_day", "").strip().title() for a in addrs if a.get("collection_day")]
+        if real_days:
+            # Majority vote for the hex
+            from collections import Counter
+            day = Counter(real_days).most_common(1)[0][0]
+            if day not in DAYS:
+                day = _assign_day(h3_index, lon_min, lon_max)
+        else:
+            day = _assign_day(h3_index, lon_min, lon_max)
 
         features.append({
             "type": "Feature",
