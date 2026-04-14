@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Pricing | TrashAlert</title>
-  <meta name="description" content="TrashAlert pricing for property managers. Starter $29/mo, Portfolio $99/mo unlimited properties, Enterprise custom." />
+  <meta name="description" content="TrashAlert pricing for property managers. Free 1-lookup tier, Portfolio $99/mo unlimited lookups with API access, Enterprise custom." />
 
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -81,7 +81,7 @@
         "name": "How many properties can I add?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Starter supports 1 property. Portfolio supports unlimited properties. Enterprise has no limits and includes custom integrations."
+          "text": "Free gives you 1 address lookup with no account. Portfolio supports unlimited properties and API access. Enterprise has no limits and includes custom integrations."
         }
       },
       {
@@ -137,19 +137,17 @@
 </section>
 
 <div class="grid">
-  <!-- Starter -->
+  <!-- Free -->
   <div class="plan">
-    <div class="tier">Starter</div>
-    <div class="price">$29<span class="per">/mo</span></div>
-    <p class="desc">Perfect for single-property landlords.</p>
+    <div class="tier">Free</div>
+    <div class="price">$0</div>
+    <p class="desc">Try it out. One free lookup, no account needed.</p>
     <ul>
-      <li>1 property</li>
-      <li>Address schedule lookup</li>
-      <li>Weekly email reminders</li>
+      <li>1 address lookup</li>
       <li>Zone map access</li>
-      <li>Basic API access (100 req/day)</li>
+      <li>City coverage info</li>
     </ul>
-    <a href="#" class="cta cta-outline" onclick="startCheckout('starter')">Start free trial</a>
+    <a href="/" class="cta cta-outline">Look up an address</a>
   </div>
 
   <!-- Portfolio -->
@@ -158,15 +156,16 @@
     <div class="price">$99<span class="per">/mo</span></div>
     <p class="desc">Built for property management companies.</p>
     <ul>
-      <li>Unlimited properties</li>
-      <li>Bulk address upload (CSV)</li>
-      <li>Embeddable tenant widget</li>
-      <li>REST API (10k req/day)</li>
-      <li>Bulk schedule endpoint</li>
+      <li>Unlimited address lookups</li>
+      <li>REST API access (10k req/day)</li>
+      <li>Dedicated API key</li>
+      <li>White-label embeddable widget</li>
+      <li>Bulk CSV upload</li>
+      <li>Portfolio dashboard</li>
       <li>Branded move-in packets</li>
       <li>Slack &amp; email alerts</li>
     </ul>
-    <a href="#" class="cta cta-primary" onclick="startCheckout('portfolio')">Start free trial</a>
+    <a href="/checkout/portfolio" class="cta cta-primary">Start free trial</a>
   </div>
 
   <!-- Enterprise -->
@@ -192,7 +191,7 @@
 
   <div class="faq-item">
     <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">How many properties can I add?</div>
-    <div class="faq-a"><p>Starter supports 1 property. Portfolio supports unlimited properties. Enterprise has no limits and includes custom integrations.</p></div>
+    <div class="faq-a"><p>Free gives you 1 address lookup with no account. Portfolio supports unlimited properties and API access. Enterprise has no limits and includes custom integrations.</p></div>
   </div>
   <div class="faq-item">
     <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">Where does the pickup schedule data come from?</div>
@@ -239,29 +238,8 @@
 })();
 
 function startCheckout(plan) {
-  var btn = event.target;
-  var origText = btn.textContent;
-  btn.textContent = 'Redirecting...';
-  btn.style.opacity = '0.7';
-
-  fetch('/api/stripe/checkout', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ plan: plan }),
-  })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (data.checkout_url) {
-        window.location.href = data.checkout_url;
-      } else {
-        throw new Error(data.detail || 'Checkout failed');
-      }
-    })
-    .catch(function(err) {
-      btn.textContent = origText;
-      btn.style.opacity = '1';
-      alert('Could not start checkout: ' + err.message);
-    });
+  // Redirect to the checkout route which creates a Stripe session server-side
+  window.location.href = '/checkout/' + plan;
 }
 </script>
 

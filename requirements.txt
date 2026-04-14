@@ -33,6 +33,9 @@ pyyaml>=6.0.0
 # HTTP requests
 requests>=2.31.0
 
+# Stripe billing
+stripe>=8.0.0
+
 # PDF and document parsing
 PyPDF2>=3.0.0
 pdfplumber>=0.10.0

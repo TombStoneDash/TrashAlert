@@ -11,6 +11,7 @@
     }
   ],
   "routes": [
+    { "src": "/checkout/(.*)",      "dest": "/vercel_app/handler.py" },
     { "src": "/api/(.*)",          "dest": "/vercel_app/handler.py" },
     { "src": "/schedule/(.*)",     "dest": "/vercel_app/handler.py" },
     { "src": "/narpm/print",       "dest": "/vercel_app/handler.py" },

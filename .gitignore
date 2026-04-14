@@ -30,6 +30,11 @@ wheels/
 # Data files (commented out for now to show example output)
 # data/*.csv
 
+# Stripe/API runtime data (generated at runtime, contains secrets)
+data/stripe_subscriptions.json
+data/api_keys.json
+data/api_usage.json
+
 # Database files
 *.db
 *.sqlite
@@ -66,3 +71,4 @@ empty/
 *.log
 # Logs
 logs/
+.vercel

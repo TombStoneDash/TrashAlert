@@ -8,15 +8,17 @@ It reads directly from addresses_normalized.csv and the HTML templates.
 """
 
 import csv
+import hashlib
 import json
 import logging
 import os
+import secrets
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
 import h3
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Header, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from pydantic import BaseModel, Field
 
@@ -445,6 +447,8 @@ STRIPE_PLANS = {
 }
 
 SUBS_PATH = DATA_DIR / "stripe_subscriptions.json"
+API_KEYS_PATH = DATA_DIR / "api_keys.json"
+API_USAGE_PATH = DATA_DIR / "api_usage.json"
 
 def _load_subs() -> dict:
     if SUBS_PATH.exists():
@@ -453,6 +457,89 @@ def _load_subs() -> dict:
 
 def _save_subs(subs: dict):
     SUBS_PATH.write_text(json.dumps(subs, indent=2), encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# API Key helpers (JSON-file backed, no database required)
+# ---------------------------------------------------------------------------
+
+def _load_api_keys() -> dict:
+    if API_KEYS_PATH.exists():
+        return json.loads(API_KEYS_PATH.read_text(encoding="utf-8"))
+    return {}
+
+def _save_api_keys(keys: dict):
+    API_KEYS_PATH.write_text(json.dumps(keys, indent=2), encoding="utf-8")
+
+def _load_usage() -> dict:
+    if API_USAGE_PATH.exists():
+        return json.loads(API_USAGE_PATH.read_text(encoding="utf-8"))
+    return {}
+
+def _save_usage(usage: dict):
+    API_USAGE_PATH.write_text(json.dumps(usage, indent=2), encoding="utf-8")
+
+def _generate_api_key() -> tuple[str, str, str]:
+    """Generate a new API key.  Returns (full_key, key_hash, key_prefix)."""
+    raw = secrets.token_urlsafe(32)
+    full_key = f"ta_live_{raw}"
+    key_hash = hashlib.sha256(full_key.encode()).hexdigest()
+    key_prefix = full_key[:16]
+    return full_key, key_hash, key_prefix
+
+def _hash_api_key(key: str) -> str:
+    return hashlib.sha256(key.encode()).hexdigest()
+
+def _validate_api_key(key: str) -> Optional[dict]:
+    """Look up an API key by its hash. Returns the key record or None."""
+    key_hash = _hash_api_key(key)
+    keys = _load_api_keys()
+    record = keys.get(key_hash)
+    if not record:
+        return None
+    if not record.get("active", True):
+        return None
+    return record
+
+def _record_usage(key_hash: str, endpoint: str, status_code: int):
+    """Append a usage event for an API key."""
+    usage = _load_usage()
+    today = date.today().isoformat()
+    if key_hash not in usage:
+        usage[key_hash] = {"total": 0, "daily": {}}
+    usage[key_hash]["total"] += 1
+    usage[key_hash]["daily"].setdefault(today, 0)
+    usage[key_hash]["daily"][today] += 1
+    usage[key_hash]["last_used"] = datetime.utcnow().isoformat()
+    usage[key_hash]["last_endpoint"] = endpoint
+    _save_usage(usage)
+
+def _check_rate_limit(key_hash: str, daily_limit: int = 10000) -> bool:
+    """Return True if within rate limit, False if exceeded."""
+    usage = _load_usage()
+    today = date.today().isoformat()
+    day_count = usage.get(key_hash, {}).get("daily", {}).get(today, 0)
+    return day_count < daily_limit
+
+def _provision_api_key_for_customer(customer_id: str, email: str, plan: str) -> Optional[str]:
+    """Create an API key for a new Portfolio subscriber. Returns the full key or None if one already exists."""
+    keys = _load_api_keys()
+    # Check if customer already has a key
+    for kh, rec in keys.items():
+        if rec.get("customer_id") == customer_id:
+            return None  # already provisioned
+    full_key, key_hash, key_prefix = _generate_api_key()
+    keys[key_hash] = {
+        "customer_id": customer_id,
+        "email": email,
+        "plan": plan,
+        "prefix": key_prefix,
+        "active": True,
+        "created_at": datetime.utcnow().isoformat(),
+        "daily_limit": 10000 if plan == "portfolio" else 100,
+    }
+    _save_api_keys(keys)
+    return full_key
 
 
 class CheckoutReq(BaseModel):
@@ -491,8 +578,42 @@ async def stripe_checkout(req: CheckoutReq):
         raise HTTPException(500, detail=str(e))
 
 
-@app.post("/api/stripe/webhook")
-async def stripe_webhook(request: Request):
+# ---------------------------------------------------------------------------
+# Routes — Direct checkout (GET redirects to Stripe)
+# ---------------------------------------------------------------------------
+
+@app.get("/checkout/{plan_slug}")
+async def checkout_redirect(plan_slug: str, email: Optional[str] = None):
+    """GET /checkout/portfolio — creates a Stripe Checkout Session and redirects
+    the browser directly.  This is the primary checkout entry-point linked from
+    the pricing page."""
+    if not STRIPE_SECRET_KEY:
+        raise HTTPException(503, detail="Stripe is not configured. Set STRIPE_SECRET_KEY.")
+    if plan_slug not in STRIPE_PLANS:
+        raise HTTPException(404, detail=f"Unknown plan: {plan_slug}")
+    try:
+        import stripe
+        stripe.api_key = STRIPE_SECRET_KEY
+        params: dict = {
+            "mode": "subscription",
+            "payment_method_types": ["card"],
+            "line_items": [{"price": STRIPE_PLANS[plan_slug]["price_id"], "quantity": 1}],
+            "success_url": f"{STRIPE_BASE_URL}/pricing?session_id={{CHECKOUT_SESSION_ID}}&status=success",
+            "cancel_url": f"{STRIPE_BASE_URL}/pricing?status=cancelled",
+            "metadata": {"plan": plan_slug, "product": "trashalert"},
+            "subscription_data": {"metadata": {"plan": plan_slug}},
+        }
+        if email:
+            params["customer_email"] = email
+        session = stripe.checkout.Session.create(**params)
+        return RedirectResponse(session.url, status_code=303)
+    except Exception as e:
+        logger.error(f"Stripe checkout redirect failed: {e}")
+        raise HTTPException(500, detail=str(e))
+
+
+async def _handle_stripe_webhook(request: Request):
+    """Shared webhook handler used by both /api/stripe/webhook and /api/webhooks/stripe."""
     payload = await request.body()
     sig = request.headers.get("stripe-signature", "")
     if STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET:
@@ -511,18 +632,70 @@ async def stripe_webhook(request: Request):
 
     if etype == "checkout.session.completed":
         cid = obj.get("customer", "")
-        subs[cid] = {"subscription_id": obj.get("subscription", ""), "email": obj.get("customer_email", ""),
-                      "plan": obj.get("metadata", {}).get("plan", ""), "status": "active",
-                      "updated_at": datetime.utcnow().isoformat()}
+        plan = obj.get("metadata", {}).get("plan", "")
+        email = obj.get("customer_email", "")
+        subs[cid] = {
+            "subscription_id": obj.get("subscription", ""),
+            "email": email,
+            "plan": plan,
+            "status": "active",
+            "updated_at": datetime.utcnow().isoformat(),
+        }
         _save_subs(subs)
+        # Auto-provision an API key for Portfolio subscribers
+        if plan in ("portfolio", "enterprise"):
+            new_key = _provision_api_key_for_customer(cid, email, plan)
+            if new_key:
+                logger.info(f"Provisioned API key for customer {cid} (plan={plan})")
+
+    elif etype == "customer.subscription.updated":
+        cid = obj.get("customer", "")
+        new_status = obj.get("status", "")  # active, past_due, unpaid, etc.
+        plan = obj.get("metadata", {}).get("plan", "")
+        if cid in subs:
+            subs[cid]["status"] = new_status
+            if plan:
+                subs[cid]["plan"] = plan
+            subs[cid]["updated_at"] = datetime.utcnow().isoformat()
+            _save_subs(subs)
+        # Deactivate API key if subscription is no longer active
+        if new_status not in ("active", "trialing"):
+            _deactivate_keys_for_customer(cid)
+
     elif etype == "customer.subscription.deleted":
         cid = obj.get("customer", "")
         if cid in subs:
             subs[cid]["status"] = "canceled"
             subs[cid]["updated_at"] = datetime.utcnow().isoformat()
             _save_subs(subs)
+        # Deactivate API keys on cancellation
+        _deactivate_keys_for_customer(cid)
 
     return JSONResponse({"received": True})
+
+
+def _deactivate_keys_for_customer(customer_id: str):
+    """Deactivate all API keys belonging to a customer."""
+    keys = _load_api_keys()
+    changed = False
+    for kh, rec in keys.items():
+        if rec.get("customer_id") == customer_id and rec.get("active"):
+            rec["active"] = False
+            rec["deactivated_at"] = datetime.utcnow().isoformat()
+            changed = True
+    if changed:
+        _save_api_keys(keys)
+
+
+@app.post("/api/stripe/webhook")
+async def stripe_webhook(request: Request):
+    return await _handle_stripe_webhook(request)
+
+
+@app.post("/api/webhooks/stripe")
+async def stripe_webhook_canonical(request: Request):
+    """Canonical webhook path for Stripe dashboard configuration."""
+    return await _handle_stripe_webhook(request)
 
 
 @app.get("/api/stripe/portal")
@@ -656,6 +829,213 @@ async def portfolio_export(fmt: str = Query("csv")):
         )
 
     return JSONResponse({"error": "Unsupported format. Use fmt=csv."}, status_code=400)
+
+
+# ---------------------------------------------------------------------------
+# Routes — API Key Management
+# ---------------------------------------------------------------------------
+
+class ApiKeyCreateReq(BaseModel):
+    email: str = Field(..., description="Email of the subscriber")
+    customer_id: Optional[str] = Field(None, description="Stripe customer ID (looked up from email if omitted)")
+
+
+@app.post("/api/keys/generate")
+async def generate_api_key_endpoint(req: ApiKeyCreateReq):
+    """Generate an API key for a Portfolio subscriber.
+    The full key is returned ONLY ONCE in this response."""
+    # Verify the requester has an active portfolio subscription
+    subs = _load_subs()
+    customer_id = req.customer_id
+    if not customer_id:
+        for cid, sub in subs.items():
+            if sub.get("email", "").lower() == req.email.lower():
+                customer_id = cid
+                break
+    if not customer_id or customer_id not in subs:
+        raise HTTPException(403, detail="No active subscription found for this email.")
+    sub = subs[customer_id]
+    if sub.get("status") not in ("active", "trialing"):
+        raise HTTPException(403, detail="Subscription is not active.")
+    if sub.get("plan") not in ("portfolio", "enterprise"):
+        raise HTTPException(403, detail="API keys require a Portfolio or Enterprise plan.")
+
+    # Check if key already exists
+    keys = _load_api_keys()
+    for kh, rec in keys.items():
+        if rec.get("customer_id") == customer_id and rec.get("active"):
+            raise HTTPException(409, detail="An active API key already exists. Revoke it first to generate a new one.")
+
+    full_key = _provision_api_key_for_customer(customer_id, req.email, sub.get("plan", "portfolio"))
+    if not full_key:
+        raise HTTPException(409, detail="API key already exists for this customer.")
+
+    return {
+        "api_key": full_key,
+        "message": "Save this key now. It will not be shown again.",
+        "daily_limit": 10000,
+        "usage_header": "X-API-Key",
+    }
+
+
+@app.post("/api/keys/revoke")
+async def revoke_api_key(req: ApiKeyCreateReq):
+    """Revoke all API keys for a customer so a new one can be generated."""
+    subs = _load_subs()
+    customer_id = req.customer_id
+    if not customer_id:
+        for cid, sub in subs.items():
+            if sub.get("email", "").lower() == req.email.lower():
+                customer_id = cid
+                break
+    if not customer_id:
+        raise HTTPException(404, detail="Customer not found.")
+    _deactivate_keys_for_customer(customer_id)
+    return {"revoked": True}
+
+
+@app.get("/api/keys/info")
+async def api_key_info(x_api_key: Optional[str] = Header(None)):
+    """Return metadata about the provided API key (passed via X-API-Key header)."""
+    if not x_api_key:
+        raise HTTPException(401, detail="Provide your API key in the X-API-Key header.")
+    record = _validate_api_key(x_api_key)
+    if not record:
+        raise HTTPException(401, detail="Invalid or inactive API key.")
+    key_hash = _hash_api_key(x_api_key)
+    usage = _load_usage().get(key_hash, {})
+    today = date.today().isoformat()
+    return {
+        "prefix": record.get("prefix"),
+        "plan": record.get("plan"),
+        "email": record.get("email"),
+        "active": record.get("active"),
+        "created_at": record.get("created_at"),
+        "daily_limit": record.get("daily_limit", 10000),
+        "usage_today": usage.get("daily", {}).get(today, 0),
+        "usage_total": usage.get("total", 0),
+        "last_used": usage.get("last_used"),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Routes — Authenticated API Lookup (API key required)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/v1/lookup")
+async def api_v1_lookup(
+    request: Request,
+    address: str = Query(...),
+    city: str = Query("san_diego"),
+    x_api_key: Optional[str] = Header(None),
+):
+    """Authenticated lookup endpoint for Portfolio subscribers.
+    Requires a valid API key passed in the X-API-Key header.
+    Rate-limited to the subscriber's daily quota."""
+    if not x_api_key:
+        raise HTTPException(401, detail="API key required. Pass X-API-Key header.")
+    record = _validate_api_key(x_api_key)
+    if not record:
+        raise HTTPException(401, detail="Invalid or inactive API key.")
+    key_hash = _hash_api_key(x_api_key)
+    daily_limit = record.get("daily_limit", 10000)
+    if not _check_rate_limit(key_hash, daily_limit):
+        raise HTTPException(429, detail=f"Daily rate limit of {daily_limit} requests exceeded.")
+
+    # Perform the lookup (same logic as /api/lookup)
+    slug = city.lower().replace("-", "_")
+    city_name = CITY_META.get(slug, {}).get("name") or city.replace("_", " ").title()
+    rows = _city_rows(city_name)
+    if not rows:
+        _record_usage(key_hash, "/api/v1/lookup", 404)
+        raise HTTPException(404, detail=f"No data for city: {city}")
+    matched = _match_address(address, rows)
+    if not matched:
+        _record_usage(key_hash, "/api/v1/lookup", 404)
+        raise HTTPException(404, detail=f"Address not found: {address}")
+    lons = [r["lon"] for r in rows if r.get("lon") is not None]
+    lon_min, lon_max = min(lons) - 0.02, max(lons) + 0.02
+    h3i = h3.latlng_to_cell(matched["lat"], matched["lon"], H3_RESOLUTION)
+    day = matched.get("collection_day") or _assign_day(h3i, lon_min, lon_max)
+    _record_usage(key_hash, "/api/v1/lookup", 200)
+    return {
+        "address": matched["full_address"],
+        "city": city_name,
+        "pickup_day": day,
+        "zone": _zone_label(h3i),
+        "next_pickup": _next_pickup(day) if day in DAY_INDEX else None,
+        "neighborhood": matched.get("neighborhood", ""),
+    }
+
+
+@app.get("/api/v1/bulk-lookup")
+async def api_v1_bulk_lookup(
+    request: Request,
+    addresses: str = Query(..., description="Comma-separated addresses"),
+    city: str = Query("san_diego"),
+    x_api_key: Optional[str] = Header(None),
+):
+    """Bulk lookup endpoint for Portfolio subscribers. Pass comma-separated addresses."""
+    if not x_api_key:
+        raise HTTPException(401, detail="API key required. Pass X-API-Key header.")
+    record = _validate_api_key(x_api_key)
+    if not record:
+        raise HTTPException(401, detail="Invalid or inactive API key.")
+    key_hash = _hash_api_key(x_api_key)
+    daily_limit = record.get("daily_limit", 10000)
+
+    addr_list = [a.strip() for a in addresses.split(",") if a.strip()]
+    if len(addr_list) > 100:
+        raise HTTPException(400, detail="Maximum 100 addresses per bulk request.")
+    if not _check_rate_limit(key_hash, daily_limit):
+        raise HTTPException(429, detail=f"Daily rate limit of {daily_limit} requests exceeded.")
+
+    slug = city.lower().replace("-", "_")
+    city_name = CITY_META.get(slug, {}).get("name") or city.replace("_", " ").title()
+    rows = _city_rows(city_name)
+    results = []
+    for addr in addr_list:
+        matched = _match_address(addr, rows) if rows else None
+        if matched:
+            lons = [r["lon"] for r in rows if r.get("lon") is not None]
+            lon_min, lon_max = min(lons) - 0.02, max(lons) + 0.02
+            h3i = h3.latlng_to_cell(matched["lat"], matched["lon"], H3_RESOLUTION)
+            day = matched.get("collection_day") or _assign_day(h3i, lon_min, lon_max)
+            results.append({
+                "query": addr, "found": True,
+                "address": matched["full_address"], "city": city_name,
+                "pickup_day": day, "zone": _zone_label(h3i),
+                "next_pickup": _next_pickup(day) if day in DAY_INDEX else None,
+            })
+        else:
+            results.append({"query": addr, "found": False})
+
+    _record_usage(key_hash, "/api/v1/bulk-lookup", 200)
+    return {"results": results, "total": len(results), "found": sum(1 for r in results if r["found"])}
+
+
+@app.get("/api/v1/usage")
+async def api_v1_usage(x_api_key: Optional[str] = Header(None)):
+    """Return usage statistics for the authenticated API key."""
+    if not x_api_key:
+        raise HTTPException(401, detail="API key required.")
+    record = _validate_api_key(x_api_key)
+    if not record:
+        raise HTTPException(401, detail="Invalid or inactive API key.")
+    key_hash = _hash_api_key(x_api_key)
+    usage = _load_usage().get(key_hash, {})
+    today = date.today().isoformat()
+    daily = usage.get("daily", {})
+    # Return last 30 days of usage
+    recent_days = sorted(daily.keys())[-30:] if daily else []
+    return {
+        "plan": record.get("plan"),
+        "daily_limit": record.get("daily_limit", 10000),
+        "usage_today": daily.get(today, 0),
+        "usage_total": usage.get("total", 0),
+        "last_used": usage.get("last_used"),
+        "daily_breakdown": {d: daily[d] for d in recent_days},
+    }
 
 
 # ---------------------------------------------------------------------------
