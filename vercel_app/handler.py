@@ -71,8 +71,71 @@ CITY_META = {
 
 NAME_TO_SLUG = {m["name"]: slug for slug, m in CITY_META.items()}
 
+# Supabase city slug mapping (Supabase uses hyphenated lowercase)
+SLUG_TO_SUPA = {k: k.replace("_", "-") for k in CITY_META}
+
 # ---------------------------------------------------------------------------
-# Data loading (cached)
+# Supabase client (inline — no external deps beyond requests)
+# ---------------------------------------------------------------------------
+
+SUPABASE_URL = os.getenv("SUPABASE_URL", os.getenv("NEXT_PUBLIC_SUPABASE_URL", "https://qsuzfemakaaroeakyick.supabase.co"))
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", os.getenv("SUPABASE_SERVICE_KEY", os.getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "")))
+
+_supa_headers = lambda: {"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"}
+
+def _supa_ok() -> bool:
+    return bool(SUPABASE_URL and SUPABASE_KEY)
+
+def _supa_fetch_city(city_slug: str, limit: int = 5000) -> list[dict]:
+    """Fetch addresses from Supabase schedule_reports for a city."""
+    if not _supa_ok():
+        return []
+    import requests as _req
+    from urllib.parse import quote
+    supa_city = SLUG_TO_SUPA.get(city_slug, city_slug.replace("_", "-"))
+    url = f"{SUPABASE_URL}/rest/v1/schedule_reports?city=eq.{quote(supa_city)}&select=address,city,lat,lng,collection_day,neighborhood,zip_code&limit={limit}"
+    try:
+        resp = _req.get(url, headers=_supa_headers(), timeout=10)
+        resp.raise_for_status()
+        rows = resp.json()
+    except Exception as e:
+        logger.error(f"Supabase query failed for {city_slug}: {e}")
+        return []
+    result = []
+    for r in rows:
+        addr = (r.get("address") or "").split(",")[0].strip()
+        tokens = addr.split(" ", 1)
+        house = tokens[0] if tokens[0].isdigit() else ""
+        street = tokens[1].upper() if len(tokens) > 1 else addr.upper()
+        result.append({
+            "lat": float(r["lat"]) if r.get("lat") else None,
+            "lon": float(r["lng"]) if r.get("lng") else None,
+            "street": street, "house": house,
+            "city_name": r.get("city", supa_city),
+            "full_address": r.get("address", ""),
+            "collection_day": r.get("collection_day", ""),
+            "neighborhood": r.get("neighborhood", ""),
+        })
+    return result
+
+def _supa_city_count(city_slug: str) -> int:
+    if not _supa_ok():
+        return 0
+    import requests as _req
+    from urllib.parse import quote
+    supa_city = SLUG_TO_SUPA.get(city_slug, city_slug.replace("_", "-"))
+    url = f"{SUPABASE_URL}/rest/v1/schedule_reports?city=eq.{quote(supa_city)}&select=id"
+    try:
+        resp = _req.head(url, headers={**_supa_headers(), "Prefer": "count=exact", "Range": "0-0"}, timeout=10)
+        cr = resp.headers.get("content-range", "")
+        if "/" in cr:
+            return int(cr.split("/")[1])
+    except Exception:
+        pass
+    return 0
+
+# ---------------------------------------------------------------------------
+# Data loading (Supabase first, CSV fallback)
 # ---------------------------------------------------------------------------
 
 _csv_rows: list[dict] | None = None
@@ -105,10 +168,25 @@ def _load_csv() -> list[dict]:
 
 
 def _city_rows(city_name: str) -> list[dict]:
+    """Get rows for a city — Supabase first, CSV fallback."""
+    slug = NAME_TO_SLUG.get(city_name, city_name.lower().replace(" ", "_"))
+    if _supa_ok():
+        supa = _supa_fetch_city(slug)
+        if supa:
+            return supa
     return [r for r in _load_csv() if r["city_name"] == city_name]
 
 
 def _city_counts() -> dict[str, int]:
+    """Get per-city address counts — Supabase first, CSV fallback."""
+    if _supa_ok():
+        counts = {}
+        for slug, meta in CITY_META.items():
+            c = _supa_city_count(slug)
+            if c > 0:
+                counts[meta["name"]] = c
+        if counts:
+            return counts
     counts: dict[str, int] = {}
     for r in _load_csv():
         n = r["city_name"]
