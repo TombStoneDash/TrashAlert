@@ -379,6 +379,10 @@ async def for_munis():
 async def embed_page():
     return _template("embed-page.html")
 
+@app.get("/coverage", response_class=HTMLResponse)
+async def coverage():
+    return _template("coverage.html")
+
 @app.get("/embed.js")
 async def embed_js():
     return Response(content=_template("embed.js"), media_type="application/javascript")

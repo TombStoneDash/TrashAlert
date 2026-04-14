@@ -45,3 +45,9 @@ async def for_property_managers():
 async def for_municipalities():
     """Landing page for city waste departments."""
     return (FRONTEND_DIR / "for-municipalities.html").read_text(encoding="utf-8")
+
+
+@router.get("/coverage", response_class=HTMLResponse)
+async def coverage():
+    """Coverage page showing all cities with live address counts."""
+    return (FRONTEND_DIR / "coverage.html").read_text(encoding="utf-8")

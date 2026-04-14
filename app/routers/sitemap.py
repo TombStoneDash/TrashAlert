@@ -27,6 +27,7 @@ STATIC_PAGES = [
     "/for/property-managers",
     "/for/municipalities",
     "/embed",
+    "/coverage",
 ]
 
 
