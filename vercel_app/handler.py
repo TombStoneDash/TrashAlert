@@ -391,8 +391,141 @@ async def live_stats():
 
 
 # ---------------------------------------------------------------------------
+# Routes — Zone lookup (PostGIS point-in-polygon via Supabase RPC)
+# ---------------------------------------------------------------------------
+
+@app.get("/api/lookup/zone")
+async def api_lookup_zone(
+    lat: float = Query(..., description="Latitude"),
+    lng: float = Query(..., description="Longitude"),
+):
+    """Check if a lat/lng point falls within any known collection zone.
+
+    Uses PostGIS ST_Contains via the lookup_zone() RPC function created
+    in the collection_zones migration.
+    """
+    if not _supa_ok():
+        raise HTTPException(503, detail="Supabase not configured")
+
+    import requests as _req
+
+    url = f"{SUPABASE_URL}/rest/v1/rpc/lookup_zone"
+    try:
+        resp = _req.post(
+            url,
+            headers={**_supa_headers(), "Content-Type": "application/json"},
+            json={"p_lat": lat, "p_lng": lng},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        zones = resp.json()
+    except Exception as e:
+        logger.error(f"Zone lookup RPC failed: {e}")
+        raise HTTPException(502, detail="Zone lookup failed")
+
+    if not zones:
+        raise HTTPException(404, detail="No collection zone found for this location")
+
+    zone = zones[0]
+    day = zone.get("collection_day")
+    return {
+        "zone_id": zone["zone_id"],
+        "city": zone["city"],
+        "zone_name": zone["zone_name"],
+        "collection_day": day,
+        "next_pickup": _next_pickup(day) if day and day in DAY_INDEX else None,
+        "estimated_addresses": zone.get("estimated_addresses", 0),
+        "source_url": zone.get("source_url"),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Routes — Coverage stats (verified + estimated)
+# ---------------------------------------------------------------------------
+
+# Cache for zone coverage stats (refreshed every 5 minutes)
+_zone_stats_cache: dict = {}
+_zone_stats_ts: float = 0
+
+
+@app.get("/api/stats/coverage")
+async def coverage_stats():
+    """Combined coverage: individual verified addresses from schedule_reports
+    plus estimated addresses from collection_zones polygons."""
+    import time
+    import requests as _req
+
+    global _zone_stats_cache, _zone_stats_ts
+
+    # --- Verified addresses (from schedule_reports) ---
+    verified_total = KNOWN_TOTAL
+    if _supa_ok():
+        try:
+            resp = _req.head(
+                f"{SUPABASE_URL}/rest/v1/schedule_reports?select=id",
+                headers={**_supa_headers(), "Prefer": "count=exact", "Range": "0-0"},
+                timeout=5,
+            )
+            cr = resp.headers.get("content-range", "")
+            if "/" in cr:
+                live = int(cr.split("/")[1])
+                if live > 0:
+                    verified_total = live
+        except Exception:
+            pass
+
+    # --- Estimated addresses (from collection_zones via RPC) ---
+    now = time.time()
+    estimated_total = 0
+    zone_count = 0
+    zone_cities = 0
+
+    if now - _zone_stats_ts > 300 and _supa_ok():
+        try:
+            resp = _req.post(
+                f"{SUPABASE_URL}/rest/v1/rpc/zone_coverage_stats",
+                headers={**_supa_headers(), "Content-Type": "application/json"},
+                json={},
+                timeout=5,
+            )
+            resp.raise_for_status()
+            rows = resp.json()
+            if rows and len(rows) > 0:
+                row = rows[0]
+                _zone_stats_cache = {
+                    "total_zones": row.get("total_zones", 0),
+                    "total_estimated_addresses": row.get("total_estimated_addresses", 0),
+                    "cities_with_zones": row.get("cities_with_zones", 0),
+                }
+                _zone_stats_ts = now
+        except Exception:
+            pass
+
+    estimated_total = _zone_stats_cache.get("total_estimated_addresses", 0)
+    zone_count = _zone_stats_cache.get("total_zones", 0)
+    zone_cities = _zone_stats_cache.get("cities_with_zones", 0)
+
+    combined = verified_total + estimated_total
+    display = f"{combined / 1_000_000:.1f}M+" if combined >= 1_000_000 else f"{combined:,}"
+
+    return {
+        "verified_addresses": verified_total,
+        "estimated_addresses": estimated_total,
+        "total_coverage": combined,
+        "display": display,
+        "total_zones": zone_count,
+        "cities_with_zones": zone_cities,
+        "total_cities": 26 + zone_cities,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Routes — Marketing pages
 # ---------------------------------------------------------------------------
+
+@app.get("/", response_class=HTMLResponse)
+async def home():
+    return _template("index.html")
 
 @app.get("/narpm", response_class=HTMLResponse)
 async def narpm():
