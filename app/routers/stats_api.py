@@ -31,7 +31,11 @@ KNOWN_COUNTS = {
     "portland": 898,
     "nyc": 610,
 }
-KNOWN_TOTAL = 5191847  # Calculated from all imports as of 2026-04-14
+KNOWN_TOTAL = 5191847  # Verified from import logs as of 2026-04-14
+# Major: Houston 474K + Boston 392K + Phoenix 365K + SA 346K + Austin 331K
+#        + Dallas 253K + Denver 186K + SF 34K + Portland 898 + NYC 610
+# EDCO:  ~195K across 22 SD County suburbs
+# Pre-existing: ~2.6M (earlier imports)
 
 # Cache: refresh at most every 5 minutes
 _cache: dict | None = None
