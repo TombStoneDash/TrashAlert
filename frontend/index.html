@@ -878,15 +878,14 @@
             return div.innerHTML;
         }
 
-        // Fetch live stats from /api/cities
+        // Fetch live stats from /api/stats/live
         (function() {
             const badge = document.getElementById('stats-badge');
-            const apiUrl = localStorage.getItem('apiUrl') || 'http://localhost:8000';
-            fetch(apiUrl + '/api/cities')
+            fetch('/api/stats/live')
                 .then(r => r.json())
                 .then(data => {
                     badge.textContent = data.total_cities + ' cities \u00B7 '
-                        + data.total_addresses.toLocaleString() + ' addresses \u00B7 Real collection day data';
+                        + data.display + ' real addresses \u00B7 Real collection day data';
                 })
                 .catch(() => {
                     badge.textContent = '26 cities \u00B7 5M+ real addresses \u00B7 Real collection day data';

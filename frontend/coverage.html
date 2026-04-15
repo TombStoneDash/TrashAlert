@@ -80,11 +80,15 @@
   const loading = document.getElementById('loading');
 
   try {
+    // Fetch live total from stats endpoint (handles 5M+ without timeout)
+    fetch('/api/stats/live').then(r => r.json()).then(s => {
+      document.getElementById('total-addresses').textContent = s.display;
+    }).catch(() => {});
+
     const res = await fetch('/api/cities');
     const data = await res.json();
 
     document.getElementById('total-cities').textContent = data.total_cities;
-    document.getElementById('total-addresses').textContent = data.total_addresses.toLocaleString();
 
     // Sort by count descending
     const cities = data.cities.sort((a, b) => b.address_count - a.address_count);
