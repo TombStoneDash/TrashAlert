@@ -38,6 +38,10 @@ DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
 DAY_INDEX = {d: i for i, d in enumerate(DAYS)}
 H3_RESOLUTION = 7
 
+# For the collection map compact API
+DAY_LABELS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+DAY_LABEL_INDEX = {d: i for i, d in enumerate(DAY_LABELS)}
+
 # ---------------------------------------------------------------------------
 # City registry
 # ---------------------------------------------------------------------------
@@ -572,9 +576,69 @@ async def embed_js():
 async def zone_map():
     return _template("map/index.html")
 
+@app.get("/map/collection", response_class=HTMLResponse)
+async def collection_map():
+    return _template("map/collection.html")
+
 @app.get("/map/embed", response_class=HTMLResponse)
 async def zone_map_embed():
     return _template("map/embed.html")
+
+
+@app.get("/api/collection-map/{city_slug}")
+async def api_collection_map(
+    city_slug: str,
+    offset: int = Query(0, ge=0),
+    limit: int = Query(10000, ge=1, le=50000),
+):
+    """Return addresses as compact arrays for the collection map.
+
+    Returns {points: [[lat, lng, dayIndex], ...], days: [...], total: N}
+    where dayIndex maps into the days array. This compact format reduces
+    payload size by ~70% vs full JSON objects.
+    """
+    if not _supa_ok():
+        return JSONResponse({"points": [], "days": DAY_LABELS, "total": 0})
+
+    import requests as _req
+    from urllib.parse import quote as _quote
+
+    supa_city = SLUG_TO_SUPA.get(city_slug, city_slug.replace("_", "-"))
+    url = (
+        f"{SUPABASE_URL}/rest/v1/schedule_reports"
+        f"?city=eq.{_quote(supa_city)}"
+        f"&select=lat,lng,collection_day"
+        f"&lat=not.is.null&lng=not.is.null"
+        f"&collection_day=not.is.null&collection_day=neq."
+        f"&limit={limit}&offset={offset}"
+        f"&order=id.asc"
+    )
+    try:
+        resp = _req.get(url, headers=_supa_headers(), timeout=20)
+        resp.raise_for_status()
+        rows = resp.json()
+    except Exception as e:
+        logger.error(f"Collection map fetch failed for {city_slug}: {e}")
+        return JSONResponse({"points": [], "days": DAY_LABELS, "total": 0})
+
+    points = []
+    for r in rows:
+        try:
+            lat = float(r["lat"])
+            lng = float(r["lng"])
+            day = (r.get("collection_day") or "").strip().lower()
+            di = DAY_LABEL_INDEX.get(day, -1)
+            if di >= 0:
+                points.append([round(lat, 5), round(lng, 5), di])
+        except (ValueError, TypeError):
+            continue
+
+    return JSONResponse({
+        "points": points,
+        "days": DAY_LABELS,
+        "total": len(points),
+        "hasMore": len(rows) >= limit,
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -587,7 +651,7 @@ CITY_SLUGS = list(CITY_META.keys())
 async def sitemap():
     base = "https://trashalert.io"
     urls = []
-    for p in ["/", "/map", "/narpm", "/pricing", "/about", "/for/property-managers", "/for/municipalities", "/embed", "/portfolio"]:
+    for p in ["/", "/map", "/map/collection", "/narpm", "/pricing", "/about", "/for/property-managers", "/for/municipalities", "/embed", "/portfolio"]:
         urls.append(f'  <url><loc>{base}{p}</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>')
     for s in CITY_SLUGS:
         urls.append(f'  <url><loc>{base}/{s}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>')

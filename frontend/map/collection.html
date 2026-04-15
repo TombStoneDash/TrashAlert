@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TrashAlert Collection Map</title>
+  <meta name="description" content="Street-level trash collection map — every address colored by pickup day. Like a traffic map, but for trash." />
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; width: 100%; overflow: hidden; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+
+    #map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+
+    /* Header */
+    .header {
+      position: absolute; top: 0; left: 0; right: 0; z-index: 1000;
+      background: rgba(15, 23, 42, 0.94); backdrop-filter: blur(8px);
+      padding: 10px 16px; display: flex; align-items: center; gap: 12px;
+      flex-wrap: wrap;
+    }
+    .header-left { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    .header h1 { font-size: 18px; font-weight: 700; color: #fff; white-space: nowrap; }
+    .header h1 span { color: #38bdf8; }
+    .header .home-link {
+      color: #94a3b8; text-decoration: none; font-size: 13px; font-weight: 500;
+    }
+    .header .home-link:hover { color: #fff; }
+
+    /* City selector */
+    .city-select {
+      padding: 7px 12px; border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.08);
+      color: #fff; font-size: 14px; cursor: pointer; outline: none;
+    }
+    .city-select:focus { border-color: #38bdf8; }
+    .city-select option { background: #1e293b; color: #fff; }
+
+    /* Stats badge */
+    .stats-badge {
+      margin-left: auto; color: #94a3b8; font-size: 13px; white-space: nowrap;
+    }
+    .stats-badge strong { color: #38bdf8; font-weight: 600; }
+
+    /* Legend */
+    .legend {
+      position: absolute; bottom: 32px; left: 16px; z-index: 1000;
+      background: rgba(15, 23, 42, 0.94); backdrop-filter: blur(8px);
+      border-radius: 10px; padding: 14px 18px; color: #e2e8f0;
+      font-size: 13px; min-width: 160px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .legend h3 {
+      font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px;
+      color: #94a3b8; margin-bottom: 10px;
+    }
+    .legend-item { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; cursor: pointer; }
+    .legend-item:hover { opacity: 0.8; }
+    .legend-item.dimmed .legend-swatch { opacity: 0.2; }
+    .legend-item.dimmed { color: #64748b; }
+    .legend-swatch {
+      width: 16px; height: 16px; border-radius: 3px; flex-shrink: 0;
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+    .legend-hint {
+      font-size: 10px; color: #64748b; margin-top: 8px; font-style: italic;
+    }
+
+    /* Loading overlay */
+    .loading-overlay {
+      position: absolute; inset: 0; z-index: 2000;
+      background: #0f172a; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; color: #e2e8f0;
+      transition: opacity 0.5s ease;
+    }
+    .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+    .spinner {
+      width: 40px; height: 40px; border: 3px solid #334155;
+      border-top-color: #38bdf8; border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin-bottom: 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-progress {
+      font-size: 13px; color: #94a3b8; margin-top: 8px;
+    }
+
+    /* Popup */
+    .collection-popup h4 {
+      font-size: 15px; font-weight: 700; margin-bottom: 4px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .collection-popup .day-dot {
+      width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+    }
+    .collection-popup p { font-size: 13px; color: #475569; margin: 2px 0; line-height: 1.4; }
+
+    @media (max-width: 600px) {
+      .header { padding: 8px 12px; gap: 8px; }
+      .header h1 { font-size: 15px; }
+      .header .home-link { display: none; }
+      .stats-badge { display: none; }
+      .legend { bottom: 16px; left: 8px; padding: 10px 14px; font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="header">
+  <div class="header-left">
+    <h1><a href="/" style="color:inherit;text-decoration:none"><span>TrashAlert</span></a> Collection Map</h1>
+    <a href="/" class="home-link">Home</a>
+    <a href="/map" class="home-link">Zone Map</a>
+  </div>
+  <select class="city-select" id="citySelect">
+    <option value="san_diego" data-lat="32.78" data-lng="-117.15" data-zoom="11">San Diego, CA</option>
+    <option value="houston" data-lat="29.76" data-lng="-95.37" data-zoom="11">Houston, TX</option>
+    <option value="phoenix" data-lat="33.45" data-lng="-112.07" data-zoom="11">Phoenix, AZ</option>
+    <option value="austin" data-lat="30.27" data-lng="-97.74" data-zoom="11">Austin, TX</option>
+    <option value="los_angeles" data-lat="34.05" data-lng="-118.24" data-zoom="11">Los Angeles, CA</option>
+    <option value="dallas" data-lat="32.78" data-lng="-96.80" data-zoom="11">Dallas, TX</option>
+    <option value="chicago" data-lat="41.88" data-lng="-87.63" data-zoom="11">Chicago, IL</option>
+    <option value="seattle" data-lat="47.61" data-lng="-122.33" data-zoom="12">Seattle, WA</option>
+    <option value="denver" data-lat="39.74" data-lng="-104.99" data-zoom="11">Denver, CO</option>
+    <option value="boston" data-lat="42.36" data-lng="-71.06" data-zoom="12">Boston, MA</option>
+    <option value="atlanta" data-lat="33.75" data-lng="-84.39" data-zoom="12">Atlanta, GA</option>
+    <option value="miami" data-lat="25.76" data-lng="-80.19" data-zoom="12">Miami, FL</option>
+    <option value="portland" data-lat="45.52" data-lng="-122.68" data-zoom="12">Portland, OR</option>
+    <option value="philadelphia" data-lat="39.95" data-lng="-75.17" data-zoom="12">Philadelphia, PA</option>
+    <option value="new_york" data-lat="40.71" data-lng="-73.99" data-zoom="11">New York, NY</option>
+    <option value="charlotte" data-lat="35.23" data-lng="-80.84" data-zoom="11">Charlotte, NC</option>
+    <option value="columbus" data-lat="39.96" data-lng="-82.99" data-zoom="12">Columbus, OH</option>
+    <option value="san_antonio" data-lat="29.42" data-lng="-98.49" data-zoom="11">San Antonio, TX</option>
+    <option value="minneapolis" data-lat="44.98" data-lng="-93.27" data-zoom="12">Minneapolis, MN</option>
+    <option value="detroit" data-lat="42.33" data-lng="-83.05" data-zoom="12">Detroit, MI</option>
+    <option value="oklahoma_city" data-lat="35.47" data-lng="-97.52" data-zoom="11">Oklahoma City, OK</option>
+  </select>
+  <div class="stats-badge" id="stats">Loading...</div>
+</div>
+
+<div class="legend" id="legend">
+  <h3>Collection Day</h3>
+  <div class="legend-item" data-day="0"><div class="legend-swatch" style="background:#3B82F6"></div> Monday</div>
+  <div class="legend-item" data-day="1"><div class="legend-swatch" style="background:#22C55E"></div> Tuesday</div>
+  <div class="legend-item" data-day="2"><div class="legend-swatch" style="background:#F59E0B"></div> Wednesday</div>
+  <div class="legend-item" data-day="3"><div class="legend-swatch" style="background:#8B5CF6"></div> Thursday</div>
+  <div class="legend-item" data-day="4"><div class="legend-swatch" style="background:#EF4444"></div> Friday</div>
+  <div class="legend-item" data-day="5"><div class="legend-swatch" style="background:#F97316"></div> Saturday</div>
+  <div class="legend-item" data-day="6"><div class="legend-swatch" style="background:#6B7280"></div> Sunday</div>
+  <div class="legend-hint">Click a day to toggle</div>
+</div>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <div>Loading collection map&hellip;</div>
+  <div class="loading-progress" id="loadingProgress"></div>
+</div>
+
+<script>
+// -------------------------------------------------------------------------
+// Config
+// -------------------------------------------------------------------------
+const DAY_COLORS = [
+  '#3B82F6', // Monday - blue
+  '#22C55E', // Tuesday - green
+  '#F59E0B', // Wednesday - amber
+  '#8B5CF6', // Thursday - purple
+  '#EF4444', // Friday - red
+  '#F97316', // Saturday - orange
+  '#6B7280', // Sunday - gray
+];
+const DAY_NAMES = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+// Parse hex to [r,g,b]
+function hexToRgb(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+const DAY_RGB = DAY_COLORS.map(hexToRgb);
+
+// -------------------------------------------------------------------------
+// State
+// -------------------------------------------------------------------------
+let allPoints = [];       // [[lat, lng, dayIndex], ...]
+let pointLayer = null;    // L.layerGroup of CircleMarkers
+let hiddenDays = new Set();
+let currentCity = 'san_diego';
+let abortController = null;
+
+// -------------------------------------------------------------------------
+// Map
+// -------------------------------------------------------------------------
+const map = L.map('map', {
+  preferCanvas: true,     // Critical: canvas renderer for 274K+ points
+  zoomControl: false,
+  attributionControl: true,
+}).setView([32.78, -117.15], 11);
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a> | TrashAlert',
+  maxZoom: 19,
+  subdomains: 'abcd',
+}).addTo(map);
+
+L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+// -------------------------------------------------------------------------
+// Canvas overlay — draws all points directly onto a canvas for max perf
+// -------------------------------------------------------------------------
+const CollectionCanvas = L.Layer.extend({
+  onAdd(map) {
+    this._map = map;
+    this._canvas = L.DomUtil.create('canvas', 'collection-canvas');
+    this._canvas.style.position = 'absolute';
+    this._canvas.style.pointerEvents = 'none';
+    const pane = map.getPane('overlayPane');
+    pane.appendChild(this._canvas);
+    map.on('moveend zoomend resize', this._redraw, this);
+    this._redraw();
+  },
+  onRemove(map) {
+    map.off('moveend zoomend resize', this._redraw, this);
+    this._canvas.remove();
+  },
+  setPoints(pts) {
+    this._points = pts;
+    if (this._map) this._redraw();
+  },
+  _redraw() {
+    const map = this._map;
+    const canvas = this._canvas;
+    const size = map.getSize();
+    const dpr = window.devicePixelRatio || 1;
+
+    canvas.width = size.x * dpr;
+    canvas.height = size.y * dpr;
+    canvas.style.width = size.x + 'px';
+    canvas.style.height = size.y + 'px';
+
+    const topLeft = map.containerPointToLayerPoint([0, 0]);
+    L.DomUtil.setPosition(canvas, topLeft);
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, size.x, size.y);
+
+    const pts = this._points || allPoints;
+    if (!pts.length) return;
+
+    const zoom = map.getZoom();
+    // Dot radius scales with zoom
+    const r = zoom >= 15 ? 4 : zoom >= 13 ? 3 : zoom >= 11 ? 2 : 1;
+    const bounds = map.getBounds();
+    const latMin = bounds.getSouth(), latMax = bounds.getNorth();
+    const lngMin = bounds.getWest(), lngMax = bounds.getEast();
+
+    // Group by day for fewer fillStyle changes
+    const buckets = new Array(7);
+    for (let d = 0; d < 7; d++) buckets[d] = [];
+
+    for (let i = 0; i < pts.length; i++) {
+      const p = pts[i];
+      const lat = p[0], lng = p[1], day = p[2];
+      // Bounds check
+      if (lat < latMin || lat > latMax || lng < lngMin || lng > lngMax) continue;
+      if (hiddenDays.has(day)) continue;
+      buckets[day].push(p);
+    }
+
+    for (let d = 0; d < 7; d++) {
+      const bucket = buckets[d];
+      if (!bucket.length) continue;
+      const [cr, cg, cb] = DAY_RGB[d];
+      ctx.fillStyle = `rgba(${cr},${cg},${cb},0.85)`;
+      ctx.beginPath();
+      for (let i = 0; i < bucket.length; i++) {
+        const pt = map.latLngToContainerPoint([bucket[i][0], bucket[i][1]]);
+        ctx.moveTo(pt.x + r, pt.y);
+        ctx.arc(pt.x, pt.y, r, 0, Math.PI * 2);
+      }
+      ctx.fill();
+    }
+  }
+});
+
+const collectionLayer = new CollectionCanvas();
+collectionLayer.addTo(map);
+
+// -------------------------------------------------------------------------
+// Click handler — find nearest point and show popup
+// -------------------------------------------------------------------------
+map.on('click', function(e) {
+  if (!allPoints.length) return;
+  const clickLat = e.latlng.lat, clickLng = e.latlng.lng;
+  const zoom = map.getZoom();
+
+  // Search radius in degrees (smaller at higher zoom)
+  const searchR = zoom >= 15 ? 0.001 : zoom >= 13 ? 0.003 : zoom >= 11 ? 0.008 : 0.02;
+
+  let nearest = null, minDist = Infinity;
+  let areaCount = 0;
+  const dayCounts = {};
+
+  for (let i = 0; i < allPoints.length; i++) {
+    const p = allPoints[i];
+    if (hiddenDays.has(p[2])) continue;
+    const dLat = p[0] - clickLat, dLng = p[1] - clickLng;
+    const dist = dLat * dLat + dLng * dLng;
+    if (dLat > searchR || dLat < -searchR || dLng > searchR || dLng < -searchR) continue;
+    areaCount++;
+    const dayName = DAY_NAMES[p[2]];
+    dayCounts[dayName] = (dayCounts[dayName] || 0) + 1;
+    if (dist < minDist) {
+      minDist = dist;
+      nearest = p;
+    }
+  }
+
+  if (!nearest) return;
+
+  const dayName = DAY_NAMES[nearest[2]];
+  const dayColor = DAY_COLORS[nearest[2]];
+
+  let breakdown = Object.entries(dayCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([d, c]) => `<span style="color:${DAY_COLORS[DAY_NAMES.indexOf(d)]}">${d}</span>: ${c.toLocaleString()}`)
+    .join(' &middot; ');
+
+  L.popup({ maxWidth: 320 })
+    .setLatLng(e.latlng)
+    .setContent(`
+      <div class="collection-popup">
+        <h4><span class="day-dot" style="background:${dayColor}"></span> ${dayName} Pickup</h4>
+        <p><strong>Addresses in area:</strong> ${areaCount.toLocaleString()}</p>
+        <p style="font-size:11px;margin-top:4px">${breakdown}</p>
+      </div>
+    `)
+    .openOn(map);
+});
+
+// -------------------------------------------------------------------------
+// Data loading — paginated fetch from /api/collection-map
+// -------------------------------------------------------------------------
+async function loadCity(citySlug) {
+  if (abortController) abortController.abort();
+  abortController = new AbortController();
+  const signal = abortController.signal;
+
+  allPoints = [];
+  collectionLayer.setPoints(allPoints);
+
+  const loading = document.getElementById('loading');
+  const progress = document.getElementById('loadingProgress');
+  loading.classList.remove('hidden');
+  progress.textContent = '';
+
+  const pageSize = 10000;
+  let offset = 0;
+  let total = 0;
+
+  try {
+    while (true) {
+      if (signal.aborted) return;
+
+      const url = `/api/collection-map/${citySlug}?offset=${offset}&limit=${pageSize}`;
+      const resp = await fetch(url, { signal });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = await resp.json();
+
+      if (data.points && data.points.length) {
+        allPoints = allPoints.concat(data.points);
+        total = allPoints.length;
+        progress.textContent = `${total.toLocaleString()} addresses loaded...`;
+        collectionLayer.setPoints(allPoints);
+      }
+
+      if (!data.hasMore || !data.points.length) break;
+      offset += pageSize;
+    }
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    console.error('Load failed:', err);
+  }
+
+  loading.classList.add('hidden');
+  document.getElementById('stats').innerHTML =
+    `<strong>${allPoints.length.toLocaleString()}</strong> addresses mapped`;
+
+  // Fit bounds to data if we have points
+  if (allPoints.length > 0) {
+    let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
+    for (const p of allPoints) {
+      if (p[0] < minLat) minLat = p[0];
+      if (p[0] > maxLat) maxLat = p[0];
+      if (p[1] < minLng) minLng = p[1];
+      if (p[1] > maxLng) maxLng = p[1];
+    }
+    map.fitBounds([[minLat, minLng], [maxLat, maxLng]], { padding: [60, 30] });
+  }
+}
+
+// -------------------------------------------------------------------------
+// City selector
+// -------------------------------------------------------------------------
+const citySelect = document.getElementById('citySelect');
+citySelect.addEventListener('change', function() {
+  const opt = citySelect.selectedOptions[0];
+  currentCity = citySelect.value;
+  const lat = parseFloat(opt.dataset.lat);
+  const lng = parseFloat(opt.dataset.lng);
+  const zoom = parseInt(opt.dataset.zoom);
+  map.setView([lat, lng], zoom);
+  loadCity(currentCity);
+});
+
+// -------------------------------------------------------------------------
+// Legend toggle — click to show/hide a day
+// -------------------------------------------------------------------------
+document.querySelectorAll('.legend-item[data-day]').forEach(item => {
+  item.addEventListener('click', function() {
+    const day = parseInt(this.dataset.day);
+    if (hiddenDays.has(day)) {
+      hiddenDays.delete(day);
+      this.classList.remove('dimmed');
+    } else {
+      hiddenDays.add(day);
+      this.classList.add('dimmed');
+    }
+    collectionLayer.setPoints(allPoints);
+  });
+});
+
+// -------------------------------------------------------------------------
+// Initial load
+// -------------------------------------------------------------------------
+loadCity('san_diego');
+</script>
+</body>
+</html>
