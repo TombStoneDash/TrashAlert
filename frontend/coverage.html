@@ -41,7 +41,7 @@
     .source-note a { color: var(--accent); text-decoration: none; } .source-note a:hover { text-decoration: underline; }
 
     footer { text-align: center; padding: 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
-    @media (max-width: 600px) { .totals { flex-direction: column; gap: 16px; } .grid { grid-template-columns: 1fr; } }
+    @media (max-width: 600px) { .totals { flex-direction: column; gap: 16px; } .grid { grid-template-columns: 1fr; } #coverage-breakdown { gap: 12px; } }
   </style>
 </head>
 <body>
@@ -62,7 +62,15 @@
 
 <div class="totals">
   <div class="t"><div class="n live" id="total-cities">--</div><div class="l">Cities</div></div>
-  <div class="t"><div class="n live" id="total-addresses">--</div><div class="l">Real addresses</div></div>
+  <div class="t"><div class="n live" id="total-addresses">--</div><div class="l">Verified addresses</div></div>
+</div>
+
+<div class="totals" id="coverage-breakdown" style="display:none; border-bottom: none; padding-top: 0;">
+  <div class="t"><div class="n" id="cov-verified" style="font-size:24px; color: var(--green);">--</div><div class="l">Verified</div></div>
+  <div class="t" style="align-self:center; color: var(--muted); font-size:24px; font-weight:800;">+</div>
+  <div class="t"><div class="n" id="cov-estimated" style="font-size:24px; color: var(--accent);">--</div><div class="l">In coverage zones</div></div>
+  <div class="t" style="align-self:center; color: var(--muted); font-size:24px; font-weight:800;">=</div>
+  <div class="t"><div class="n" id="cov-total" style="font-size:24px; color: #fff;">--</div><div class="l">Total coverage</div></div>
 </div>
 
 <div class="loading" id="loading">Loading city data&hellip;</div>
@@ -79,10 +87,22 @@
   const grid = document.getElementById('grid');
   const loading = document.getElementById('loading');
 
+  const fmtNum = (n) => n >= 1000000 ? (n / 1000000).toFixed(1) + 'M+' : n >= 1000 ? Math.round(n / 1000) + 'K' : n.toLocaleString();
+
   try {
     // Fetch live total from stats endpoint (handles 5M+ without timeout)
     fetch('/api/stats/live').then(r => r.json()).then(s => {
       document.getElementById('total-addresses').textContent = s.display;
+    }).catch(() => {});
+
+    // Fetch coverage breakdown (verified + zone-estimated)
+    fetch('/api/stats/coverage').then(r => r.json()).then(cov => {
+      if (cov.estimated_addresses > 0) {
+        document.getElementById('cov-verified').textContent = fmtNum(cov.verified_addresses);
+        document.getElementById('cov-estimated').textContent = fmtNum(cov.estimated_addresses);
+        document.getElementById('cov-total').textContent = fmtNum(cov.total_coverage);
+        document.getElementById('coverage-breakdown').style.display = '';
+      }
     }).catch(() => {});
 
     const res = await fetch('/api/cities');

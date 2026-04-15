@@ -426,6 +426,7 @@
             <h1>🗑️ TrashAlert</h1>
             <p>Find your trash and recycling collection days — 5M+ real addresses</p>
             <p id="stats-badge" style="margin-top: 12px; font-size: 0.85rem; opacity: 0.75;">Loading stats&hellip;</p>
+            <p id="coverage-badge" style="margin-top: 6px; font-size: 0.8rem; opacity: 0.65; display: none;"></p>
             <a href="/map" style="display: inline-block; margin-top: 16px; padding: 10px 24px; background: rgba(255,255,255,0.2); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 0.95rem; backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.3); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.35)'" onmouseout="this.style.background='rgba(255,255,255,0.2)'">View Zone Map</a>
         </div>
 
@@ -878,9 +879,10 @@
             return div.innerHTML;
         }
 
-        // Fetch live stats from /api/stats/live
+        // Fetch live stats from /api/stats/live, then enrich with coverage breakdown
         (function() {
             const badge = document.getElementById('stats-badge');
+            const covBadge = document.getElementById('coverage-badge');
             fetch('/api/stats/live')
                 .then(r => r.json())
                 .then(data => {
@@ -890,6 +892,20 @@
                 .catch(() => {
                     badge.textContent = '26 cities \u00B7 5M+ real addresses \u00B7 Real collection day data';
                 });
+
+            // Fetch coverage breakdown (verified + zone-estimated)
+            fetch('/api/stats/coverage')
+                .then(r => r.json())
+                .then(cov => {
+                    if (cov.estimated_addresses > 0) {
+                        const fmtNum = (n) => n >= 1000000 ? (n / 1000000).toFixed(1) + 'M' : n >= 1000 ? Math.round(n / 1000) + 'K' : n.toLocaleString();
+                        covBadge.textContent = fmtNum(cov.verified_addresses) + ' addresses verified + '
+                            + fmtNum(cov.estimated_addresses) + ' addresses in coverage zones = '
+                            + fmtNum(cov.total_coverage) + ' total coverage';
+                        covBadge.style.display = '';
+                    }
+                })
+                .catch(() => {}); // silently degrade — badge stays hidden
         })();
 
         // Load API URL from localStorage
