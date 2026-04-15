@@ -213,34 +213,48 @@
 
     /* ---- Pricing ---- */
     .pricing {
-      max-width: 480px; margin: 0 auto;
+      max-width: 960px; margin: 0 auto;
       padding: 0 32px 80px;
       text-align: center;
     }
+    .pricing h2 {
+      font-size: 28px; font-weight: 700; color: #fff;
+      margin-bottom: 32px;
+    }
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 24px;
+    }
     .price-card {
       background: var(--bg-card);
-      border: 2px solid var(--accent);
+      border: 1px solid var(--border);
       border-radius: 16px;
-      padding: 40px 32px;
+      padding: 32px 24px;
+      text-align: center;
     }
+    .price-card.featured { border: 2px solid var(--accent); }
     .price-card .tier {
       font-size: 13px; font-weight: 600;
       text-transform: uppercase; letter-spacing: 1.5px;
       color: var(--accent); margin-bottom: 8px;
     }
     .price-card .price {
-      font-size: 48px; font-weight: 800; color: #fff;
+      font-size: 42px; font-weight: 800; color: #fff;
     }
     .price-card .price span { font-size: 18px; font-weight: 400; color: var(--text-muted); }
+    .price-card .desc {
+      font-size: 14px; color: var(--text-muted); margin-top: 12px; line-height: 1.5;
+    }
     .price-card .includes {
-      margin-top: 24px;
+      margin-top: 20px;
       text-align: left;
-      font-size: 15px;
+      font-size: 14px;
       color: var(--text-muted);
     }
     .price-card .includes li {
       list-style: none;
-      padding: 6px 0;
+      padding: 5px 0;
     }
     .price-card .includes li::before {
       content: "\2713";
@@ -294,7 +308,7 @@
       "price": "99",
       "priceCurrency": "USD",
       "billingDuration": "P1M",
-      "description": "Unlimited properties, API access, tenant portal embed"
+      "description": "Up to 250 properties, API access, tenant portal embed"
     }
   }
   </script>
@@ -380,16 +394,42 @@
 </section>
 
 <section class="pricing">
-  <div class="price-card">
-    <div class="tier">Portfolio Tier</div>
-    <div class="price">$99<span>/mo</span></div>
-    <ul class="includes">
-      <li>Unlimited properties</li>
-      <li>REST API access</li>
-      <li>Embeddable zone map widget</li>
-      <li>Tenant-facing schedule lookup</li>
-      <li>Email &amp; Slack alerts for schedule changes</li>
-    </ul>
+  <h2>Pricing</h2>
+  <div class="pricing-grid">
+    <div class="price-card">
+      <div class="tier">Starter</div>
+      <div class="price">$29<span>/mo</span></div>
+      <p class="desc">Up to 25 properties</p>
+      <ul class="includes">
+        <li>Schedule lookup</li>
+        <li>Email reminders</li>
+        <li>Move-in packets</li>
+      </ul>
+    </div>
+    <div class="price-card featured">
+      <div class="tier">Portfolio</div>
+      <div class="price">$99<span>/mo</span></div>
+      <p class="desc">Up to 250 properties</p>
+      <ul class="includes">
+        <li>REST API access</li>
+        <li>Embeddable zone map widget</li>
+        <li>Bulk CSV upload</li>
+        <li>Portfolio dashboard</li>
+        <li>Slack &amp; email alerts</li>
+      </ul>
+    </div>
+    <div class="price-card">
+      <div class="tier">Enterprise</div>
+      <div class="price">Custom</div>
+      <p class="desc">Unlimited properties + API access</p>
+      <ul class="includes">
+        <li>Everything in Portfolio</li>
+        <li>Unlimited API requests</li>
+        <li>Custom integrations</li>
+        <li>Dedicated account manager</li>
+        <li>SLA guarantee (99.9%)</li>
+      </ul>
+    </div>
   </div>
 </section>
 

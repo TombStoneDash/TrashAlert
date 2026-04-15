@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Pricing | TrashAlert</title>
-  <meta name="description" content="TrashAlert pricing for property managers. Free 1-lookup tier, Portfolio $99/mo unlimited lookups with API access, Enterprise custom." />
+  <meta name="description" content="TrashAlert pricing for property managers. Free 1-lookup tier, Starter $29/mo up to 25 properties, Portfolio $99/mo up to 250 properties, Enterprise custom." />
 
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -24,7 +24,7 @@
     .hero h1 { font-size: clamp(28px, 4vw, 44px); font-weight: 800; color: #fff; margin-bottom: 16px; }
     .hero p { font-size: 18px; color: var(--muted); }
 
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; max-width: 960px; margin: 48px auto; padding: 0 24px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; max-width: 1080px; margin: 48px auto; padding: 0 24px; }
 
     .plan { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 36px 28px; display: flex; flex-direction: column; }
     .plan.featured { border-color: var(--accent); position: relative; }
@@ -81,7 +81,7 @@
         "name": "How many properties can I add?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Free gives you 1 address lookup with no account. Portfolio supports unlimited properties and API access. Enterprise has no limits and includes custom integrations."
+          "text": "Free gives you 1 address lookup with no account. Starter supports up to 25 properties. Portfolio supports up to 250 properties with API access. Enterprise offers unlimited properties and custom integrations."
         }
       },
       {
@@ -150,19 +150,31 @@
     <a href="/" class="cta cta-outline">Look up an address</a>
   </div>
 
+  <!-- Starter -->
+  <div class="plan">
+    <div class="tier">Starter</div>
+    <div class="price">$29<span class="per">/mo</span></div>
+    <p class="desc">Up to 25 properties.</p>
+    <ul>
+      <li>Schedule lookup</li>
+      <li>Email reminders</li>
+      <li>Branded move-in packets</li>
+      <li>Portfolio dashboard</li>
+    </ul>
+    <a href="/checkout/starter" class="cta cta-outline">Start free trial</a>
+  </div>
+
   <!-- Portfolio -->
   <div class="plan featured">
     <div class="tier">Portfolio</div>
     <div class="price">$99<span class="per">/mo</span></div>
-    <p class="desc">Built for property management companies.</p>
+    <p class="desc">Up to 250 properties.</p>
     <ul>
-      <li>Unlimited address lookups</li>
+      <li>Everything in Starter</li>
       <li>REST API access (10k req/day)</li>
       <li>Dedicated API key</li>
       <li>White-label embeddable widget</li>
       <li>Bulk CSV upload</li>
-      <li>Portfolio dashboard</li>
-      <li>Branded move-in packets</li>
       <li>Slack &amp; email alerts</li>
     </ul>
     <a href="/checkout/portfolio" class="cta cta-primary">Start free trial</a>
@@ -172,9 +184,10 @@
   <div class="plan">
     <div class="tier">Enterprise</div>
     <div class="price">Custom</div>
-    <p class="desc">For municipalities and large portfolios.</p>
+    <p class="desc">Unlimited properties + API access.</p>
     <ul>
       <li>Everything in Portfolio</li>
+      <li>Unlimited properties</li>
       <li>Unlimited API requests</li>
       <li>Custom data integrations</li>
       <li>Dedicated account manager</li>
@@ -182,7 +195,7 @@
       <li>SSO / SAML authentication</li>
       <li>Priority data onboarding</li>
     </ul>
-    <a href="mailto:enterprise@trashalert.io" class="cta cta-outline">Contact sales</a>
+    <a href="mailto:hello@trashalert.io" class="cta cta-outline">Contact sales</a>
   </div>
 </div>
 
@@ -191,7 +204,7 @@
 
   <div class="faq-item">
     <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">How many properties can I add?</div>
-    <div class="faq-a"><p>Free gives you 1 address lookup with no account. Portfolio supports unlimited properties and API access. Enterprise has no limits and includes custom integrations.</p></div>
+    <div class="faq-a"><p>Free gives you 1 address lookup with no account. Starter supports up to 25 properties. Portfolio supports up to 250 properties with API access. Enterprise offers unlimited properties and custom integrations.</p></div>
   </div>
   <div class="faq-item">
     <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">Where does the pickup schedule data come from?</div>
