@@ -98,6 +98,7 @@ from app.routers.schedule_api import router as schedule_api_router
 from app.routers.notifications import router as notifications_router
 from app.routers.portfolio_api import router as portfolio_api_router
 from app.routers.stripe_billing import router as stripe_billing_router
+from app.routers.stats_api import router as stats_api_router
 from app.routers.city_pages import router as city_pages_router
 from app.routers.sitemap import router as sitemap_router
 from app.routers.robots import router as robots_router
@@ -264,6 +265,9 @@ app.include_router(portfolio_api_router)
 
 # Include Stripe billing API (/api/stripe/*)
 app.include_router(stripe_billing_router)
+
+# Include live stats API (/api/stats/live)
+app.include_router(stats_api_router)
 
 # Sitemap and robots.txt
 app.include_router(sitemap_router)
