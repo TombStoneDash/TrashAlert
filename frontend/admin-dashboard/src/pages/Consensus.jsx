@@ -247,9 +247,9 @@ const Consensus = () => {
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-900">
                           <div className="space-y-1">
-                            {item.trash_day && <div>🗑️ {item.trash_day}</div>}
-                            {item.recycling_day && <div>♻️ {item.recycling_day}</div>}
-                            {item.green_day && <div>🌿 {item.green_day}</div>}
+                            {item.trash_day && <div>Trash: {item.trash_day}</div>}
+                            {item.recycling_day && <div>Recycling: {item.recycling_day}</div>}
+                            {item.green_day && <div>Green: {item.green_day}</div>}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

@@ -137,17 +137,13 @@
 
 <nav>
   <a href="/" class="logo"><span>TrashAlert</span></a>
-  <div>
-    <a href="/coverage" class="nl">Coverage</a>
-    <a href="/map" class="nl">Zone Map</a>
-    <a href="/pricing" class="nl">Pricing</a>
-  </div>
+  <div><a href="/" class="nl">Home</a><a href="/map" class="nl">Map</a><a href="/pricing" class="nl">Pricing</a><a href="/for/property-managers" class="nl">For PMs</a><a href="/coverage" class="nl">Coverage</a><a href="/about" class="nl">About</a></div>
 </nav>
 
 <!-- Holiday Alert Banner -->
 <div class="container">
   <div class="holiday-banner" id="holiday-banner">
-    <div class="hb-icon">&#x26A0;</div>
+    <div class="hb-icon">!</div>
     <div class="hb-text">
       <div class="hb-title" id="hb-title">Holiday Schedule Change</div>
       <div class="hb-desc" id="hb-desc">Loading holiday info...</div>
@@ -186,8 +182,8 @@
   <div class="section-header">
     <h2>Properties</h2>
     <div class="export-row">
-      <button class="btn btn-outline" onclick="exportCSV()">&#x1F4E5; Export CSV</button>
-      <button class="btn btn-outline" onclick="addPropertyModal()">&#x2795; Add Property</button>
+      <button class="btn btn-outline" onclick="exportCSV()">Export CSV</button>
+      <button class="btn btn-outline" onclick="addPropertyModal()">+ Add Property</button>
     </div>
   </div>
 
@@ -218,10 +214,10 @@
   <div class="bulk-toolbar" id="bulk-toolbar">
     <div class="bt-count"><span id="bt-selected">0</span> selected</div>
     <div class="bt-actions">
-      <button class="btn btn-sm btn-primary" onclick="bulkUpdateDay()">&#x1F504; Change Pickup Day</button>
-      <button class="btn btn-sm btn-success" onclick="bulkSendReminder()">&#x1F4E7; Send Reminder</button>
-      <button class="btn btn-sm btn-outline" onclick="bulkExportSelected()">&#x1F4E5; Export Selected</button>
-      <button class="btn btn-sm btn-danger" onclick="bulkRemove()">&#x1F5D1; Remove</button>
+      <button class="btn btn-sm btn-primary" onclick="bulkUpdateDay()">Change Pickup Day</button>
+      <button class="btn btn-sm btn-success" onclick="bulkSendReminder()">Send Reminder</button>
+      <button class="btn btn-sm btn-outline" onclick="bulkExportSelected()">Export Selected</button>
+      <button class="btn btn-sm btn-danger" onclick="bulkRemove()">Remove</button>
       <button class="btn btn-sm btn-ghost" onclick="clearSelection()">Clear</button>
     </div>
   </div>

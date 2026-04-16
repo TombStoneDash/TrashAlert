@@ -20,7 +20,7 @@
     .pain-points { max-width: 800px; margin: 0 auto; padding: 0 32px 64px; }
     .pain-points h2 { font-size: 28px; font-weight: 700; color: #fff; text-align: center; margin-bottom: 40px; }
     .pain { display: flex; gap: 20px; margin-bottom: 28px; align-items: flex-start; }
-    .pain .icon { flex-shrink: 0; width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; background: rgba(239,68,68,0.15); }
+    .pain .icon { flex-shrink: 0; width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; background: rgba(239,68,68,0.15); color: #ef4444; }
     .pain h3 { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 4px; }
     .pain p { font-size: 15px; color: var(--muted); }
 
@@ -28,7 +28,7 @@
     .solution h2 { font-size: 28px; font-weight: 700; color: #fff; text-align: center; margin-bottom: 40px; }
     .sol-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; }
     .sol-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 28px 20px; }
-    .sol-card .si { font-size: 28px; margin-bottom: 12px; }
+    .sol-card .si { font-size: 14px; font-weight: 700; margin-bottom: 12px; color: var(--accent); letter-spacing: 0.5px; }
     .sol-card h3 { font-size: 17px; font-weight: 700; color: #fff; margin-bottom: 6px; }
     .sol-card p { font-size: 14px; color: var(--muted); }
 
@@ -56,7 +56,7 @@
   </style>
 </head>
 <body>
-<nav><a href="/" class="logo"><span>TrashAlert</span></a><div><a href="/pricing" class="nl">Pricing</a><a href="/map" class="nl">Zone Map</a></div></nav>
+<nav><a href="/" class="logo"><span>TrashAlert</span></a><div><a href="/" class="nl">Home</a><a href="/map" class="nl">Map</a><a href="/pricing" class="nl">Pricing</a><a href="/for/property-managers" class="nl">For PMs</a><a href="/coverage" class="nl">Coverage</a><a href="/about" class="nl">About</a></div></nav>
 
 <section class="hero">
   <h1>Your tenants shouldn't have to call you about trash day.</h1>
@@ -66,23 +66,23 @@
 <section class="pain-points">
   <h2>5 Problems We Solve</h2>
   <div class="pain">
-    <div class="icon">&#x1F4DE;</div>
+    <div class="icon">1</div>
     <div><h3>Constant "What day is trash?" calls</h3><p>Tenants call your office for information that should be self-service. Every call costs you $5-15 in staff time.</p></div>
   </div>
   <div class="pain">
-    <div class="icon">&#x1F6AE;</div>
+    <div class="icon">2</div>
     <div><h3>Overflowing bins and HOA fines</h3><p>Missed pickups lead to overflowing dumpsters, pest problems, and $200+ violation fines per incident.</p></div>
   </div>
   <div class="pain">
-    <div class="icon">&#x1F504;</div>
+    <div class="icon">3</div>
     <div><h3>Move-in confusion at every turnover</h3><p>New tenants don't know the schedule. Move-in packets go unread. Trash piles up for weeks.</p></div>
   </div>
   <div class="pain">
-    <div class="icon">&#x1F5FA;</div>
+    <div class="icon">4</div>
     <div><h3>Different schedules per property</h3><p>Managing 50+ properties across 3 cities means dozens of different pickup schedules. We cover 26 cities with 5M+ verified addresses.</p></div>
   </div>
   <div class="pain">
-    <div class="icon">&#x23F0;</div>
+    <div class="icon">5</div>
     <div><h3>Schedule changes catch everyone off guard</h3><p>Holidays, weather events, and route changes mean missed pickups and angry tenant calls.</p></div>
   </div>
 </section>
@@ -90,12 +90,12 @@
 <section class="solution">
   <h2>How TrashAlert Solves It</h2>
   <div class="sol-grid">
-    <div class="sol-card"><div class="si">&#x1F50C;</div><h3>Embed in your portal</h3><p>One script tag adds schedule lookup to AppFolio, Buildium, or your custom portal.</p></div>
-    <div class="sol-card"><div class="si">&#x1F4E7;</div><h3>Weekly reminders</h3><p>Tenants sign up for email reminders. They never miss a pickup again.</p></div>
-    <div class="sol-card"><div class="si">&#x1F4CA;</div><h3>Bulk upload</h3><p>CSV upload all your properties. Get every schedule in seconds.</p></div>
-    <div class="sol-card"><div class="si">&#x1F5FA;</div><h3>Interactive map</h3><p>Zone map shows pickup days by neighborhood. Drop into any page.</p></div>
-    <div class="sol-card"><div class="si">&#x1F527;</div><h3>REST API</h3><p>Integrate directly into your property management system.</p></div>
-    <div class="sol-card"><div class="si">&#x1F4C4;</div><h3>Move-in packets</h3><p>Auto-generated, branded PDFs with the address-specific schedule.</p></div>
+    <div class="sol-card"><div class="si">&lt;/&gt;</div><h3>Embed in your portal</h3><p>One script tag adds schedule lookup to AppFolio, Buildium, or your custom portal.</p></div>
+    <div class="sol-card"><div class="si">@</div><h3>Weekly reminders</h3><p>Tenants sign up for email reminders. They never miss a pickup again.</p></div>
+    <div class="sol-card"><div class="si">CSV</div><h3>Bulk upload</h3><p>CSV upload all your properties. Get every schedule in seconds.</p></div>
+    <div class="sol-card"><div class="si">MAP</div><h3>Interactive map</h3><p>Zone map shows pickup days by neighborhood. Drop into any page.</p></div>
+    <div class="sol-card"><div class="si">API</div><h3>REST API</h3><p>Integrate directly into your property management system.</p></div>
+    <div class="sol-card"><div class="si">PDF</div><h3>Move-in packets</h3><p>Auto-generated, branded PDFs with the address-specific schedule.</p></div>
   </div>
 </section>
 

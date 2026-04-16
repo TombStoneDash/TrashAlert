@@ -198,9 +198,9 @@ const Addresses = () => {
                           <p className="font-semibold">{address.normalized_address}</p>
                           <p className="text-sm text-gray-600">{address.city}</p>
                           <div className="mt-2 text-xs">
-                            <p>🗑️ Trash: {address.trash_day || '-'}</p>
-                            <p>♻️ Recycling: {address.recycling_day || '-'}</p>
-                            <p>🌿 Green: {address.green_day || '-'}</p>
+                            <p>Trash: {address.trash_day || '-'}</p>
+                            <p>Recycling: {address.recycling_day || '-'}</p>
+                            <p>Green: {address.green_day || '-'}</p>
                           </div>
                         </div>
                       </Popup>
