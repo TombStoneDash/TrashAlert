@@ -610,6 +610,11 @@ async def coverage():
 async def embed_js():
     return Response(content=_template("embed.js"), media_type="application/javascript")
 
+@app.get("/favicon.ico")
+async def favicon():
+    svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="#22c55e"/><text x="16" y="23" font-size="20" font-weight="800" font-family="system-ui" fill="white" text-anchor="middle">T</text></svg>'
+    return Response(content=svg, media_type="image/svg+xml")
+
 
 # ---------------------------------------------------------------------------
 # Routes — Map
