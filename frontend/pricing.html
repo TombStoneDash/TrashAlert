@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Pricing | TrashAlert</title>
-  <meta name="description" content="TrashAlert pricing for property managers. Free 1-lookup tier, Starter $29/mo up to 25 properties, Portfolio $99/mo up to 250 properties, Enterprise custom." />
+  <meta name="description" content="TrashAlert is free for residents. Property manager plans start at $29/mo for up to 25 properties, $99/mo for 250 with API access." />
 
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -41,6 +41,22 @@
     .plan .cta-primary:hover { background: #16a34a; }
     .plan .cta-outline { background: transparent; color: var(--accent); border: 2px solid var(--accent); }
     .plan .cta-outline:hover { background: rgba(56,189,248,0.1); }
+
+    /* Resident free section */
+    .free-section { max-width: 720px; margin: 48px auto 0; padding: 0 24px; }
+    .free-card { background: var(--card); border: 2px solid var(--green); border-radius: 16px; padding: 48px 40px; text-align: center; position: relative; }
+    .free-card::before { content: "For Residents"; position: absolute; top: -13px; left: 50%; transform: translateX(-50%); background: var(--green); color: #fff; font-size: 12px; font-weight: 700; padding: 4px 14px; border-radius: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .free-card .price { font-size: 64px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+    .free-card .price-label { font-size: 18px; color: var(--green); font-weight: 700; margin-bottom: 16px; }
+    .free-card p { font-size: 16px; color: var(--muted); margin-bottom: 24px; max-width: 480px; margin-left: auto; margin-right: auto; }
+    .free-features { display: flex; justify-content: center; gap: 24px; flex-wrap: wrap; margin-bottom: 28px; }
+    .free-features span { font-size: 14px; color: var(--text); }
+    .free-features span::before { content: "\2713"; color: var(--green); font-weight: 700; margin-right: 8px; }
+
+    /* PM section heading */
+    .pm-heading { max-width: 720px; margin: 64px auto 0; padding: 0 32px; text-align: center; }
+    .pm-heading h2 { font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+    .pm-heading p { font-size: 16px; color: var(--muted); }
 
     /* FAQ */
     .faq { max-width: 720px; margin: 64px auto; padding: 0 32px 80px; }
@@ -128,24 +144,33 @@
 </nav>
 
 <section class="hero">
-  <h1>Simple pricing. No surprises.</h1>
-  <p>Start free for 14 days. Scale to any portfolio size.</p>
+  <h1>Free for residents. Built for property managers.</h1>
+  <p>Look up any address for free. Managing a portfolio? Plans start at $29/mo.</p>
 </section>
 
-<div class="grid">
-  <!-- Free -->
-  <div class="plan">
-    <div class="tier">Free</div>
-    <div class="price">$0</div>
-    <p class="desc">Try it out. One free lookup, no account needed.</p>
-    <ul>
-      <li>1 address lookup</li>
-      <li>Zone map access</li>
-      <li>City coverage info</li>
-    </ul>
-    <a href="/" class="cta cta-outline">Look up an address</a>
+<!-- Free for Residents -->
+<div class="free-section">
+  <div class="free-card">
+    <div class="price">Free</div>
+    <div class="price-label">Always free. No account required.</div>
+    <p>Look up trash and recycling collection days for any address in our 26-city network. Unlimited lookups, no signup, no credit card.</p>
+    <div class="free-features">
+      <span>Unlimited lookups</span>
+      <span>Zone map access</span>
+      <span>26 cities covered</span>
+      <span>Real municipal data</span>
+    </div>
+    <a href="/" class="cta cta-primary" style="display:inline-block; padding:14px 32px;">Look up your address</a>
   </div>
+</div>
 
+<!-- PM Section -->
+<div class="pm-heading">
+  <h2>For Property Managers</h2>
+  <p>Manage your entire portfolio. 14-day free trial on all plans.</p>
+</div>
+
+<div class="grid">
   <!-- Starter -->
   <div class="plan">
     <div class="tier">Starter</div>
