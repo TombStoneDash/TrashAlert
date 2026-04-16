@@ -34,6 +34,24 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
 
+
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc):
+    try:
+        html = (FRONTEND_DIR / "404.html").read_text(encoding="utf-8")
+        return HTMLResponse(content=html, status_code=404)
+    except Exception:
+        return HTMLResponse(content="<h1>404 — Not Found</h1>", status_code=404)
+
+
+@app.exception_handler(500)
+async def server_error_handler(request: Request, exc):
+    try:
+        html = (FRONTEND_DIR / "500.html").read_text(encoding="utf-8")
+        return HTMLResponse(content=html, status_code=500)
+    except Exception:
+        return HTMLResponse(content="<h1>500 — Server Error</h1>", status_code=500)
+
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
 DAY_INDEX = {d: i for i, d in enumerate(DAYS)}
 H3_RESOLUTION = 7
