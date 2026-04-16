@@ -132,6 +132,10 @@
     .footer-bottom a { color: var(--accent); text-decoration: none; font-size: 13px; }
     .footer-bottom a:hover { text-decoration: underline; }
 
+    /* --- Accessibility --- */
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
     /* --- Loading spinner --- */
     .spinner { width: 20px; height: 20px; border: 2px solid rgba(15,23,42,0.2); border-top-color: #0f172a; border-radius: 50%; animation: spin 0.6s linear infinite; display: inline-block; vertical-align: middle; margin-right: 6px; }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -159,7 +163,7 @@
 <body>
 
 <!-- Nav -->
-<nav>
+<nav role="navigation" aria-label="Main navigation">
   <a href="/" class="logo">Trash<span>Alert</span></a>
   <button class="mobile-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Menu">&#9776;</button>
   <div class="nav-links">
@@ -180,11 +184,13 @@
 
 <!-- Search -->
 <div class="search-section">
-  <form class="search-box" id="searchForm">
+  <form class="search-box" id="searchForm" role="search">
+    <label for="addressInput" class="sr-only">Street address</label>
     <input type="text" id="addressInput" placeholder="Enter your address..." required autocomplete="street-address" />
     <button type="submit" id="searchBtn">Look Up</button>
   </form>
   <div class="city-row">
+    <label for="citySelect" class="sr-only">City</label>
     <select class="city-select" id="citySelect">
       <option value="">Select city...</option>
     </select>
@@ -192,8 +198,8 @@
 </div>
 
 <!-- Results -->
-<div class="results-area" id="resultsArea">
-  <div id="errorBox"></div>
+<div class="results-area" id="resultsArea" aria-live="polite">
+  <div id="errorBox" role="alert"></div>
   <div id="resultBox"></div>
 </div>
 
