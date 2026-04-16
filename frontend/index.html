@@ -109,6 +109,9 @@
     .feature h3 { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 8px; }
     .feature p { font-size: 14px; color: var(--muted); line-height: 1.5; }
 
+    /* --- City tags --- */
+    .city-tag { display: inline-block; padding: 6px 14px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-weight: 500; color: var(--text); }
+
     /* --- CTA --- */
     .cta-section { max-width: 640px; margin: 64px auto; padding: 0 32px; text-align: center; }
     .cta-section h2 { font-size: 24px; font-weight: 700; color: #fff; margin-bottom: 12px; }
@@ -247,10 +250,20 @@
   </div>
 </section>
 
+<!-- Cities -->
+<section class="features" style="margin-top:24px">
+  <h2>Works in your city</h2>
+  <p style="text-align:center;color:var(--muted);font-size:15px;margin-top:-20px;margin-bottom:24px">Real collection data from city APIs and waste haulers.</p>
+  <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:10px;max-width:720px;margin:0 auto">
+    <span class="city-tag">Houston</span><span class="city-tag">Phoenix</span><span class="city-tag">Austin</span><span class="city-tag">Dallas</span><span class="city-tag">Boston</span><span class="city-tag">Denver</span><span class="city-tag">San Antonio</span><span class="city-tag">San Francisco</span><span class="city-tag">San Diego</span><span class="city-tag">Chicago</span><span class="city-tag">NYC</span><span class="city-tag">Philadelphia</span><span class="city-tag">Charlotte</span><span class="city-tag">Seattle</span><span class="city-tag">Portland</span><span class="city-tag">Columbus</span><span class="city-tag">Miami</span><span class="city-tag">Atlanta</span><span class="city-tag">Detroit</span><span class="city-tag">Minneapolis</span>
+  </div>
+  <p style="text-align:center;margin-top:20px"><a href="/coverage" style="color:var(--accent);text-decoration:none;font-weight:600;font-size:15px">See all cities &rarr;</a></p>
+</section>
+
 <!-- CTA -->
 <div class="cta-section">
   <h2>Ready to simplify waste management?</h2>
-  <p>Free for single lookups. Plans starting at $29/mo for property managers.</p>
+  <p>Free for residents. Plans starting at $29/mo for property managers.</p>
   <div class="cta-buttons">
     <a href="/pricing" class="btn btn-primary">View Pricing</a>
     <a href="/coverage" class="btn btn-outline">See Coverage</a>
@@ -283,7 +296,7 @@
     </div>
   </div>
   <div class="footer-bottom">
-    <p>TrashAlert &copy; 2026. All rights reserved.</p>
+    <p>&copy; 2026 Tombstone Dash LLC. Built in San Diego.</p>
     <a href="/about">About us</a>
   </div>
 </footer>
