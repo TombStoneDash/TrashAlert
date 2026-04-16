@@ -19,6 +19,7 @@ from typing import Optional
 
 import h3
 from fastapi import FastAPI, HTTPException, Header, Query, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from pydantic import BaseModel, Field
 
@@ -29,6 +30,13 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 app = FastAPI(title="TrashAlert", version="2.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://trashalert.io", "https://www.trashalert.io"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PROJECT_ROOT / "data"
@@ -51,6 +59,23 @@ async def server_error_handler(request: Request, exc):
         return HTMLResponse(content=html, status_code=500)
     except Exception:
         return HTMLResponse(content="<h1>500 — Server Error</h1>", status_code=500)
+
+
+@app.exception_handler(Exception)
+async def unhandled_error_handler(request: Request, exc):
+    """Catch unhandled exceptions — log them but never expose stack traces."""
+    logger.error(f"Unhandled error on {request.url.path}: {exc}")
+    if request.url.path.startswith("/api/"):
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal server error"},
+        )
+    try:
+        html = (FRONTEND_DIR / "500.html").read_text(encoding="utf-8")
+        return HTMLResponse(content=html, status_code=500)
+    except Exception:
+        return HTMLResponse(content="<h1>500 — Server Error</h1>", status_code=500)
+
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
 DAY_INDEX = {d: i for i, d in enumerate(DAYS)}
