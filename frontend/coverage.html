@@ -36,6 +36,16 @@
 
     .loading { text-align: center; padding: 60px; color: var(--muted); font-size: 16px; }
 
+    .search-bar { max-width: 480px; margin: 0 auto 32px; padding: 0 24px; }
+    .search-bar input { width: 100%; padding: 12px 18px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: #fff; font-size: 15px; outline: none; }
+    .search-bar input::placeholder { color: var(--muted); }
+    .search-bar input:focus { border-color: var(--accent); }
+
+    .cta-banner { max-width: 640px; margin: 0 auto 32px; padding: 20px 28px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; text-align: center; }
+    .cta-banner p { font-size: 15px; color: var(--muted); margin-bottom: 12px; }
+    .cta-banner a { color: var(--accent); text-decoration: none; font-weight: 600; font-size: 15px; }
+    .cta-banner a:hover { text-decoration: underline; }
+
     .source-note { max-width: 700px; margin: 0 auto; padding: 0 32px 48px; text-align: center; }
     .source-note p { font-size: 14px; color: var(--muted); line-height: 1.6; }
     .source-note a { color: var(--accent); text-decoration: none; } .source-note a:hover { text-decoration: underline; }
@@ -70,6 +80,15 @@
   <div class="t"><div class="n" id="cov-total" style="font-size:24px; color: #fff;">--</div><div class="l">Total coverage</div></div>
 </div>
 
+<div class="search-bar">
+  <input type="text" id="citySearch" placeholder="Search cities..." oninput="filterCities()" />
+</div>
+
+<div class="cta-banner">
+  <p>Don't see your city? We're adding new cities monthly.</p>
+  <a href="mailto:hello@trashalert.io">Request your city &rarr;</a>
+</div>
+
 <div class="loading" id="loading">Loading city data&hellip;</div>
 <div class="grid" id="grid" style="display:none;"></div>
 
@@ -77,8 +96,19 @@
   <p>Data sourced from city ArcGIS services, EDCO waste hauler, and municipal open data portals. Each address includes verified collection day, recycling schedule, and zone assignment. <a href="/about">Learn more about our data</a>.</p>
 </div>
 
-<footer>&copy; 2026 TrashAlert</footer>
+<footer>&copy; 2026 Tombstone Dash LLC. Built in San Diego.</footer>
 
+<script>
+function filterCities() {
+  var q = document.getElementById('citySearch').value.toLowerCase();
+  var cards = document.querySelectorAll('.city-card');
+  cards.forEach(function(card) {
+    var name = card.querySelector('h3').textContent.toLowerCase();
+    var state = card.querySelector('.state').textContent.toLowerCase();
+    card.style.display = (name.indexOf(q) !== -1 || state.indexOf(q) !== -1) ? '' : 'none';
+  });
+}
+</script>
 <script>
 (async function() {
   const grid = document.getElementById('grid');
