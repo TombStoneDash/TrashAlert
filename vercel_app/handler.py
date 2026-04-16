@@ -1363,6 +1363,10 @@ async def checkout_redirect(plan: str):
 @app.get("/{city_slug}", response_class=HTMLResponse)
 async def city_page_direct(city_slug: str):
     """Serve bare /{city} directly as a city landing page (no redirect)."""
+    # Handle favicon here since catch-all shadows the explicit route
+    if city_slug == "favicon.ico":
+        svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="#22c55e"/><text x="16" y="23" font-size="20" font-weight="800" font-family="system-ui" fill="white" text-anchor="middle">T</text></svg>'
+        return Response(content=svg, media_type="image/svg+xml")
     slug = _normalize_slug(city_slug)
     if slug is None:
         raise HTTPException(status_code=404, detail=f"Not found: {city_slug}")
