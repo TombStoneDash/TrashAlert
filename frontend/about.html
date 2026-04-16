@@ -45,11 +45,11 @@
 
   <p>In 2025, we started mapping pickup zones for six cities in California's Imperial Valley. We geocoded addresses, built an H3-tessellated zone map, and launched a simple lookup API. Property managers noticed. Tenants stopped calling.</p>
 
-  <p>Today we cover 21 cities across the country, with more onboarding every week. Our data comes from municipal open data portals, waste hauler APIs, and thousands of crowdsourced community reports verified through our consensus algorithm.</p>
+  <p>Today we cover 26+ cities across the country, with more onboarding every week. Our data comes from municipal open data portals, waste hauler APIs, and thousands of crowdsourced community reports verified through our consensus algorithm.</p>
 
   <div class="stats-inline">
-    <div class="si"><div class="n">26</div><div class="l">Cities</div></div>
-    <div class="si"><div class="n">5M+</div><div class="l">Addresses</div></div>
+    <div class="si"><div class="n" id="stat-cities">26</div><div class="l">Cities</div></div>
+    <div class="si"><div class="n" id="stat-addresses">5.7M+</div><div class="l">Addresses</div></div>
     <div class="si"><div class="n">14</div><div class="l">States</div></div>
   </div>
 
@@ -65,12 +65,27 @@
     <div class="val"><h3>Build for the edge case</h3><p>Holiday schedules, route changes, bulk pickup weeks — the exceptions are where the real value is.</p></div>
   </div>
 
+  <h2>Who we are</h2>
+  <p>TrashAlert is built by <strong>Hudson Taylor</strong> at Tombstone Dash LLC in San Diego, California. What started as a side project to map trash zones in the Imperial Valley has grown into a data platform serving property managers and residents in 26+ cities.</p>
+  <p>The team is lean by design: one founder, a fleet of AI agents, and a growing network of municipal data partnerships. We ship fast and prioritize data accuracy over feature bloat.</p>
+
   <h2>Get in touch</h2>
   <p>Property managers: <a href="/for/property-managers">see how TrashAlert works for your portfolio</a>.</p>
   <p>City waste departments: <a href="/for/municipalities">learn about our municipal partnerships</a>.</p>
   <p>Everyone else: <a href="mailto:hello@trashalert.io">hello@trashalert.io</a></p>
 </div>
 
-<footer>&copy; 2026 TrashAlert</footer>
+<footer>&copy; 2026 Tombstone Dash LLC. Built in San Diego.</footer>
+
+<script>
+(async function() {
+  try {
+    var r = await fetch('/api/stats/live');
+    var d = await r.json();
+    document.getElementById('stat-addresses').textContent = d.display || '5.7M+';
+    document.getElementById('stat-cities').textContent = d.total_cities || '26';
+  } catch(e) {}
+})();
+</script>
 </body>
 </html>
