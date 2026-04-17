@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>TrashAlert — Know Your Trash Day</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2322c55e'/%3E%3Ctext x='16' y='23' font-size='20' font-weight='800' font-family='system-ui' fill='white' text-anchor='middle'%3ET%3C/text%3E%3C/svg%3E" />
-  <meta name="description" content="Look up your trash and recycling collection day. 5.7M+ verified addresses across 26 cities with real municipal data." />
+  <meta name="description" content="Look up your trash and recycling collection day. 5.2M+ verified addresses across 26 cities with real municipal data." />
   <meta property="og:title" content="TrashAlert — Know Your Trash Day" />
-  <meta property="og:description" content="Instant pickup schedules for 5.7M+ addresses across 26+ cities. Free lookup, no signup required." />
+  <meta property="og:description" content="Instant pickup schedules for 5.2M+ addresses across 26+ cities. Free lookup, no signup required." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://trashalert.io/" />
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="TrashAlert — Know Your Trash Day" />
-  <meta name="twitter:description" content="Instant pickup schedules for 5.7M+ addresses across 26+ cities." />
+  <meta name="twitter:description" content="Instant pickup schedules for 5.2M+ addresses across 26+ cities." />
   <link rel="canonical" href="https://trashalert.io/" />
   <script type="application/ld+json">
   {
@@ -225,7 +225,7 @@
 <!-- Stats -->
 <div class="stats-bar">
   <div class="stat">
-    <div class="n" id="statAddresses">5.7M+</div>
+    <div class="n" id="statAddresses">5.2M+</div>
     <div class="l">verified addresses</div>
   </div>
   <div class="stat">
@@ -339,7 +339,7 @@
     try {
       var resp = await fetch('/api/stats/live');
       var data = await resp.json();
-      document.getElementById('statAddresses').textContent = data.display || '5.7M+';
+      document.getElementById('statAddresses').textContent = data.display || '5.2M+';
       document.getElementById('statCities').textContent = data.total_cities || '26';
     } catch(e) { /* use defaults */ }
   })();

@@ -65,7 +65,7 @@
 </section>
 
 <div class="stats" style="gap:32px">
-  <div class="stat"><div class="n" id="pm-stat-addr">5.7M+</div><div class="l">Verified addresses</div></div>
+  <div class="stat"><div class="n" id="pm-stat-addr">5.2M+</div><div class="l">Verified addresses</div></div>
   <div class="stat"><div class="n" id="pm-stat-cities">26+</div><div class="l">City APIs</div></div>
   <div class="stat"><div class="n">&lt; 2s</div><div class="l">Lookup speed</div></div>
   <div class="stat"><div class="n">$0</div><div class="l">Setup fee</div></div>
@@ -166,7 +166,7 @@
   try {
     var r = await fetch('/api/stats/live');
     var d = await r.json();
-    document.getElementById('pm-stat-addr').textContent = d.display || '5.7M+';
+    document.getElementById('pm-stat-addr').textContent = d.display || '5.2M+';
     document.getElementById('pm-stat-cities').textContent = (d.total_cities || '26') + '+';
   } catch(e) {}
 })();

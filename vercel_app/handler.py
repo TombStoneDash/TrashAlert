@@ -395,8 +395,9 @@ async def list_cities():
     return {"total_cities": len(cities), "total_addresses": sum(c["address_count"] for c in cities), "cities": cities}
 
 
-# Known import totals (fallback when Supabase count query times out on 5M+ rows)
-KNOWN_TOTAL = 5191847
+# Known import totals (fallback when Supabase count query times out on 5M+ rows).
+# Displayed as 5.2M+ — rounded to the nearest 100K per founder guidance.
+KNOWN_TOTAL = 5200000
 KNOWN_CITY_COUNTS = {
     "houston": 474000, "phoenix": 365558, "san-antonio": 346580,
     "austin": 331171, "boston": 392052, "dallas": 253286,
