@@ -84,9 +84,15 @@
   <input type="text" id="citySearch" placeholder="Search cities..." oninput="filterCities()" />
 </div>
 
-<div class="cta-banner">
+<div class="cta-banner" id="requestBanner">
   <p>Don't see your city? We're adding new cities monthly.</p>
-  <a href="mailto:hello@trashalert.io">Request your city &rarr;</a>
+  <form id="requestForm" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:12px">
+    <input type="text" name="city" placeholder="City" required style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:#fff;font-size:14px;width:140px" />
+    <input type="text" name="state" placeholder="State" required style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:#fff;font-size:14px;width:100px" />
+    <input type="email" name="email" placeholder="Your email" required style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:#fff;font-size:14px;width:200px" />
+    <button type="submit" style="padding:8px 18px;border-radius:8px;border:none;background:var(--accent);color:#0f172a;font-size:14px;font-weight:700;cursor:pointer">Request</button>
+  </form>
+  <div id="requestMsg" style="margin-top:8px;font-size:14px;display:none"></div>
 </div>
 
 <div class="loading" id="loading">Loading city data&hellip;</div>
@@ -99,6 +105,28 @@
 <footer>&copy; 2026 Tombstone Dash LLC. Built in San Diego.</footer>
 
 <script>
+document.getElementById('requestForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  var f = e.target;
+  var msg = document.getElementById('requestMsg');
+  try {
+    var resp = await fetch('/api/request-city', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({city: f.city.value, state: f.state.value, email: f.email.value})
+    });
+    var data = await resp.json();
+    msg.textContent = data.message || 'Thanks! Request submitted.';
+    msg.style.color = 'var(--green)';
+    msg.style.display = '';
+    f.reset();
+  } catch(err) {
+    msg.textContent = 'Something went wrong. Try emailing hello@trashalert.io';
+    msg.style.color = 'var(--red, #ef4444)';
+    msg.style.display = '';
+  }
+});
+
 function filterCities() {
   var q = document.getElementById('citySearch').value.toLowerCase();
   var cards = document.querySelectorAll('.city-card');

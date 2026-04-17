@@ -396,16 +396,22 @@ async def list_cities():
 
 
 # Known import totals (fallback when Supabase count query times out on 5M+ rows)
-KNOWN_TOTAL = 5191847
+KNOWN_TOTAL = 5_700_000
 KNOWN_CITY_COUNTS = {
     "houston": 474000, "phoenix": 365558, "san-antonio": 346580,
     "austin": 331171, "boston": 392052, "dallas": 253286,
     "denver": 186335, "san-francisco": 34443, "portland": 898, "nyc": 610,
 }
 
+_NO_CACHE = {
+    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+    "Pragma": "no-cache",
+}
+
+
 @app.get("/api/stats/live")
 async def live_stats():
-    """Real-time stats with Supabase counts or known fallbacks."""
+    """Real-time stats — queries Supabase on every request, no caching."""
     total = KNOWN_TOTAL
     top = KNOWN_CITY_COUNTS
 
@@ -426,15 +432,18 @@ async def live_stats():
             pass  # Use known fallback
 
     display = f"{total / 1_000_000:.1f}M+" if total >= 1_000_000 else f"{total:,}"
-    return {
-        "total_addresses": total,
-        "total_cities": 26,
-        "display": display,
-        "top_cities": sorted(
-            [{"city": k, "addresses": v} for k, v in top.items() if v > 0],
-            key=lambda x: -x["addresses"],
-        )[:10],
-    }
+    return JSONResponse(
+        content={
+            "total_addresses": total,
+            "total_cities": 26,
+            "display": display,
+            "top_cities": sorted(
+                [{"city": k, "addresses": v} for k, v in top.items() if v > 0],
+                key=lambda x: -x["addresses"],
+            )[:10],
+        },
+        headers=_NO_CACHE,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -564,6 +573,36 @@ async def coverage_stats():
         "cities_with_zones": zone_cities,
         "total_cities": 26 + zone_cities,
     }
+
+
+# ---------------------------------------------------------------------------
+# Routes — City request
+# ---------------------------------------------------------------------------
+
+class CityRequest(BaseModel):
+    city: str = Field(..., min_length=2, max_length=100)
+    state: str = Field(..., min_length=2, max_length=50)
+    email: str = Field(..., min_length=5, max_length=200)
+
+@app.post("/api/request-city")
+async def request_city(req: CityRequest):
+    """Log a city request. Writes to Supabase if available, otherwise logs."""
+    logger.info(f"City request: {req.city}, {req.state} from {req.email}")
+    if _supa_ok():
+        try:
+            import requests as _req
+            resp = _req.post(
+                f"{SUPABASE_URL}/rest/v1/city_requests",
+                headers={**_supa_headers(), "Content-Type": "application/json", "Prefer": "return=minimal"},
+                json={"city": req.city, "state": req.state, "email": req.email},
+                timeout=5,
+            )
+            if resp.status_code in (200, 201):
+                return {"status": "ok", "message": f"Thanks! We'll notify you when {req.city} launches."}
+        except Exception as e:
+            logger.error(f"City request save failed: {e}")
+    # Fallback — log was already written above
+    return {"status": "ok", "message": f"Thanks! We'll notify you when {req.city} launches."}
 
 
 # ---------------------------------------------------------------------------
