@@ -600,6 +600,55 @@ async def embed_page():
 async def coverage():
     return _template("coverage.html")
 
+
+class CityRequest(BaseModel):
+    city: str = Field(..., min_length=1, max_length=80)
+    state: str = Field(..., min_length=2, max_length=2)
+    email: str = Field(..., min_length=3, max_length=200)
+
+
+@app.post("/api/request-city")
+async def request_city(req: CityRequest):
+    """Capture a 'request your city' submission from /coverage.
+
+    Writes to Supabase table `city_requests` when configured; always logs
+    to stdout so requests are captured in server logs even if the table
+    does not exist yet.
+    """
+    payload = {
+        "city": req.city.strip(),
+        "state": req.state.strip().upper(),
+        "email": req.email.strip().lower(),
+        "submitted_at": datetime.utcnow().isoformat(),
+    }
+    # Always log — operators can recover requests from Vercel logs.
+    logger.info(f"[request-city] {json.dumps(payload)}")
+
+    inserted = False
+    if _supa_ok():
+        import requests as _req
+        try:
+            resp = _req.post(
+                f"{SUPABASE_URL}/rest/v1/city_requests",
+                headers={
+                    **_supa_headers(),
+                    "Content-Type": "application/json",
+                    "Prefer": "return=minimal",
+                },
+                json=payload,
+                timeout=5,
+            )
+            inserted = resp.status_code in (200, 201, 204)
+            if not inserted:
+                logger.warning(f"[request-city] supabase responded {resp.status_code}: {resp.text[:200]}")
+        except Exception as e:
+            logger.warning(f"[request-city] supabase insert failed: {e}")
+
+    return JSONResponse(
+        content={"ok": True, "saved": inserted, "city": payload["city"], "state": payload["state"]},
+        headers=NO_CACHE_HEADERS,
+    )
+
 @app.get("/embed.js")
 async def embed_js():
     return Response(content=_template("embed.js"), media_type="application/javascript")

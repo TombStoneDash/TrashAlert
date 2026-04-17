@@ -45,6 +45,16 @@
     .cta-banner p { font-size: 15px; color: var(--muted); margin-bottom: 12px; }
     .cta-banner a { color: var(--accent); text-decoration: none; font-weight: 600; font-size: 15px; }
     .cta-banner a:hover { text-decoration: underline; }
+    .request-form { display: grid; grid-template-columns: 2fr 1fr 2fr auto; gap: 8px; margin-top: 12px; }
+    .request-form input, .request-form button { padding: 10px 12px; border-radius: 8px; font-size: 14px; border: 1px solid var(--border); background: var(--bg); color: var(--text); outline: none; }
+    .request-form input:focus { border-color: var(--accent); }
+    .request-form button { background: var(--green); color: #fff; border: none; font-weight: 700; cursor: pointer; padding: 10px 16px; }
+    .request-form button:hover:not(:disabled) { background: #16a34a; }
+    .request-form button:disabled { opacity: 0.6; cursor: wait; }
+    .request-status { font-size: 13px; margin-top: 10px; }
+    .request-status.ok { color: var(--green); }
+    .request-status.err { color: #ef4444; }
+    @media (max-width: 600px) { .request-form { grid-template-columns: 1fr; } }
 
     .source-note { max-width: 700px; margin: 0 auto; padding: 0 32px 48px; text-align: center; }
     .source-note p { font-size: 14px; color: var(--muted); line-height: 1.6; }
@@ -85,8 +95,14 @@
 </div>
 
 <div class="cta-banner">
-  <p>Don't see your city? We're adding new cities monthly.</p>
-  <a href="mailto:hello@trashalert.io">Request your city &rarr;</a>
+  <p>Don't see your city? Tell us where you are and we'll prioritize it.</p>
+  <form class="request-form" id="requestCityForm" autocomplete="on">
+    <input type="text" id="rcCity" name="city" placeholder="City" required aria-label="City" />
+    <input type="text" id="rcState" name="state" placeholder="State (e.g. CA)" required maxlength="2" aria-label="State code" />
+    <input type="email" id="rcEmail" name="email" placeholder="Email" required aria-label="Email" />
+    <button type="submit" id="rcSubmit">Request</button>
+  </form>
+  <div class="request-status" id="rcStatus" role="status" aria-live="polite"></div>
 </div>
 
 <div class="loading" id="loading">Loading city data&hellip;</div>
@@ -108,6 +124,40 @@ function filterCities() {
     card.style.display = (name.indexOf(q) !== -1 || state.indexOf(q) !== -1) ? '' : 'none';
   });
 }
+
+document.getElementById('requestCityForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  var form = e.target;
+  var btn = document.getElementById('rcSubmit');
+  var status = document.getElementById('rcStatus');
+  var payload = {
+    city:  document.getElementById('rcCity').value.trim(),
+    state: document.getElementById('rcState').value.trim().toUpperCase(),
+    email: document.getElementById('rcEmail').value.trim(),
+  };
+  status.className = 'request-status';
+  status.textContent = '';
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  try {
+    var resp = await fetch('/api/request-city', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    var data = await resp.json().catch(function(){ return {}; });
+    if (!resp.ok) throw new Error(data.detail || ('HTTP ' + resp.status));
+    status.className = 'request-status ok';
+    status.textContent = 'Thanks — we\u2019ll let you know when ' + payload.city + ', ' + payload.state + ' is live.';
+    form.reset();
+  } catch (err) {
+    status.className = 'request-status err';
+    status.textContent = 'Could not submit: ' + (err.message || 'unknown error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Request';
+  }
+});
 </script>
 <script>
 (async function() {
