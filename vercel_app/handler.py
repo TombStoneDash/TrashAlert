@@ -403,9 +403,16 @@ KNOWN_CITY_COUNTS = {
     "denver": 186335, "san-francisco": 34443, "portland": 898, "nyc": 610,
 }
 
+NO_CACHE_HEADERS = {
+    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+    "Pragma": "no-cache",
+    "Expires": "0",
+}
+
+
 @app.get("/api/stats/live")
 async def live_stats():
-    """Real-time stats with Supabase counts or known fallbacks."""
+    """Real-time stats — queries Supabase COUNT(*) on every request, no caching."""
     total = KNOWN_TOTAL
     top = KNOWN_CITY_COUNTS
 
@@ -426,7 +433,7 @@ async def live_stats():
             pass  # Use known fallback
 
     display = f"{total / 1_000_000:.1f}M+" if total >= 1_000_000 else f"{total:,}"
-    return {
+    body = {
         "total_addresses": total,
         "total_cities": 26,
         "display": display,
@@ -435,6 +442,7 @@ async def live_stats():
             key=lambda x: -x["addresses"],
         )[:10],
     }
+    return JSONResponse(content=body, headers=NO_CACHE_HEADERS)
 
 
 # ---------------------------------------------------------------------------
@@ -490,19 +498,12 @@ async def api_lookup_zone(
 # Routes — Coverage stats (verified + estimated)
 # ---------------------------------------------------------------------------
 
-# Cache for zone coverage stats (refreshed every 5 minutes)
-_zone_stats_cache: dict = {}
-_zone_stats_ts: float = 0
-
-
 @app.get("/api/stats/coverage")
 async def coverage_stats():
-    """Combined coverage: individual verified addresses from schedule_reports
-    plus estimated addresses from collection_zones polygons."""
-    import time
+    """Combined coverage: verified addresses from schedule_reports plus
+    estimated addresses from collection_zones polygons. Queries Supabase
+    on every request — no caching."""
     import requests as _req
-
-    global _zone_stats_cache, _zone_stats_ts
 
     # --- Verified addresses (from schedule_reports) ---
     verified_total = KNOWN_TOTAL
@@ -522,12 +523,11 @@ async def coverage_stats():
             pass
 
     # --- Estimated addresses (from collection_zones via RPC) ---
-    now = time.time()
     estimated_total = 0
     zone_count = 0
     zone_cities = 0
 
-    if now - _zone_stats_ts > 300 and _supa_ok():
+    if _supa_ok():
         try:
             resp = _req.post(
                 f"{SUPABASE_URL}/rest/v1/rpc/zone_coverage_stats",
@@ -539,23 +539,16 @@ async def coverage_stats():
             rows = resp.json()
             if rows and len(rows) > 0:
                 row = rows[0]
-                _zone_stats_cache = {
-                    "total_zones": row.get("total_zones", 0),
-                    "total_estimated_addresses": row.get("total_estimated_addresses", 0),
-                    "cities_with_zones": row.get("cities_with_zones", 0),
-                }
-                _zone_stats_ts = now
+                zone_count = row.get("total_zones", 0)
+                estimated_total = row.get("total_estimated_addresses", 0)
+                zone_cities = row.get("cities_with_zones", 0)
         except Exception:
             pass
-
-    estimated_total = _zone_stats_cache.get("total_estimated_addresses", 0)
-    zone_count = _zone_stats_cache.get("total_zones", 0)
-    zone_cities = _zone_stats_cache.get("cities_with_zones", 0)
 
     combined = verified_total + estimated_total
     display = f"{combined / 1_000_000:.1f}M+" if combined >= 1_000_000 else f"{combined:,}"
 
-    return {
+    body = {
         "verified_addresses": verified_total,
         "estimated_addresses": estimated_total,
         "total_coverage": combined,
@@ -564,6 +557,7 @@ async def coverage_stats():
         "cities_with_zones": zone_cities,
         "total_cities": 26 + zone_cities,
     }
+    return JSONResponse(content=body, headers=NO_CACHE_HEADERS)
 
 
 # ---------------------------------------------------------------------------
