@@ -1,0 +1,15 @@
+{
+  "name": "trashalert-factory",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Factory tooling for TrashAlert: city audits, sampling, import scripts. Not the runtime — the FastAPI app under app/ and the static frontend under frontend/ are the product.",
+  "scripts": {
+    "audit:cities": "tsx scripts/audit-cities.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

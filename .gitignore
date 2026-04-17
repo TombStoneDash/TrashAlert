@@ -67,6 +67,14 @@ certbot/
 nginx-cache/
 empty/
 
+# Node / factory tooling
+node_modules/
+test-results/
+
+# Agent operational files (per-run, not for git)
+CHECKPOINT.md
+REPORT.md
+
 # Logs
 *.log
 # Logs
