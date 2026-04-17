@@ -1,6 +1,6 @@
 # TrashAlert Data Sources Research
 
-**Last updated:** 2026-04-15
+**Last updated:** 2026-04-16
 **Goal:** Identify open data endpoints for US cities with 200K+ population
 
 ## Cities with Confirmed ArcGIS / Open Data Endpoints
@@ -21,6 +21,8 @@
 | Albuquerque, NM | ArcGIS MapServer | 9 zones | Pickup_Day | `import-albuquerque.mjs` |
 | Tucson, AZ | ArcGIS MapServer | 238 brush/bulky + 131 recycling | ServiceDates/DOS | `import-tucson.mjs` |
 | LA County (unincorporated) | ArcGIS FeatureServer | 239 zones | PICKUP_DAY | `import-la-county.mjs` |
+| Raleigh, NC | ArcGIS FeatureServer | **128,853 address points** | SERVICEDAY | `import-raleigh.mjs` |
+| Mesa, AZ | ArcGIS MapServer | 270 zones (3 barrel types) | BLACK/BLUE/GREEN | `import-mesa.mjs` |
 
 ## Endpoint Details
 
