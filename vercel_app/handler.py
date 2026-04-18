@@ -395,23 +395,25 @@ async def list_cities():
     return {"total_cities": len(cities), "total_addresses": sum(c["address_count"] for c in cities), "cities": cities}
 
 
-# Known import totals (fallback when Supabase count query times out on 5M+ rows)
-KNOWN_TOTAL = 5_700_000
+# Known import totals (fallback when Supabase count query times out on 5M+ rows).
+# Displayed as 5.2M+ — rounded to the nearest 100K per founder guidance.
+KNOWN_TOTAL = 5200000
 KNOWN_CITY_COUNTS = {
     "houston": 474000, "phoenix": 365558, "san-antonio": 346580,
     "austin": 331171, "boston": 392052, "dallas": 253286,
     "denver": 186335, "san-francisco": 34443, "portland": 898, "nyc": 610,
 }
 
-_NO_CACHE = {
+NO_CACHE_HEADERS = {
     "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
     "Pragma": "no-cache",
+    "Expires": "0",
 }
 
 
 @app.get("/api/stats/live")
 async def live_stats():
-    """Real-time stats — queries Supabase on every request, no caching."""
+    """Real-time stats — queries Supabase COUNT(*) on every request, no caching."""
     total = KNOWN_TOTAL
     top = KNOWN_CITY_COUNTS
 
@@ -432,18 +434,16 @@ async def live_stats():
             pass  # Use known fallback
 
     display = f"{total / 1_000_000:.1f}M+" if total >= 1_000_000 else f"{total:,}"
-    return JSONResponse(
-        content={
-            "total_addresses": total,
-            "total_cities": 26,
-            "display": display,
-            "top_cities": sorted(
-                [{"city": k, "addresses": v} for k, v in top.items() if v > 0],
-                key=lambda x: -x["addresses"],
-            )[:10],
-        },
-        headers=_NO_CACHE,
-    )
+    body = {
+        "total_addresses": total,
+        "total_cities": 26,
+        "display": display,
+        "top_cities": sorted(
+            [{"city": k, "addresses": v} for k, v in top.items() if v > 0],
+            key=lambda x: -x["addresses"],
+        )[:10],
+    }
+    return JSONResponse(content=body, headers=NO_CACHE_HEADERS)
 
 
 # ---------------------------------------------------------------------------
@@ -499,19 +499,12 @@ async def api_lookup_zone(
 # Routes — Coverage stats (verified + estimated)
 # ---------------------------------------------------------------------------
 
-# Cache for zone coverage stats (refreshed every 5 minutes)
-_zone_stats_cache: dict = {}
-_zone_stats_ts: float = 0
-
-
 @app.get("/api/stats/coverage")
 async def coverage_stats():
-    """Combined coverage: individual verified addresses from schedule_reports
-    plus estimated addresses from collection_zones polygons."""
-    import time
+    """Combined coverage: verified addresses from schedule_reports plus
+    estimated addresses from collection_zones polygons. Queries Supabase
+    on every request — no caching."""
     import requests as _req
-
-    global _zone_stats_cache, _zone_stats_ts
 
     # --- Verified addresses (from schedule_reports) ---
     verified_total = KNOWN_TOTAL
@@ -531,12 +524,11 @@ async def coverage_stats():
             pass
 
     # --- Estimated addresses (from collection_zones via RPC) ---
-    now = time.time()
     estimated_total = 0
     zone_count = 0
     zone_cities = 0
 
-    if now - _zone_stats_ts > 300 and _supa_ok():
+    if _supa_ok():
         try:
             resp = _req.post(
                 f"{SUPABASE_URL}/rest/v1/rpc/zone_coverage_stats",
@@ -548,23 +540,16 @@ async def coverage_stats():
             rows = resp.json()
             if rows and len(rows) > 0:
                 row = rows[0]
-                _zone_stats_cache = {
-                    "total_zones": row.get("total_zones", 0),
-                    "total_estimated_addresses": row.get("total_estimated_addresses", 0),
-                    "cities_with_zones": row.get("cities_with_zones", 0),
-                }
-                _zone_stats_ts = now
+                zone_count = row.get("total_zones", 0)
+                estimated_total = row.get("total_estimated_addresses", 0)
+                zone_cities = row.get("cities_with_zones", 0)
         except Exception:
             pass
-
-    estimated_total = _zone_stats_cache.get("total_estimated_addresses", 0)
-    zone_count = _zone_stats_cache.get("total_zones", 0)
-    zone_cities = _zone_stats_cache.get("cities_with_zones", 0)
 
     combined = verified_total + estimated_total
     display = f"{combined / 1_000_000:.1f}M+" if combined >= 1_000_000 else f"{combined:,}"
 
-    return {
+    body = {
         "verified_addresses": verified_total,
         "estimated_addresses": estimated_total,
         "total_coverage": combined,
@@ -573,36 +558,7 @@ async def coverage_stats():
         "cities_with_zones": zone_cities,
         "total_cities": 26 + zone_cities,
     }
-
-
-# ---------------------------------------------------------------------------
-# Routes — City request
-# ---------------------------------------------------------------------------
-
-class CityRequest(BaseModel):
-    city: str = Field(..., min_length=2, max_length=100)
-    state: str = Field(..., min_length=2, max_length=50)
-    email: str = Field(..., min_length=5, max_length=200)
-
-@app.post("/api/request-city")
-async def request_city(req: CityRequest):
-    """Log a city request. Writes to Supabase if available, otherwise logs."""
-    logger.info(f"City request: {req.city}, {req.state} from {req.email}")
-    if _supa_ok():
-        try:
-            import requests as _req
-            resp = _req.post(
-                f"{SUPABASE_URL}/rest/v1/city_requests",
-                headers={**_supa_headers(), "Content-Type": "application/json", "Prefer": "return=minimal"},
-                json={"city": req.city, "state": req.state, "email": req.email},
-                timeout=5,
-            )
-            if resp.status_code in (200, 201):
-                return {"status": "ok", "message": f"Thanks! We'll notify you when {req.city} launches."}
-        except Exception as e:
-            logger.error(f"City request save failed: {e}")
-    # Fallback — log was already written above
-    return {"status": "ok", "message": f"Thanks! We'll notify you when {req.city} launches."}
+    return JSONResponse(content=body, headers=NO_CACHE_HEADERS)
 
 
 # ---------------------------------------------------------------------------
@@ -644,6 +600,55 @@ async def embed_page():
 @app.get("/coverage", response_class=HTMLResponse)
 async def coverage():
     return _template("coverage.html")
+
+
+class CityRequest(BaseModel):
+    city: str = Field(..., min_length=1, max_length=80)
+    state: str = Field(..., min_length=2, max_length=2)
+    email: str = Field(..., min_length=3, max_length=200)
+
+
+@app.post("/api/request-city")
+async def request_city(req: CityRequest):
+    """Capture a 'request your city' submission from /coverage.
+
+    Writes to Supabase table `city_requests` when configured; always logs
+    to stdout so requests are captured in server logs even if the table
+    does not exist yet.
+    """
+    payload = {
+        "city": req.city.strip(),
+        "state": req.state.strip().upper(),
+        "email": req.email.strip().lower(),
+        "submitted_at": datetime.utcnow().isoformat(),
+    }
+    # Always log — operators can recover requests from Vercel logs.
+    logger.info(f"[request-city] {json.dumps(payload)}")
+
+    inserted = False
+    if _supa_ok():
+        import requests as _req
+        try:
+            resp = _req.post(
+                f"{SUPABASE_URL}/rest/v1/city_requests",
+                headers={
+                    **_supa_headers(),
+                    "Content-Type": "application/json",
+                    "Prefer": "return=minimal",
+                },
+                json=payload,
+                timeout=5,
+            )
+            inserted = resp.status_code in (200, 201, 204)
+            if not inserted:
+                logger.warning(f"[request-city] supabase responded {resp.status_code}: {resp.text[:200]}")
+        except Exception as e:
+            logger.warning(f"[request-city] supabase insert failed: {e}")
+
+    return JSONResponse(
+        content={"ok": True, "saved": inserted, "city": payload["city"], "state": payload["state"]},
+        headers=NO_CACHE_HEADERS,
+    )
 
 @app.get("/embed.js")
 async def embed_js():

@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Coverage — Cities &amp; Address Counts | TrashAlert</title>
-  <meta name="description" content="TrashAlert covers 26 cities with 5M+ real addresses. See live address counts per city from our municipal data imports." />
+  <meta name="description" content="TrashAlert covers 26 cities with 5.2M+ real addresses. See live address counts per city from our municipal data imports." />
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
     :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8; --green: #22c55e; --border: rgba(255,255,255,0.08); }
@@ -45,6 +45,16 @@
     .cta-banner p { font-size: 15px; color: var(--muted); margin-bottom: 12px; }
     .cta-banner a { color: var(--accent); text-decoration: none; font-weight: 600; font-size: 15px; }
     .cta-banner a:hover { text-decoration: underline; }
+    .request-form { display: grid; grid-template-columns: 2fr 1fr 2fr auto; gap: 8px; margin-top: 12px; }
+    .request-form input, .request-form button { padding: 10px 12px; border-radius: 8px; font-size: 14px; border: 1px solid var(--border); background: var(--bg); color: var(--text); outline: none; }
+    .request-form input:focus { border-color: var(--accent); }
+    .request-form button { background: var(--green); color: #fff; border: none; font-weight: 700; cursor: pointer; padding: 10px 16px; }
+    .request-form button:hover:not(:disabled) { background: #16a34a; }
+    .request-form button:disabled { opacity: 0.6; cursor: wait; }
+    .request-status { font-size: 13px; margin-top: 10px; }
+    .request-status.ok { color: var(--green); }
+    .request-status.err { color: #ef4444; }
+    @media (max-width: 600px) { .request-form { grid-template-columns: 1fr; } }
 
     .source-note { max-width: 700px; margin: 0 auto; padding: 0 32px 48px; text-align: center; }
     .source-note p { font-size: 14px; color: var(--muted); line-height: 1.6; }
@@ -84,15 +94,15 @@
   <input type="text" id="citySearch" placeholder="Search cities..." oninput="filterCities()" />
 </div>
 
-<div class="cta-banner" id="requestBanner">
-  <p>Don't see your city? We're adding new cities monthly.</p>
-  <form id="requestForm" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:12px">
-    <input type="text" name="city" placeholder="City" required style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:#fff;font-size:14px;width:140px" />
-    <input type="text" name="state" placeholder="State" required style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:#fff;font-size:14px;width:100px" />
-    <input type="email" name="email" placeholder="Your email" required style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:#fff;font-size:14px;width:200px" />
-    <button type="submit" style="padding:8px 18px;border-radius:8px;border:none;background:var(--accent);color:#0f172a;font-size:14px;font-weight:700;cursor:pointer">Request</button>
+<div class="cta-banner">
+  <p>Don't see your city? Tell us where you are and we'll prioritize it.</p>
+  <form class="request-form" id="requestCityForm" autocomplete="on">
+    <input type="text" id="rcCity" name="city" placeholder="City" required aria-label="City" />
+    <input type="text" id="rcState" name="state" placeholder="State (e.g. CA)" required maxlength="2" aria-label="State code" />
+    <input type="email" id="rcEmail" name="email" placeholder="Email" required aria-label="Email" />
+    <button type="submit" id="rcSubmit">Request</button>
   </form>
-  <div id="requestMsg" style="margin-top:8px;font-size:14px;display:none"></div>
+  <div class="request-status" id="rcStatus" role="status" aria-live="polite"></div>
 </div>
 
 <div class="loading" id="loading">Loading city data&hellip;</div>
@@ -105,28 +115,6 @@
 <footer>&copy; 2026 Tombstone Dash LLC. Built in San Diego.</footer>
 
 <script>
-document.getElementById('requestForm').addEventListener('submit', async function(e) {
-  e.preventDefault();
-  var f = e.target;
-  var msg = document.getElementById('requestMsg');
-  try {
-    var resp = await fetch('/api/request-city', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({city: f.city.value, state: f.state.value, email: f.email.value})
-    });
-    var data = await resp.json();
-    msg.textContent = data.message || 'Thanks! Request submitted.';
-    msg.style.color = 'var(--green)';
-    msg.style.display = '';
-    f.reset();
-  } catch(err) {
-    msg.textContent = 'Something went wrong. Try emailing hello@trashalert.io';
-    msg.style.color = 'var(--red, #ef4444)';
-    msg.style.display = '';
-  }
-});
-
 function filterCities() {
   var q = document.getElementById('citySearch').value.toLowerCase();
   var cards = document.querySelectorAll('.city-card');
@@ -136,6 +124,40 @@ function filterCities() {
     card.style.display = (name.indexOf(q) !== -1 || state.indexOf(q) !== -1) ? '' : 'none';
   });
 }
+
+document.getElementById('requestCityForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  var form = e.target;
+  var btn = document.getElementById('rcSubmit');
+  var status = document.getElementById('rcStatus');
+  var payload = {
+    city:  document.getElementById('rcCity').value.trim(),
+    state: document.getElementById('rcState').value.trim().toUpperCase(),
+    email: document.getElementById('rcEmail').value.trim(),
+  };
+  status.className = 'request-status';
+  status.textContent = '';
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  try {
+    var resp = await fetch('/api/request-city', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    var data = await resp.json().catch(function(){ return {}; });
+    if (!resp.ok) throw new Error(data.detail || ('HTTP ' + resp.status));
+    status.className = 'request-status ok';
+    status.textContent = 'Thanks — we\u2019ll let you know when ' + payload.city + ', ' + payload.state + ' is live.';
+    form.reset();
+  } catch (err) {
+    status.className = 'request-status err';
+    status.textContent = 'Could not submit: ' + (err.message || 'unknown error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Request';
+  }
+});
 </script>
 <script>
 (async function() {

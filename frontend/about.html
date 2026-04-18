@@ -49,7 +49,7 @@
 
   <div class="stats-inline">
     <div class="si"><div class="n" id="stat-cities">26</div><div class="l">Cities</div></div>
-    <div class="si"><div class="n" id="stat-addresses">5.7M+</div><div class="l">Addresses</div></div>
+    <div class="si"><div class="n" id="stat-addresses">5.2M+</div><div class="l">Addresses</div></div>
     <div class="si"><div class="n">14</div><div class="l">States</div></div>
   </div>
 
@@ -82,7 +82,7 @@
   try {
     var r = await fetch('/api/stats/live');
     var d = await r.json();
-    document.getElementById('stat-addresses').textContent = d.display || '5.7M+';
+    document.getElementById('stat-addresses').textContent = d.display || '5.2M+';
     document.getElementById('stat-cities').textContent = d.total_cities || '26';
   } catch(e) {}
 })();
