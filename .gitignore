@@ -74,9 +74,14 @@ test-results/
 # Agent operational files (per-run, not for git)
 CHECKPOINT.md
 REPORT.md
+SETUP_REPORT.md
+preflight-output.txt
+audit-baseline-output.txt
+sample-response.json
 
 # Logs
 *.log
 # Logs
 logs/
 .vercel
+.env*.local
