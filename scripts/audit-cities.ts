@@ -173,6 +173,16 @@ const LANDMARK_ADDRESSES: Record<string, string[]> = {
     "414 E 12th St, Kansas City, MO 64106",
     "4525 Oak St, Kansas City, MO 64111",
   ],
+  chicago: [
+    "121 N LaSalle St, Chicago, IL 60602",         // City Hall
+    "400 S State St, Chicago, IL 60605",           // Harold Washington Library
+    "111 S Michigan Ave, Chicago, IL 60603",       // Art Institute
+  ],
+  seattle: [
+    "600 4th Ave, Seattle, WA 98104",              // City Hall
+    "1000 4th Ave, Seattle, WA 98104",             // Central Library
+    "325 5th Ave N, Seattle, WA 98109",            // Space Needle
+  ],
 };
 
 // ---------- Types ----------
