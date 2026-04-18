@@ -4,7 +4,7 @@
   "private": true,
   "description": "Factory tooling for TrashAlert: city audits, sampling, import scripts. Not the runtime — the FastAPI app under app/ and the static frontend under frontend/ are the product.",
   "scripts": {
-    "audit:cities": "tsx scripts/audit-cities.ts"
+    "audit:cities": "tsx --env-file=.env.local scripts/audit-cities.ts"
   },
   "devDependencies": {
     "@supabase/supabase-js": "^2.103.3",

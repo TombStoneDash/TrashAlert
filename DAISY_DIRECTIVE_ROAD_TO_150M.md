@@ -3,7 +3,7 @@
 
 **Mission:** Wire up every publicly accessible municipal, county, state, and hauler trash/recycling data source in the United States until no more remain or the session ends. Target the full 150M US residential addresses. Fall back gracefully where data is locked.
 
-**Current baseline:** 4.8M addresses across 9 working cities (NYC, LA, Houston, Philly, Phoenix, Austin, Denver, Boston, EDCO SD)
+**Current baseline:** ~6.28M addresses across 44+ cities in `schedule_reports` per the 2026-04-18 diagnostic (see `DIAGNOSIS.md`). Heaviest by row count: boston, houston, san-antonio, dallas, philadelphia, san-francisco, denver, austin, phoenix. Long tail (28) is the EDCO / north-county-SD bundle (escondido, vista, san marcos, encinitas, fallbrook, el cajon, la mesa, lakewood, etc.) plus charlotte, chicago, seattle from recent imports. Note: several of these are zone-level data that `/api/schedule` doesn't yet resolve by address (e.g. chicago, houston report `found:false` — data exists in DB, address→zone resolver is the gap).
 **Stop conditions:** No new sources findable after exhaustive search, OR 12 hours elapsed, OR explicit user halt.
 **Non-stop condition:** Context compaction. You recover via the resume protocol and continue.
 

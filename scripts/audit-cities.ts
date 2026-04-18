@@ -18,7 +18,7 @@
  *
  * Env vars optional:
  *   AUDIT_BASE_URL       default https://trashalert.io
- *   AUDIT_LOOKUP_PATH    default /api/lookup
+ *   AUDIT_LOOKUP_PATH    default /api/schedule
  *   AUDIT_REQUEST_DELAY  default 1100 (ms)
  *
  * Writes to test-results/audit-[ISO].json and test-results/audit-latest.json.
@@ -31,7 +31,7 @@ import path from "node:path";
 // ---------- Configuration ----------
 
 const BASE_URL = process.env.AUDIT_BASE_URL ?? "https://trashalert.io";
-const LOOKUP_PATH = process.env.AUDIT_LOOKUP_PATH ?? "/api/lookup";
+const LOOKUP_PATH = process.env.AUDIT_LOOKUP_PATH ?? "/api/schedule";
 const REQUEST_DELAY_MS = Number(process.env.AUDIT_REQUEST_DELAY ?? 1100);
 const REQUEST_TIMEOUT_MS = 15_000;
 const PASS_THRESHOLD = 0.9; // 90%
