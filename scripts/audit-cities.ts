@@ -221,6 +221,7 @@ interface AuditReport {
   };
   cities: CityReport[];
   live_cities_missing_landmarks: string[];
+  db_cities_missing_landmarks: string[];
 }
 
 // ---------- Helpers ----------
@@ -232,41 +233,65 @@ function normCity(s: string): string {
 }
 
 /**
- * Ask Supabase for the distinct list of cities in schedule_reports. Falls
- * back to LANDMARK_ADDRESSES keys if Supabase isn't reachable.
+ * Determine which cities to audit.
+ *
+ * Earlier versions of this function tried to ask Supabase for the distinct
+ * list of cities in schedule_reports via `?select=city&limit=50000`.
+ * That silently undercounts: PostgREST caps row returns at 1000 regardless
+ * of the limit parameter, so we'd see only the 2-3 cities dominating the
+ * head of a 6.28M-row table. There is no index on `schedule_reports.city`
+ * either, so per-city `eq()` filtering also times out for most cities.
+ *
+ * Pragmatic fix: the cities we can meaningfully audit are exactly the ones
+ * with landmark addresses configured (LANDMARK_ADDRESSES). For anything
+ * else we have no test addresses, so labelling it "live" doesn't help.
+ *
+ * As a best-effort enrichment, sample the head and tail of schedule_reports
+ * and report any cities seen in the sample that lack landmark coverage —
+ * those go into `live_cities_missing_landmarks` so HT can prioritize.
  */
-async function fetchLiveCities(): Promise<{ cities: string[]; fromDb: boolean }> {
+async function fetchLiveCities(): Promise<{ cities: string[]; fromDb: boolean; dbSampleCities: Set<string> }> {
+  const cities = Object.keys(LANDMARK_ADDRESSES);
+  const dbSampleCities = new Set<string>();
+
   if (!SUPABASE_URL || !SUPABASE_KEY) {
-    console.warn("⚠  SUPABASE_URL/SUPABASE_KEY not set — falling back to hardcoded city list.");
-    return { cities: Object.keys(LANDMARK_ADDRESSES), fromDb: false };
+    console.warn("⚠  SUPABASE_URL/SUPABASE_KEY not set — Supabase enrichment skipped.");
+    console.log(`  ✓ Auditing ${cities.length} cities from LANDMARK_ADDRESSES`);
+    return { cities, fromDb: false, dbSampleCities };
   }
-  try {
-    // Supabase REST: select distinct city. We page through to be safe.
-    const url = new URL(`${SUPABASE_URL.replace(/\/+$/, "")}/rest/v1/schedule_reports`);
-    url.searchParams.set("select", "city");
-    // Hitting with high limit; dedupe client-side.
-    url.searchParams.set("limit", "50000");
-    const res = await fetch(url.toString(), {
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
-        "Accept-Profile": "public",
-      },
+
+  // Best-effort sample: 1 head batch + 5 tail batches. Failure is non-fatal.
+  const baseUrl = SUPABASE_URL.replace(/\/+$/, "");
+  const headers = {
+    apikey: SUPABASE_KEY,
+    Authorization: `Bearer ${SUPABASE_KEY}`,
+    "Accept-Profile": "public",
+  } as const;
+
+  async function pull(rangeFrom: number, rangeTo: number, order?: string) {
+    const u = new URL(`${baseUrl}/rest/v1/schedule_reports`);
+    u.searchParams.set("select", "city");
+    if (order) u.searchParams.set("order", order);
+    const res = await fetch(u.toString(), {
+      headers: { ...headers, Range: `${rangeFrom}-${rangeTo}`, "Range-Unit": "items" },
     });
-    if (!res.ok) {
-      console.warn(`⚠  Supabase query failed: HTTP ${res.status} — falling back to hardcoded list.`);
-      return { cities: Object.keys(LANDMARK_ADDRESSES), fromDb: false };
-    }
+    if (!res.ok) return;
     const rows = (await res.json()) as Array<{ city: string | null }>;
-    const unique = new Set<string>();
-    for (const row of rows) if (row?.city) unique.add(normCity(row.city));
-    const cities = [...unique].sort();
-    console.log(`  ✓ Supabase returned ${cities.length} distinct live cities`);
-    return { cities, fromDb: true };
-  } catch (err: any) {
-    console.warn(`⚠  Supabase error: ${err.message ?? err} — falling back to hardcoded list.`);
-    return { cities: Object.keys(LANDMARK_ADDRESSES), fromDb: false };
+    for (const r of rows) if (r?.city) dbSampleCities.add(normCity(r.city));
   }
+
+  try {
+    await pull(0, 999);                          // head
+    for (let i = 0; i < 5; i++) {
+      await pull(i * 1000, i * 1000 + 999, "id.desc");
+    }
+    console.log(`  ✓ Sampled Supabase: ${dbSampleCities.size} distinct cities seen in head+tail`);
+  } catch (err: any) {
+    console.warn(`⚠  Supabase sample failed (non-fatal): ${err.message ?? err}`);
+  }
+
+  console.log(`  ✓ Auditing ${cities.length} cities from LANDMARK_ADDRESSES`);
+  return { cities, fromDb: dbSampleCities.size > 0, dbSampleCities };
 }
 
 function pickAddresses(city: string): string[] {
@@ -418,7 +443,7 @@ async function main(): Promise<void> {
   console.log(`   started: ${started.toISOString()}`);
 
   console.log(`\n📡 Fetching live city list from Supabase...`);
-  const { cities: liveCities, fromDb } = await fetchLiveCities();
+  const { cities: liveCities, fromDb, dbSampleCities } = await fetchLiveCities();
 
   const missingLandmarks: string[] = [];
   const toTest: Array<{ city: string; addresses: string[] }> = [];
@@ -428,9 +453,17 @@ async function main(): Promise<void> {
     toTest.push({ city, addresses: addrs });
   }
 
-  console.log(`   cities in DB:         ${liveCities.length}`);
-  console.log(`   cities with landmarks: ${liveCities.length - missingLandmarks.length}`);
-  console.log(`   cities missing landmarks: ${missingLandmarks.length}\n`);
+  // Cities seen in Supabase sample but with no landmark addresses configured
+  const landmarkKeys = new Set(liveCities.map(normCity));
+  const dbCitiesNoLandmarks = [...dbSampleCities].filter((c) => !landmarkKeys.has(c)).sort();
+
+  console.log(`   cities to audit:                ${liveCities.length}`);
+  console.log(`   cities missing landmarks:       ${missingLandmarks.length}`);
+  if (dbCitiesNoLandmarks.length > 0) {
+    console.log(`   cities seen in DB but no landmarks (${dbCitiesNoLandmarks.length}):`);
+    console.log(`     ${dbCitiesNoLandmarks.join(", ")}`);
+  }
+  console.log("");
 
   const cityReports: CityReport[] = [];
   for (const { city, addresses } of toTest) {
@@ -469,6 +502,7 @@ async function main(): Promise<void> {
     },
     cities: cityReports,
     live_cities_missing_landmarks: missingLandmarks,
+    db_cities_missing_landmarks: dbCitiesNoLandmarks,
   };
 
   const outDir = path.resolve("test-results");
