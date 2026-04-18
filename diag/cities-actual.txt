@@ -1,0 +1,88 @@
+Connecting to: https://qsuzfemakaaroeakyick.supabase.co
+Key length:    219 chars (prefix eyJhbGciOiJI…)
+
+schedule_reports total rows (estimated): ~6,286,242
+
+Sampling 10 batches of 1000 rows (stride 628,524)...
+
+  batch 1/10 (offset 0) — 1000 rows · running cities: 2
+  batch 2/10 (offset 628,524) — 1000 rows · running cities: 3
+  batch 3/10 (offset 1,257,048) — 1000 rows · running cities: 4
+  batch 4/10 (offset 1,885,572) — 1000 rows · running cities: 7
+  batch 5/10 (offset 2,514,096) — 1000 rows · running cities: 7
+  batch 6/10 (offset 3,142,620) — 1000 rows · running cities: 9
+batch 6 (offset 3771144) error: canceling statement due to statement timeout
+batch 7 (offset 4399668) error: canceling statement due to statement timeout
+batch 8 (offset 5028192) error: canceling statement due to statement timeout
+batch 9 (offset 5656716) error: canceling statement due to statement timeout
+
+=== Sample distribution (6000 rows sampled of ~6,286,242) ===
+  boston                        2016 ( 33.6%) → est. 2,112,177 rows total
+  houston                       1000 ( 16.7%) → est. 1,047,707 rows total
+  san-francisco                 1000 ( 16.7%) → est. 1,047,707 rows total
+  philadelphia                   971 ( 16.2%) → est. 1,017,323 rows total
+  san-antonio                    641 ( 10.7%) → est. 671,580 rows total
+  dallas                         346 (  5.8%) → est. 362,507 rows total
+  austin                          15 (  0.3%) → est. 15,716 rows total
+  portland                         8 (  0.1%) → est. 8,382 rows total
+  san diego                        3 (  0.1%) → est. 3,143 rows total
+
+Sampling tail of table (5000 latest by id)...
+  tail batch 1/5 — 1000 rows · cities seen: 29
+  tail batch 2/5 — 1000 rows · cities seen: 35
+  tail batch 3/5 — 1000 rows · cities seen: 39
+  tail batch 4/5 — 1000 rows · cities seen: 43
+  tail batch 5/5 — 1000 rows · cities seen: 44
+
+=== Tail distribution (latest 5000 rows by id desc) ===
+  houston                      1629
+  boston                       658
+  phoenix                      544
+  austin                       532
+  denver                       325
+  philadelphia                 313
+  san-antonio                  274
+  san diego                    269
+  dallas                       210
+  san-francisco                24
+  escondido                    24
+  vista                        21
+  san marcos                   19
+  lakewood                     16
+  encinitas                    15
+  fallbrook                    15
+  el cajon                     15
+  la mesa                      13
+  buena park                   12
+  rancho palos verdes          9
+  la mirada                    7
+  el segundo                   5
+  national city                5
+  ramona                       5
+  valley center                5
+  lemon grove                  4
+  imperial beach               4
+  portland                     3
+  poway                        3
+  charlotte                    3
+  signal hill                  2
+  coronado                     2
+  jamul                        2
+  spring valley                2
+  solana beach                 2
+  campo                        1
+  pauma valley                 1
+  pine valley                  1
+  chicago                      1
+  lakeside                     1
+  bonita                       1
+  alpine                       1
+  bonsall                      1
+  seattle                      1
+
+=== Summary ===
+  Distinct cities (head sample):  9
+  Distinct cities (tail sample):  44
+  Distinct cities (union):        44
+  Cities seen anywhere:           alpine, austin, bonita, bonsall, boston, buena park, campo, charlotte, chicago, coronado, dallas, denver, el cajon, el segundo, encinitas, escondido, fallbrook, houston, imperial beach, jamul, la mesa, la mirada, lakeside, lakewood, lemon grove, national city, pauma valley, philadelphia, phoenix, pine valley, portland, poway, ramona, rancho palos verdes, san diego, san marcos, san-antonio, san-francisco, seattle, signal hill, solana beach, spring valley, valley center, vista
+  Total schedule_reports rows:    ~6,286,242
