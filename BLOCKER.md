@@ -6,22 +6,32 @@ Sprint: `factory/queue/SPRINT_IMPORT_PHASE1.md`
 
 ## Cities not imported
 
-### Raleigh NC — PLACEHOLDER
-- Script: `scripts/import-raleigh.mjs`
-- Status: `process.exit(2)` — script is a stub with no data source identified.
-- Root cause: Initial research (2026-04-16) did not surface a Raleigh
-  Solid Waste Services FeatureServer URL on data-ral.opendata.arcgis.com.
-- Next steps (from script header): search the open-data hub for "Collection",
-  "Solid Waste", "Sanitation", "Yard Waste", "Recycling Route"; if no hit,
-  email gisadmin@raleighnc.gov; alternative: scrape
-  raleighnc.gov/services/solid-waste per-address.
+### Raleigh NC — RESOLVED 2026-04-19 (Phase 1E)
+- Script: `scripts/import-raleigh.mjs` (rewritten)
+- New source: `services.arcgis.com/v400IkDOw1ad7Yad/.../RALEIGH_SWS_COLLECTION/FeatureServer/0`
+- Result: 121,923 rows imported (per-address points).
 
-### Mesa AZ — PLACEHOLDER
-- Script: `scripts/import-mesa.mjs`
-- Status: `process.exit(2)` — script is a stub with no data source identified.
-- Root cause: same pattern as Raleigh — no public ArcGIS endpoint located
-  during initial research.
-- Next steps: see script header.
+### Louisville KY — RESOLVED 2026-04-19 (Phase 1E)
+- Script: `scripts/import-louisville.mjs` (re-pointed)
+- New source: `gis.lojic.org/maps/rest/services/LojicSolutions/OpenDataSociety/MapServer/12`
+- Result: 21 rows imported (zone-level/centroid).
+
+### Pittsburgh PA — RESOLVED 2026-04-19 (Phase 1E)
+- Script: `scripts/import-pittsburgh.mjs` (rewritten)
+- New source: `services1.arcgis.com/YZCmUqbcsUpOKfj7/.../Refuse_Routes/FeatureServer/2`
+- Result: 178 rows imported (zone-level/centroid).
+
+### Mesa AZ — STILL BLOCKED
+- Script: `scripts/import-mesa.mjs` (still a placeholder)
+- Sources checked 2026-04-19:
+  - ArcGIS Online owner search `owner:MesaAz` → 80+ items, none waste-related.
+  - ReCollect API: `mesa`, `mesa-az`, `MesaAZ`, `CityOfMesa` all 404 on `/r/area/<slug>`.
+  - `mesaaz.gov` solid-waste pages: 404 on the deep-link paths attempted.
+  - `data.mesaaz.gov` carries Solid Waste analytics (Route Demographics,
+    Barrels Collected) but no per-address or per-route schedule layer.
+- Recommended next step: human contact to Mesa Solid Waste / GIS staff
+  to request either a route-day shapefile or a public ArcGIS layer.
+  Skipping for the campaign per sprint's "log and keep going" rule.
 
 ### Louisville KY — DEAD ENDPOINT
 - Script: `scripts/import-louisville.mjs`
