@@ -63,3 +63,46 @@ constructed from upstream OBJECTID/route values, then probed against
 
 No city slug normalization issues found; no city imported but failed
 to resolve.
+
+---
+
+## Phase 1E — fix the 4 failed cities
+
+| city | status | source | rows |
+|---|---|---|---|
+| louisville-ky | ✅ resolved | LOJIC OpenDataSociety MapServer/12 | 21 |
+| pittsburgh-pa | ✅ resolved | PGH DPW Refuse_Routes FeatureServer/2 | 178 |
+| raleigh-nc    | ✅ resolved | RALEIGH_SWS_COLLECTION FeatureServer/0 | **121,923** |
+| mesa-az       | ❌ blocked  | (no public source found) | 0 |
+
+Total Phase 1E delta: **122,122 rows**.
+
+Mesa research log:
+- ArcGIS Online `owner:MesaAz` → 80+ items, none waste-related
+- ReCollect `/r/area/{mesa,mesa-az,MesaAZ,CityOfMesa}` → all 404
+- mesaaz.gov solid-waste paths → 404 on attempted deep links
+- data.mesaaz.gov → analytics dashboards only (no per-route schedule)
+- Logged in `BLOCKER.md` per sprint's "log and keep going" rule.
+
+---
+
+## Phase 2 — ReCollect API integration
+
+`scripts/import-recollect.mjs` — single importer, hard-coded
+PLACE_ID/SERVICE_ID list curated from the home-assistant
+`hacs_waste_collection_schedule` canonical doc.
+
+Discovery: ReCollect has no city-slug API. Each address resolves through
+opaque UUID `place_id` + integer `service_id`. We pull events for the
+next 28 days, group by trash/recycle flag (case-insensitive regex —
+flag names are inconsistent across municipalities: `Trash`/`garbage`/
+`Davenport_Garbage`/`garbagecart`/`Cart_Recycling`), pick the dominant
+day-of-week, write one row per area.
+
+Imported (16/16):
+- Ottawa ON, Denver CO, Austin TX, San Francisco CA, Cambridge MA,
+  Vancouver BC, Halton ON, Saanich BC, Richmond BC, Davenport IA,
+  Georgetown TX, Peterborough ON, Sherwood Park AB, Morris MB,
+  Hardin Sanitation ID, Recology CleanScapes (King County WA).
+
+Total Phase 2 delta: **16 rows** (zone-level fallback signal per area).
