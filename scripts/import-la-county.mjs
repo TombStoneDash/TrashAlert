@@ -21,7 +21,7 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 
 const BASE_URL = 'https://services.arcgis.com/RmCCgQtiZLDCtblq/arcgis/rest/services/Los_Angeles_County_Waste_Service_Collection_Areas_view/FeatureServer/0/query'
-const FIELDS = 'AREA_NAME,WASTE_HAUL,PICKUP_DAY,OBJECTID'
+const FIELDS = 'AREA_NAME,WASTE_HAUL,PICKUP_DAY,FID'
 const PAGE_SIZE = 2000
 const BATCH_SIZE = 500
 
@@ -42,7 +42,7 @@ async function fetchPage(offset) {
   const params = new URLSearchParams({
     where: '1=1', outFields: FIELDS, outSR: '4326', returnGeometry: 'true',
     resultOffset: String(offset), resultRecordCount: String(PAGE_SIZE),
-    orderByFields: 'OBJECTID ASC', f: 'json',
+    orderByFields: 'FID ASC', f: 'json',
   })
   const res = await fetch(`${BASE_URL}?${params}`)
   if (!res.ok) throw new Error(`API error: ${res.status}`)
@@ -83,7 +83,7 @@ async function main() {
       if (!centroid) { skipped++; continue }
 
       const hauler = a.WASTE_HAUL || 'LA County Public Works'
-      const areaName = a.AREA_NAME || `zone-${a.OBJECTID}`
+      const areaName = a.AREA_NAME || `zone-${a.FID}`
       const address = `la-county area ${String(areaName).toLowerCase()}`
       if (seen.has(address)) { skipped++; continue }
       seen.add(address)
