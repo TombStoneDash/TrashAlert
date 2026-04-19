@@ -28,12 +28,8 @@ const ENDPOINTS = [
     fields: 'ROUTE,COLLDAY,WEEKDAYS,WCSAREA,TYPE,OBJECTID',
     label: 'garbage',
   },
-  {
-    name: 'recycling',
-    url: 'https://services.arcgis.com/8Pc9XBTAsYuxx9Ny/arcgis/rest/services/RecyclingZone_gdb/FeatureServer/0/query',
-    fields: 'ROUTE,COLLDAY,WEEKDAYS,WCSAREA,TYPE,OBJECTID',
-    label: 'recycling',
-  },
+  // Recycling layer (RecyclingZone_gdb/FeatureServer/0) only exposes ZONEID — no day/route fields.
+  // Skipped until a richer recycling source is identified.
 ]
 const PAGE_SIZE = 2000
 const BATCH_SIZE = 500
@@ -45,7 +41,7 @@ const DAY_MAP = {
 const normalizeDay = raw => {
   if (!raw) return null
   // WEEKDAYS sometimes looks like "MON/THU" — take first.
-  const first = String(raw).split(/[\/,&-]/)[0].trim().toUpperCase()
+  const first = String(raw).split(/[\/,&\-\s]/)[0].trim().toUpperCase()
   return DAY_MAP[first] || null
 }
 
