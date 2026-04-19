@@ -147,7 +147,9 @@ with `ADDRESS` + `DAY` directly populated. Layer maxRecordCount=1000
 required PAGE_SIZE adjustment plus retry/timeout wrapper after a
 mid-run connection drop.
 
-Result (when complete): expected ~104K rows.
+**Result: 99,513 rows imported** (105,894 fetched, 6,381 skipped — final
+batch had a cluster of points with empty DAY field, likely commercial
+or special-collection addresses; 0 errors).
 
 ### 3d — St. Louis County MO — BLOCKED
 
@@ -167,5 +169,5 @@ this campaign session.
 | Phase 2 (ReCollect) | 16 |
 | Phase 3a (re-runs of existing scripts) | 1,739 |
 | Phase 3b (new zone sources) | 1,815 |
-| Phase 3c (DC, partial) | TBD ~104,000 |
-| **Total** | **~250K (when DC completes)** |
+| Phase 3c (DC) | 99,513 |
+| **Total** | **245,254** rows added across the campaign |
