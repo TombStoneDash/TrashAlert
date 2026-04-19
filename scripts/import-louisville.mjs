@@ -2,10 +2,11 @@
 /**
  * Import Louisville KY waste collection schedules.
  *
- * Source: Louisville Open Data (Jefferson County Library-Metro) FeatureServer
- *   https://services1.arcgis.com/79kfd2K6fskCAkyg/ArcGIS/rest/services/OpenDataJeflib/FeatureServer/21
+ * Source: LOJIC OpenDataSociety (Louisville/Jefferson County GIS) MapServer
+ *   https://gis.lojic.org/maps/rest/services/LojicSolutions/OpenDataSociety/MapServer/12
+ *   (replaces dead OpenDataJeflib/FeatureServer/21)
  *
- * Fields: SRA_GARB, SRA_DAY, SRA_ROUTE
+ * Fields: SRA_GARB (route id), SRA_DAY (numeric 1-5 = Mon-Fri), SRA_ROUTE
  * Approach: Sanitation route areas — compute centroid, import zone rows.
  */
 import { createClient } from '@supabase/supabase-js'
@@ -19,7 +20,7 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 }
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 
-const BASE_URL = 'https://services1.arcgis.com/79kfd2K6fskCAkyg/ArcGIS/rest/services/OpenDataJeflib/FeatureServer/21/query'
+const BASE_URL = 'https://gis.lojic.org/maps/rest/services/LojicSolutions/OpenDataSociety/MapServer/12/query'
 const FIELDS = 'SRA_GARB,SRA_DAY,SRA_ROUTE,OBJECTID'
 const PAGE_SIZE = 2000
 const BATCH_SIZE = 500
@@ -27,6 +28,7 @@ const BATCH_SIZE = 500
 const DAY_MAP = {
   MON: 'monday', TUE: 'tuesday', WED: 'wednesday', THU: 'thursday', FRI: 'friday', SAT: 'saturday',
   MONDAY: 'monday', TUESDAY: 'tuesday', WEDNESDAY: 'wednesday', THURSDAY: 'thursday', FRIDAY: 'friday', SATURDAY: 'saturday',
+  '1': 'monday', '2': 'tuesday', '3': 'wednesday', '4': 'thursday', '5': 'friday', '6': 'saturday',
 }
 const normalizeDay = raw => (raw && DAY_MAP[String(raw).trim().toUpperCase()]) || null
 
