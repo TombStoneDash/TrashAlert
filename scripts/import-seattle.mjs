@@ -114,12 +114,17 @@ async function importBatch(rows) {
   const { error } = await supabase
     .from('schedule_reports')
     .upsert(rows, { onConflict: 'address,city', ignoreDuplicates: true })
+  if (!error) return { ok: true, n: rows.length }
 
-  if (error) {
-    const { error: insertError } = await supabase.from('schedule_reports').insert(rows)
-    if (insertError) return { ok: false, error: insertError.message }
+  const { error: insertError } = await supabase.from('schedule_reports').insert(rows)
+  if (!insertError) return { ok: true, n: rows.length }
+
+  let ok = 0, fail = 0, lastErr = insertError.message
+  for (const row of rows) {
+    const { error: e } = await supabase.from('schedule_reports').insert([row])
+    if (e) { fail++; lastErr = e.message } else { ok++ }
   }
-  return { ok: true }
+  return { ok: ok > 0, n: ok, error: fail ? `${fail} per-row fails: ${lastErr}` : null }
 }
 
 async function main() {
@@ -224,21 +229,19 @@ async function main() {
 
     if (batchBuffer.length >= BATCH_SIZE) {
       const result = await importBatch(batchBuffer)
-      if (result.ok) totalImported += batchBuffer.length
-      else {
-        totalErrors += batchBuffer.length
-        if (totalErrors <= 2500) console.error(`  ⚠️  Batch error: ${result.error}`)
-      }
+      totalImported += result.n || 0
+      totalErrors += batchBuffer.length - (result.n || 0)
+      if (result.error) console.error(`  ⚠️  ${result.error}`)
       batchBuffer = []
       await new Promise(r => setTimeout(r, 50))
     }
   }
 
-  // Flush remaining
   if (batchBuffer.length > 0) {
     const result = await importBatch(batchBuffer)
-    if (result.ok) totalImported += batchBuffer.length
-    else totalErrors += batchBuffer.length
+    totalImported += result.n || 0
+    totalErrors += batchBuffer.length - (result.n || 0)
+    if (result.error) console.error(`  ⚠️  ${result.error}`)
   }
 
   console.log(`========================================`)
