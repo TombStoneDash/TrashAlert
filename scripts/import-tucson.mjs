@@ -21,7 +21,7 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 
 const RECY_URL = 'https://mapdata.tucsonaz.gov/arcgis/rest/services/IT/ZoomTucson/MapServer/56/query'
-const FIELDS = 'BBArea,ServiceDates,CollWeek,DOS,PRIMARY_RT,OBJECTID'
+const FIELDS = 'ServDates,CollWeek,DOS,PRIMARY_RT,OBJECTID'
 const PAGE_SIZE = 2000
 const BATCH_SIZE = 500
 
@@ -78,20 +78,20 @@ async function main() {
 
     for (const f of features) {
       const a = f.attributes
-      const day = normalizeDay(a.DOS) || normalizeDay(a.ServiceDates)
+      const day = normalizeDay(a.DOS) || normalizeDay(a.ServDates)
       if (!day) { skipped++; continue }
       const centroid = computeCentroid(f.geometry?.rings)
       if (!centroid) { skipped++; continue }
 
       const week = (a.CollWeek || 'A').toUpperCase() === 'B' ? 'B' : 'A'
-      const routeId = a.PRIMARY_RT || a.BBArea || a.OBJECTID
+      const routeId = a.PRIMARY_RT || a.OBJECTID
       const address = `tucson recycling route ${String(routeId).toLowerCase()}`
       if (seen.has(address)) { skipped++; continue }
       seen.add(address)
 
       batch.push({
         address, city: 'tucson', state: 'AZ', zip_code: '',
-        neighborhood: a.BBArea || `Route ${routeId}`,
+        neighborhood: `Route ${routeId}`,
         collection_day: day, recycling_week: week,
         reporter_hash: reporterHash, verified: true, verification_count: 1,
         source: 'city_api', fetched_at: now,
