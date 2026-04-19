@@ -21,6 +21,19 @@ Sprint: `factory/queue/SPRINT_IMPORT_PHASE1.md`
 - New source: `services1.arcgis.com/YZCmUqbcsUpOKfj7/.../Refuse_Routes/FeatureServer/2`
 - Result: 178 rows imported (zone-level/centroid).
 
+### St. Louis County MO — BLOCKED (Phase 3, 2026-04-19)
+- Source: `services2.arcgis.com/w657bnjzrjguNyOy/.../Address_Points_in_Trash_Collection_Districts/FeatureServer/39`
+- Has 159,819 per-address points but only `TRASH_DISTRICT` (1-8), no day field.
+- The `Trash_Collection_Districts_Updated_March_2026/FeatureServer/45`
+  layer maps district → hauler (Republic Services or Waste Connections)
+  but **not** district → day-of-week. Day is per-route per-hauler.
+- `schedule_reports.collection_day` is check-constrained to a valid
+  weekday, so cannot insert without per-address hauler-lookup
+  scraping (~160K calls against `republicservices.com/schedule` and
+  `wasteconnections.com/st-louis`).
+- Recommended next step: separate per-address enrichment job, run
+  outside this campaign as a long-running background task.
+
 ### Mesa AZ — STILL BLOCKED
 - Script: `scripts/import-mesa.mjs` (still a placeholder)
 - Sources checked 2026-04-19:
