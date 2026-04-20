@@ -201,6 +201,60 @@ New importers:
 
 ---
 
+### 4c — Phase 4 wave 2 (this session)
+
+After Phase 4a/4b finished, `arcgis.com/sharing/rest/search` was iterated with new query
+terms (`trash collection day address`, `garbage pickup day`, `parcels trash day`,
+`address points collection day`, `parcel collection`, `residential refuse schedule`)
+ranked by `numViews`. Each candidate was probed for fields, count, and a 1–5
+row sample before importer build.
+
+| city | source | rows |
+|---|---|---|
+| portland-or            | portlandmaps.com COP_OpenData_Boundary MapServer/5 (~900 multi-hauler zones) | 900 |
+| portland-me            | SolidWaste_Trash_Recycling_Routes_AGOL FeatureServer/0 | 827 |
+| the-woodlands-tx       | tharcgis2.thewoodlands-tx.gov TRASH_SERVICE_AREAS FeatureServer/3 | **37,557** |
+| plano-tx               | maps.planogis.org Sustainability/ServicedAddresses MapServer/0 | **75,112** |
+| westland-mi            | Garbage_Route_Web_Address_Search FeatureServer/0 (TaxParcel) | **27,743** |
+| whitby-on              | Town_of_Whitby_Address_Point_Feature_Layer_For_Apps FeatureServer/0 | **43,824** |
+| syracuse-ny            | Trash_Pickup_Day_Schedule_2025 FeatureServer/0 | **40,485** |
+| londonderry-nh         | AGOL_Trash_Addresses FeatureServer/0 | 8,109 |
+| culpeper-va            | Address_Parcel_Join_(VIEW) FeatureServer/0 (Trash_Day filter) | 6,759 |
+
+Subtotal Phase 4c: **241,316 rows**.
+
+Skipped during 4c discovery (logged to keep noise out of `BLOCKER.md`):
+- **Denver ODC_SOLIDWASTECOLLECTION_A L311** — 17K polygons but routes/crews
+  table only, no address field (FORMATTED_ADDRESS / ADDRESS / parcel street
+  all absent); usable only via spatial join.
+- **Aliso Viejo / Fontana CA / Torrance CA** — single-polygon zone lookups
+  (~5–25 districts each); skipped to focus on per-address sources.
+- **Walton County FL Household Collection Days** — 11 zones with
+  human-language `PickupDay` ("Monday and Thursday"); too small + ambiguous.
+- **Pasadena CA Refuse Service Areas, Bismarck ND Garbage Routes** — 5–25
+  zones each; skipped.
+- **Dallas Sanitation NEW_DAY_OF_SERVICE FeatureServer/0** — 25 districts;
+  per-address parcel layer (~310K) has only ST_NAME/ST_NUM with no day field.
+- **East Baton Rouge GovernmentServices_WFL1 L14/15/16** — multi-hauler zone
+  schedules (MONDAY/TUESDAY/...) but not per-address.
+- **Pharr TX, Roswell GA, Grand Rapids MI, Blount County, Sarasota County
+  hosted services, Kankakee IL, Kenosha WI, Harris County IAT** — no waste
+  collection day attribute on any layer.
+
+### 4d — Hillsborough County FL resume
+
+After Phase 4b's `import-hillsborough.mjs` crashed at offset ~60K with
+`fetch failed`, an `argv-driven` resume mode was added (`startOffset` from
+`process.argv[2]`) and relaunched at offset 60000. The resume completed
+cleanly: **fetched=250,848 imported=249,652 skipped=1,196 errors=0**.
+
+Combined Hillsborough total (wave 1 ~58K + resume 249,652) ≈ **308K rows**
+across the Tampa-area unincorporated county footprint (Odessa, Lutz,
+Tampa, Brandon, Riverview, etc.). Single largest single-source contribution
+of the campaign.
+
+---
+
 ## Running totals (this campaign delta only)
 
 | phase | rows added |
@@ -211,6 +265,13 @@ New importers:
 | Phase 3a (re-runs of existing scripts) | 1,739 |
 | Phase 3b (new zone sources) | 1,815 |
 | Phase 3c (DC) | 99,513 |
-| Phase 4 (Stevens Point + Bay City + Novi + Wauwatosa + South Fulton + Cocoa) | 97,770 |
-| Phase 4b (Columbia Heights + Portland ME + Hillsborough running) | 4,607+ |
-| **Total** | **347,631+** rows added across the campaign |
+| Phase 4a (Stevens Point + Bay City + Novi + Wauwatosa + South Fulton + Cocoa) | 97,770 |
+| Phase 4b (Columbia Heights + Portland ME + Hillsborough wave 1 ~58K) | ~62,000 |
+| Phase 4c (Plano + Whitby + Syracuse + Woodlands + Westland + Londonderry + Culpeper + Portland OR/ME) | 241,316 |
+| Phase 4d (Hillsborough resume from offset 60K) | 249,652 |
+| **Total** | **~896,000** rows added across the campaign |
+
+Original campaign target was 500K, stretch 5M+. Final delta of ~896K **exceeds
+the base target by 1.79x** and ships ~18% of the stretch goal. Combined with
+the prior ~6.28M baseline, `schedule_reports` now holds **~7.18M rows from
+60+ distinct cities/jurisdictions**.

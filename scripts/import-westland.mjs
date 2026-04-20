@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 /**
- * Hillsborough County FL — per-address waste collection.
- * Source: services.arcgis.com/apTfC6SUmnNfnxuF/.../SolidWaste_CustomerPermits_Dec2022/FeatureServer/1
- * 310,848 per-address points, twice-weekly (USER_G1___DAYS + USER_G2___DAYS).
- * Spans Tampa-area unincorporated Hillsborough (Odessa, Lutz, Tampa, Brandon, Riverview, etc.).
+ * Westland MI — per-parcel garbage route.
+ * Source: services2.arcgis.com/y7VShPA3gGO9NJCc/.../Garbage_Route_Web_Address_Search/FeatureServer/0
+ * 28,938 parcel polygons with ParcelMasterpropstreetcombined + GARBAGEROUTE.
  */
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
@@ -11,28 +10,24 @@ import crypto from 'crypto'
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY
 if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error('Run with: node --env-file=.env.local scripts/import-hillsborough.mjs')
+  console.error('Run with: node --env-file=.env.local scripts/import-westland.mjs')
   process.exit(1)
 }
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 
-const BASE_URL = 'https://services.arcgis.com/apTfC6SUmnNfnxuF/arcgis/rest/services/SolidWaste_CustomerPermits_Dec2022/FeatureServer/1/query'
-const FIELDS = 'USER_PROPERTY_ADDRESS,USER_CITY,USER_ZIP_CODE,USER_Hauler,USER_G1___DAYS,USER_G2___DAYS,USER_SERVICE_DAY___RECYCLING,USER_SERVICE_DAY___YARD_WASTE,OBJECTID'
-const PAGE_SIZE = 2000
+const BASE_URL = 'https://services2.arcgis.com/y7VShPA3gGO9NJCc/arcgis/rest/services/Garbage_Route_Web_Address_Search/FeatureServer/0/query'
+const FIELDS = 'OBJECTID,PARCEL_ID,GARBAGEROUTE,ParcelMasterpropstreetcombined,ParcelMasterpropcity,ParcelMasterpropzip'
+const PAGE_SIZE = 1000
 const BATCH_SIZE = 500
 
-const DAY_MAP = {
-  monday:'monday', mon:'monday',
-  tuesday:'tuesday', tue:'tuesday', tues:'tuesday',
-  wednesday:'wednesday', wed:'wednesday',
-  thursday:'thursday', thu:'thursday', thur:'thursday', thurs:'thursday',
-  friday:'friday', fri:'friday',
-  saturday:'saturday', sat:'saturday',
-  sunday:'sunday', sun:'sunday',
-}
-function normDay(raw) {
-  if (!raw) return null
-  return DAY_MAP[String(raw).trim().toLowerCase()] || null
+const DAY_MAP = { monday:'monday', tuesday:'tuesday', wednesday:'wednesday', thursday:'thursday', friday:'friday', saturday:'saturday', sunday:'sunday' }
+const normDay = (raw) => raw ? (DAY_MAP[String(raw).trim().toLowerCase()] || null) : null
+
+function centroidRings(rings) {
+  if (!rings?.length) return [null, null]
+  let sx = 0, sy = 0, n = 0
+  for (const ring of rings) for (const [x, y] of ring) { sx += x; sy += y; n++ }
+  return n ? [sx / n, sy / n] : [null, null]
 }
 
 async function fetchPage(offset) {
@@ -50,11 +45,11 @@ async function fetchPage(offset) {
       return data.features || []
     } catch (e) {
       const wait = Math.min(45_000, 3000 * attempt)
-      process.stdout.write(`\n    ↻ retry ${attempt} @ offset ${offset}: ${e.message} (${wait}ms)\n`)
+      process.stdout.write(`\n    ↻ retry ${attempt}: ${e.message} (${wait}ms)\n`)
       await new Promise(r => setTimeout(r, wait))
     }
   }
-  throw new Error(`exhausted retries at offset ${offset}`)
+  throw new Error('exhausted retries')
 }
 
 async function importBatch(rows) {
@@ -71,12 +66,11 @@ async function importBatch(rows) {
 }
 
 async function main() {
-  const startOffset = parseInt(process.argv[2] || '0', 10)
-  console.log(`Hillsborough County FL Import (~310K addresses) start=${startOffset}`)
-  const reporterHash = crypto.createHash('sha256').update('city_api_hillsborough_fl').digest('hex').substring(0, 16)
+  console.log('Westland MI Import (~29K parcels)')
+  const reporterHash = crypto.createHash('sha256').update('city_api_westland_mi').digest('hex').substring(0, 16)
   const now = new Date().toISOString()
 
-  let offset = startOffset, fetched = 0, imported = 0, skipped = 0, errors = 0
+  let offset = 0, fetched = 0, imported = 0, skipped = 0, errors = 0
   let batch = []
   const seen = new Set()
 
@@ -87,27 +81,25 @@ async function main() {
 
     for (const f of features) {
       const a = f.attributes
-      const day = normDay(a.USER_G1___DAYS)
+      const day = normDay(a.GARBAGEROUTE)
       if (!day) { skipped++; continue }
-      const street = String(a.USER_PROPERTY_ADDRESS || '').trim().toLowerCase()
+      const street = String(a.ParcelMasterpropstreetcombined || '').trim().toLowerCase()
       if (!street) { skipped++; continue }
       if (seen.has(street)) { skipped++; continue }
       seen.add(street)
-
-      const day2 = normDay(a.USER_G2___DAYS)
-      const recycling = normDay(a.USER_SERVICE_DAY___RECYCLING)
+      const [lng, lat] = centroidRings(f.geometry?.rings)
       batch.push({
-        address: street, city: 'hillsborough-county-fl', state: 'FL',
-        zip_code: String(a.USER_ZIP_CODE || '').trim(),
-        neighborhood: `${a.USER_CITY || ''} | trash2: ${day2 || ''} | recycle: ${recycling || ''}`,
+        address: street, city: 'westland-mi', state: 'MI',
+        zip_code: String(a.ParcelMasterpropzip || '').trim(),
+        neighborhood: '',
         collection_day: day, recycling_week: 'A',
         reporter_hash: reporterHash, verified: true, verification_count: 1,
         source: 'city_api', fetched_at: now,
         raw_payload_hash: crypto.createHash('md5').update(`${street}${day}`).digest('hex'),
-        hauler: String(a.USER_Hauler || 'Hillsborough County').trim(),
+        hauler: 'City of Westland',
         data_source_url: BASE_URL.replace('/query', ''),
         data_source_type: 'gis',
-        lat: f.geometry?.y ?? null, lng: f.geometry?.x ?? null,
+        lat, lng,
       })
 
       if (batch.length >= BATCH_SIZE) {
@@ -122,7 +114,7 @@ async function main() {
     process.stdout.write(`  F:${fetched} I:${imported} S:${skipped} E:${errors}  \r`)
     offset += PAGE_SIZE
     if (features.length < PAGE_SIZE) break
-    await new Promise(r => setTimeout(r, 250))
+    await new Promise(r => setTimeout(r, 200))
   }
 
   if (batch.length) {
@@ -130,6 +122,6 @@ async function main() {
     imported += r.n || 0
     errors += batch.length - (r.n || 0)
   }
-  console.log(`\nHillsborough: fetched=${fetched} imported=${imported} skipped=${skipped} errors=${errors}`)
+  console.log(`\nWestland: fetched=${fetched} imported=${imported} skipped=${skipped} errors=${errors}`)
 }
 main().catch(e => { console.error('Fatal:', e); process.exit(1) })
