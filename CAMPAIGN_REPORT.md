@@ -160,6 +160,44 @@ this campaign session.
 
 ---
 
+## Phase 4 — long-tail discovery via ArcGIS Online search
+
+After Phase 3, direct URL guesses for "next 10 likely cities"
+(Greensboro / Durham / Cary / Knoxville / Richmond VA / Norfolk /
+Va Beach / Anchorage / Lincoln NE / KC-MO areas) all returned 404
+or "Invalid URL". Pivoted to ArcGIS Online's `/sharing/rest/search`
+endpoint, ranked candidates by `numViews`, then probed each layer's
+geometry type, count, and field schema for per-address goldmines.
+
+Six new per-address sources turned up:
+
+| city | source | rows |
+|---|---|---|
+| stevens-point (WI) | Garbage_Address_Points (Q3XmNaYun…) FeatureServer/0 | 7,231 |
+| bay-city (MI)      | Address_Recycling (qEGIvpJUx…) FeatureServer/0   | 14,893 |
+| novi-mi            | Trash_and_Recycling_Collection L1 (jwbgoAzqz…)   | 16,433 |
+| wauwatosa-wi       | RefuseRecyclingCustomers L0 (gyXZ0hXCx…)         | 15,638 |
+| south-fulton-ga    | Solid_Waste_by_Day_WFL1 L2 (y2BJK2GUf…)          | 38,002 |
+| cocoa-fl           | WM_All_Pickup_Types L3 (Tex1uhbqn…)              | 5,573 |
+
+Skipped:
+- **herndon-va** — Addresses_In_Refuse_Recycle_Routes L0 (5,219
+  points) — `Current_Refuse_Collection_Day` is empty for every row;
+  the only populated day fields are the `Proposed_*` columns from a
+  2019 reroute survey that never went live.
+- Hoover AL — 93,432 address points but only 2 polygons carry
+  `Trashday`; would need server-side spatial join (point-in-polygon)
+  to attribute days to addresses. Out of scope this run.
+
+New importers:
+- `scripts/import-stevens-point.mjs`
+- `scripts/import-bay-city.mjs`
+- `scripts/import-phase4-points.mjs` — combined importer covering
+  novi-mi, wauwatosa-wi, south-fulton-ga, herndon-va, cocoa-fl
+  (config-driven `SOURCES` map; pass `all` or a single slug as argv).
+
+---
+
 ## Running totals (this campaign delta only)
 
 | phase | rows added |
@@ -170,4 +208,5 @@ this campaign session.
 | Phase 3a (re-runs of existing scripts) | 1,739 |
 | Phase 3b (new zone sources) | 1,815 |
 | Phase 3c (DC) | 99,513 |
-| **Total** | **245,254** rows added across the campaign |
+| Phase 4 (Stevens Point + Bay City + Novi + Wauwatosa + South Fulton + Cocoa) | 97,770 |
+| **Total** | **343,024** rows added across the campaign |
