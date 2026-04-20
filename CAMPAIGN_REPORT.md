@@ -173,12 +173,15 @@ Six new per-address sources turned up:
 
 | city | source | rows |
 |---|---|---|
-| stevens-point (WI) | Garbage_Address_Points (Q3XmNaYun…) FeatureServer/0 | 7,231 |
-| bay-city (MI)      | Address_Recycling (qEGIvpJUx…) FeatureServer/0   | 14,893 |
-| novi-mi            | Trash_and_Recycling_Collection L1 (jwbgoAzqz…)   | 16,433 |
-| wauwatosa-wi       | RefuseRecyclingCustomers L0 (gyXZ0hXCx…)         | 15,638 |
-| south-fulton-ga    | Solid_Waste_by_Day_WFL1 L2 (y2BJK2GUf…)          | 38,002 |
-| cocoa-fl           | WM_All_Pickup_Types L3 (Tex1uhbqn…)              | 5,573 |
+| stevens-point (WI)       | Garbage_Address_Points (Q3XmNaYun…) FeatureServer/0       | 7,231 |
+| bay-city (MI)            | Address_Recycling (qEGIvpJUx…) FeatureServer/0            | 14,893 |
+| novi-mi                  | Trash_and_Recycling_Collection L1 (jwbgoAzqz…)            | 16,433 |
+| wauwatosa-wi             | RefuseRecyclingCustomers L0 (gyXZ0hXCx…)                  | 15,638 |
+| south-fulton-ga          | Solid_Waste_by_Day_WFL1 L2 (y2BJK2GUf…)                   | 38,002 |
+| cocoa-fl                 | WM_All_Pickup_Types L3 (Tex1uhbqn…)                       | 5,573 |
+| columbia-heights-mn      | CH_Refuse_Parcels L1 (jukipzcN…)                          | 3,780 |
+| portland-me              | SolidWaste_Trash_Recycling_Routes L0 (Z84SVYy…)           | 827 |
+| hillsborough-county-fl   | SolidWaste_CustomerPermits_Dec2022 L1 (apTfC6S…) ~310K    | (running) |
 
 Skipped:
 - **herndon-va** — Addresses_In_Refuse_Recycle_Routes L0 (5,219
@@ -209,4 +212,5 @@ New importers:
 | Phase 3b (new zone sources) | 1,815 |
 | Phase 3c (DC) | 99,513 |
 | Phase 4 (Stevens Point + Bay City + Novi + Wauwatosa + South Fulton + Cocoa) | 97,770 |
-| **Total** | **343,024** rows added across the campaign |
+| Phase 4b (Columbia Heights + Portland ME + Hillsborough running) | 4,607+ |
+| **Total** | **347,631+** rows added across the campaign |

@@ -87,6 +87,16 @@ const SOURCES = {
     zip: a => '',
     geom: 'rings',
   },
+  'columbia-heights-mn': {
+    state: 'MN', hauler: 'Columbia Heights Refuse',
+    url: 'https://services2.arcgis.com/jukipzcNaiQXqMc8/arcgis/rest/services/CH_Refuse_Parcels/FeatureServer/1',
+    fields: 'addresses,trash_day,yard_waste_day,refuse_description,OBJECTID',
+    addr: a => String(a.addresses || '').trim().toLowerCase().replace(/,\s*minneapolis.*$/i, '').replace(/,\s*columbia heights.*$/i, ''),
+    day: a => normDay(String(a.trash_day || '').replace(/-[ab]$/i, '').trim()),
+    nbhd: a => `${a.trash_day || ''} | yard: ${a.yard_waste_day || ''}`,
+    zip: a => '',
+    geom: 'point',
+  },
 }
 
 async function fetchPage(src, offset) {
