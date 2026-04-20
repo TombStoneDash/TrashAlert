@@ -124,6 +124,40 @@ const SOURCES = {
     },
   },
 
+  // Durham NC — PublicServices/Administrative MapServer, Layer 6 is
+  // "Solid Waste Collection Days". Confirmed via Phase C research
+  // (webgis2.durhamnc.gov). Polygon zones for weekly trash.
+  'durham-sw': {
+    city: 'durham',
+    fetch: async () => {
+      const url =
+        'https://webgis2.durhamnc.gov/server/rest/services/PublicServices/Administrative/MapServer/6/query?where=1%3D1&outFields=*&returnGeometry=true&outSR=4326&f=json'
+      const res = await fetch(url, { signal: AbortSignal.timeout(60_000) })
+      if (!res.ok) throw new Error(`Durham fetch: ${res.status}`)
+      const data = await res.json()
+      const out = []
+      for (const f of data.features || []) {
+        const geom = arcgisToGeoJSON(f.geometry)
+        if (!geom) continue
+        const a = f.attributes
+        const day = pickDay(
+          a.DAY || a.COLLECTION_DAY || a.TRASH_DAY || a.SERVICE_DAY || a.PICKUP_DAY || a.DAY_OF_WEEK,
+        )
+        if (!day) continue
+        const zoneId = a.OBJECTID || a.FID || a.ZONE_ID || `zone-${a.DAY || 'unknown'}-${out.length}`
+        out.push({
+          zone_id: `durham-${zoneId}`,
+          zone_name: String(a.ZONE_NAME || a.NAME || a.ZONE || day).trim(),
+          collection_day: day,
+          recycling_week: null,
+          source: 'durham_sw',
+          geom,
+        })
+      }
+      return out
+    },
+  },
+
   // Indianapolis — DPW solid waste district polygons.
   'indianapolis-dpw': {
     city: 'indianapolis',
