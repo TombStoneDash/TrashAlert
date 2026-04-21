@@ -1,8 +1,33 @@
-# Phase 1 Import — Blockers
+# Import Blockers
 
-Run date: 2026-04-19
+Run date: 2026-04-19 (Phase 1), 2026-04-20 (Readiness sprint)
 Repo: `C:\TombstoneDash\factory\trashalert`
-Sprint: `factory/queue/SPRINT_IMPORT_PHASE1.md`
+Sprint: `factory/queue/SPRINT_IMPORT_PHASE1.md`, `SPRINT_PM_READINESS.md`
+
+---
+
+## Readiness Sprint (2026-04-20) — Phase B
+
+### collection_zones migration — MANUAL APPLICATION REQUIRED
+- File: `trashalert-web/supabase/migrations/20260420000000_collection_zones.sql`
+- Reason blocked: no Supabase CLI linked locally, and the service role key
+  cannot execute DDL via PostgREST.
+- Action: apply via Supabase Studio → SQL Editor before running
+  `scripts/import-zone-polygons.mjs` or deploying the new zone-lookup tier.
+  Until applied, the /api/schedule `db_zone` tier will fail open (caught
+  and logged, falls through to remaining tiers) — safe but ineffective.
+
+### Zone imports — RUN AFTER MIGRATION
+- `node --env-file=.env.local scripts/import-zone-polygons.mjs chicago-wards`
+- `node --env-file=.env.local scripts/import-zone-polygons.mjs houston-swm`
+- `node --env-file=.env.local scripts/import-zone-polygons.mjs indianapolis-dpw`
+- Miami-Dade / Kansas City / Jacksonville sources still need field mapping;
+  pending source-URL verification (ArcGIS endpoints for those cities have
+  rotated and the canonical SERVICE_DAY field name varies).
+
+---
+
+## Phase 1 history (2026-04-19)
 
 ## Cities not imported
 
