@@ -8,19 +8,25 @@ Sprint: `factory/queue/SPRINT_IMPORT_PHASE1.md`, `SPRINT_PM_READINESS.md`
 
 ## Readiness Sprint (2026-04-20) — Phase B
 
-### collection_zones migration — MANUAL APPLICATION REQUIRED
+### collection_zones migration — APPLIED 2026-04-XX
 - File: `trashalert-web/supabase/migrations/20260420000000_collection_zones.sql`
-- Reason blocked: no Supabase CLI linked locally, and the service role key
-  cannot execute DDL via PostgREST.
-- Action: apply via Supabase Studio → SQL Editor before running
-  `scripts/import-zone-polygons.mjs` or deploying the new zone-lookup tier.
-  Until applied, the /api/schedule `db_zone` tier will fail open (caught
-  and logged, falls through to remaining tiers) — safe but ineffective.
+- Verified live in production 2026-04-26: `collection_zones` table exists
+  (currently empty), `lookup_zone(p_lat, p_lng, p_city)` RPC is callable
+  and returns `[]` for points with no matching polygon.
+- The earlier "MANUAL APPLICATION REQUIRED" note no longer applies. The
+  migration was applied via Supabase Studio at some point between
+  2026-04-20 and 2026-04-26.
+- The /api/schedule `db_zone` tier (Step 2.73) is wired but currently
+  fails open because the table has zero rows — same user-visible effect
+  as before, different root cause.
 
-### Zone imports — RUN AFTER MIGRATION
+### Zone imports — STILL OUTSTANDING (the actual remaining work)
 - `node --env-file=.env.local scripts/import-zone-polygons.mjs chicago-wards`
 - `node --env-file=.env.local scripts/import-zone-polygons.mjs houston-swm`
 - `node --env-file=.env.local scripts/import-zone-polygons.mjs indianapolis-dpw`
+- `long-beach` — see Long Beach PoC writeup in factory_overnight_apr27_phaseB.md.
+  19-zone polygon dataset confirmed at
+  `services6.arcgis.com/yCArG7wGXGyWLqav/.../Refuse_Collection_Days/FeatureServer/0`.
 - Miami-Dade / Kansas City / Jacksonville sources still need field mapping;
   pending source-URL verification (ArcGIS endpoints for those cities have
   rotated and the canonical SERVICE_DAY field name varies).
@@ -31,20 +37,17 @@ Sprint: `factory/queue/SPRINT_IMPORT_PHASE1.md`, `SPRINT_PM_READINESS.md`
 
 ## Cities not imported
 
+> **Note (2026-04-27 cleanup):** the original Phase-1 history listed
+> Louisville KY and Pittsburgh PA as both RESOLVED *and* DEAD ENDPOINT
+> in different sections of the same file. The "DEAD ENDPOINT" entries
+> further down are the live state — the RESOLVED notes were written
+> before the endpoints rotated and were never reconciled. See those
+> sections below.
+
 ### Raleigh NC — RESOLVED 2026-04-19 (Phase 1E)
 - Script: `scripts/import-raleigh.mjs` (rewritten)
 - New source: `services.arcgis.com/v400IkDOw1ad7Yad/.../RALEIGH_SWS_COLLECTION/FeatureServer/0`
 - Result: 121,923 rows imported (per-address points).
-
-### Louisville KY — RESOLVED 2026-04-19 (Phase 1E)
-- Script: `scripts/import-louisville.mjs` (re-pointed)
-- New source: `gis.lojic.org/maps/rest/services/LojicSolutions/OpenDataSociety/MapServer/12`
-- Result: 21 rows imported (zone-level/centroid).
-
-### Pittsburgh PA — RESOLVED 2026-04-19 (Phase 1E)
-- Script: `scripts/import-pittsburgh.mjs` (rewritten)
-- New source: `services1.arcgis.com/YZCmUqbcsUpOKfj7/.../Refuse_Routes/FeatureServer/2`
-- Result: 178 rows imported (zone-level/centroid).
 
 ### St. Louis County MO — BLOCKED (Phase 3, 2026-04-19)
 - Source: `services2.arcgis.com/w657bnjzrjguNyOy/.../Address_Points_in_Trash_Collection_Districts/FeatureServer/39`

@@ -1,0 +1,168 @@
+-- ====================================================================
+-- DRAFT MIGRATION — DO NOT RUN AS-IS
+-- ====================================================================
+--
+-- Slug normalization for schedule_reports.city
+-- Drafted: 2026-04-27 (overnight session)
+-- Status:  DRAFT. Three of the eight clusters need human decisions
+--          before this can be merged. See the "DECISIONS NEEDED"
+--          section at the bottom.
+--
+-- Filename suffix `.sql.draft` keeps this out of `supabase migration` /
+-- CI globs. Rename to `.sql` only after HT review.
+--
+-- Applied via Supabase Studio → SQL Editor (no DDL, only UPDATEs).
+-- All UPDATEs are idempotent and bounded to one cluster each.
+--
+-- ====================================================================
+--   DRY-RUN CHECKS — RUN THESE FIRST AND COMPARE TO EXPECTED COUNTS
+-- ====================================================================
+
+-- Expected counts as of 2026-04-26:
+--   austin            : 625,673    austin-tx        : 1
+--   denver            : 384,262    denver-co        : 1
+--   san-francisco     :  36,260    san-francisco-ca : 1
+--   san-antonio       : 346,785    san antonio      : 1
+--   phoenix           : 714,011    phoenix-az       : 6      (NOT a ReCollect placeholder; real zone data)
+--   portland          :   1,032    portland-me      : 827    portland-or : 900
+--   nyc               :     842    new-york         : 1,032  new york : 3 (state=CA, looks miskeyed)
+--   fort-worth        :     697    (no -tx variant, single slug)
+
+SELECT 'PRE-MIGRATION COUNTS' AS section;
+SELECT city, count(*)
+FROM schedule_reports
+WHERE city IN (
+  'austin','austin-tx','denver','denver-co','san-francisco','san-francisco-ca',
+  'san-antonio','san antonio','phoenix','phoenix-az','portland','portland-me','portland-or',
+  'nyc','new-york','new york','fort-worth'
+)
+GROUP BY city
+ORDER BY count(*) DESC;
+
+-- ====================================================================
+--   PART 1 — SAFE: ReCollect placeholder consolidation
+-- ====================================================================
+-- These four clusters contain a single ReCollect "<slug> default
+-- service area" placeholder row in the slug-state form. Merging into
+-- the canonical bare slug requires no conflict resolution because the
+-- placeholder address ("austin-tx default service area") is unique.
+
+BEGIN;
+
+UPDATE schedule_reports
+   SET city = 'austin'
+ WHERE city = 'austin-tx';                 -- expected: 1 row affected
+
+UPDATE schedule_reports
+   SET city = 'denver'
+ WHERE city = 'denver-co';                 -- expected: 1 row affected
+
+UPDATE schedule_reports
+   SET city = 'san-francisco'
+ WHERE city = 'san-francisco-ca';          -- expected: 1 row affected
+
+UPDATE schedule_reports
+   SET city = 'san-antonio'
+ WHERE city = 'san antonio';               -- expected: 1 row affected
+
+-- Verify:
+SELECT 'POST PART-1 COUNTS' AS section;
+SELECT city, count(*)
+FROM schedule_reports
+WHERE city IN ('austin','austin-tx','denver','denver-co','san-francisco','san-francisco-ca','san-antonio','san antonio')
+GROUP BY city;
+
+-- HT: review the counts above. If they match expectations:
+--     COMMIT;
+-- If anything looks off:
+--     ROLLBACK;
+-- (transaction left open intentionally — do not blind-COMMIT)
+
+-- ====================================================================
+--   PART 2 — DECISIONS NEEDED (do NOT execute until HT decides)
+-- ====================================================================
+
+-- Cluster: NEW YORK (~1,877 rows total across 3 slugs)
+--
+--   nyc        842 rows   state=NY  source=city_api    (DSNY zone data)
+--   new-york   1,032 rows (not sampled — assume similar DSNY data)
+--   new york   3 rows     state=CA  source=community  (miskeyed CA addresses?)
+--
+-- DECISION: pick canonical (`nyc` or `new-york`). The 3 `new york`
+--           rows look like CA addresses miskeyed as NYC; they should
+--           probably be DELETED rather than merged. Need HT review.
+--
+-- Candidate UPDATE if canonical = `nyc`:
+-- UPDATE schedule_reports SET city = 'nyc' WHERE city = 'new-york';
+-- DELETE FROM schedule_reports WHERE city = 'new york' AND state = 'CA';   -- DESTRUCTIVE — review first
+--
+-- Candidate UPDATE if canonical = `new-york`:
+-- UPDATE schedule_reports SET city = 'new-york' WHERE city = 'nyc';
+-- DELETE FROM schedule_reports WHERE city = 'new york' AND state = 'CA';   -- DESTRUCTIVE — review first
+
+-- Cluster: PORTLAND (~2,759 rows total across 3 slugs)
+--
+--   portland     1,032 rows   state=OR  source=city_api  (Oregon zone data)
+--   portland-me  827 rows                                 (Maine)
+--   portland-or  900 rows                                 (Oregon, disambiguated)
+--
+-- DECISION: bare `portland` is ambiguous BUT contains real Oregon data.
+--           Merge `portland` → `portland-or` (matches the disambiguated
+--           form, drops ambiguity, may collide on (address, city) if
+--           portland-or already has the same address).
+--
+-- Candidate UPDATE (PRE-CHECK CONFLICTS FIRST):
+-- SELECT a1.address
+-- FROM schedule_reports a1
+-- JOIN schedule_reports a2 ON a1.address = a2.address
+-- WHERE a1.city = 'portland' AND a2.city = 'portland-or';
+-- -- if 0 rows returned, the merge is safe:
+-- UPDATE schedule_reports SET city = 'portland-or' WHERE city = 'portland';
+
+-- Cluster: PHOENIX (~714,017 rows total across 2 slugs)
+--
+--   phoenix      714,011 rows  (real Phoenix data)
+--   phoenix-az   6 rows        (zone descriptors from a separate import)
+--
+-- DECISION: merge `phoenix-az` → `phoenix` (canonical = bare slug because
+--           it has 119,000x more rows; renaming 714K rows would be
+--           expensive and would touch resolver code that queries
+--           `city=eq.phoenix`).
+--
+-- Candidate UPDATE (PRE-CHECK CONFLICTS — likely none, the 6 `phoenix-az`
+-- rows are zone descriptors with synthetic addresses):
+-- SELECT a1.address
+-- FROM schedule_reports a1
+-- JOIN schedule_reports a2 ON a1.address = a2.address
+-- WHERE a1.city = 'phoenix-az' AND a2.city = 'phoenix';
+-- -- if 0 rows returned, safe:
+-- UPDATE schedule_reports SET city = 'phoenix' WHERE city = 'phoenix-az';
+
+-- ====================================================================
+--   PART 3 — ENFORCEMENT (post-cleanup, optional)
+-- ====================================================================
+-- Once the duplicates are resolved, optionally enforce a CHECK constraint
+-- to prevent regression. Requires no remaining banned slugs.
+--
+-- ALTER TABLE schedule_reports
+--   ADD CONSTRAINT schedule_reports_city_not_orphan
+--   CHECK (city NOT IN ('austin-tx','denver-co','san-francisco-ca','san antonio'));
+--
+-- Defensible if the canonical-slug list is documented in
+-- SOURCE_REGISTRY.md (which doesn't exist yet — see
+-- SOURCE_REGISTRY_AUDIT_APR26.md for recommendation).
+
+-- ====================================================================
+--   ROLLBACK PLAN
+-- ====================================================================
+-- This migration only UPDATEs `city` text; no row deletes (in Part 1)
+-- and no schema changes. Reversal is per-cluster:
+--
+-- UPDATE schedule_reports SET city = 'austin-tx' WHERE city = 'austin' AND address = 'austin-tx default service area';
+-- UPDATE schedule_reports SET city = 'denver-co' WHERE city = 'denver' AND address = 'denver-co default service area';
+-- UPDATE schedule_reports SET city = 'san-francisco-ca' WHERE city = 'san-francisco' AND address = 'san-francisco-ca default service area';
+-- UPDATE schedule_reports SET city = 'san antonio' WHERE city = 'san-antonio' AND address = 'san antonio default service area';
+
+-- ====================================================================
+--   END
+-- ====================================================================
