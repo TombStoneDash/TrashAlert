@@ -3,6 +3,7 @@ Database operations for TrashAlert API.
 """
 
 import sqlite3
+import time
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 from difflib import SequenceMatcher
@@ -140,8 +141,16 @@ def get_all_cities() -> List[str]:
         conn.close()
 
 
+_STATS_CACHE: Dict[str, Any] = {}
+_STATS_CACHE_TTL = 3600  # recompute at most once per hour
+
+
 def get_stats() -> Dict[str, Any]:
-    """Get database statistics."""
+    """Get database statistics. Cached for 1h to avoid full-scan latency on 50M-row table."""
+    now = time.monotonic()
+    if _STATS_CACHE.get('expires', 0) > now:
+        return _STATS_CACHE['data']
+
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -152,9 +161,12 @@ def get_stats() -> Dict[str, Any]:
         cursor.execute("SELECT COUNT(DISTINCT city_name) as count FROM addresses_normalized")
         city_count = cursor.fetchone()['count']
 
-        return {
+        result = {
             'total_addresses': address_count,
-            'total_cities': city_count
+            'total_cities': city_count,
         }
+        _STATS_CACHE['data'] = result
+        _STATS_CACHE['expires'] = now + _STATS_CACHE_TTL
+        return result
     finally:
         conn.close()
